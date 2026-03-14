@@ -1,27 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import MapView from './components/MapView';
 import AnalyticsPanel from './components/AnalyticsPanel';
+import { checkHealth, runAnalysis } from './api';
 import './styles.css';
 
 function App() {
   const [uploadedImage, setUploadedImage] = useState(null);
+  const [uploadResponse, setUploadResponse] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
+  const [geoJsonUploadResponse, setGeoJsonUploadResponse] = useState(null);
+  const [geoJsonUploadError, setGeoJsonUploadError] = useState(null);
   const [overlayVisible, setOverlayVisible] = useState(true);
   const [overlayOpacity, setOverlayOpacity] = useState(0.7);
+  const [backendHealthy, setBackendHealthy] = useState(false);
 
   // Analysis Simulation State
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStarted, setAnalysisStarted] = useState(false);
   const [analysisResults, setAnalysisResults] = useState({
-    vegetationHealth: "84.2%",
-    healthDelta: "+2.4%",
-    cropType: "Winter Wheat",
-    confidence: "96.8%",
-    analyzedArea: "142.5 ha",
-    fieldCount: 12,
-    stressZonesCount: 3,
-    ndviValue: 0.72
+    vegetationHealth: "—",
+    healthDelta: "",
+    cropType: "—",
+    confidence: "—",
+    analyzedArea: "—",
+    fieldCount: 0,
+    stressZonesCount: 0,
+    ndviValue: 0,
+    riskLevel: "—"
   });
 
   // GeoJSON State
@@ -30,33 +37,57 @@ function App() {
   const [selectedField, setSelectedField] = useState(null);
   const [fieldLayerVisible, setFieldLayerVisible] = useState(true);
 
-  const handleRunAnalysis = () => {
+  // Health check on load
+  useEffect(() => {
+    const verifyBackend = async () => {
+      const isHealthy = await checkHealth();
+      setBackendHealthy(isHealthy);
+    };
+    verifyBackend();
+    
+    // Optional: periodic health check every 30s
+    const interval = setInterval(verifyBackend, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleRunAnalysis = async () => {
     setIsAnalyzing(true);
     
-    // Simulate 1.8s deep learning inference latency
-    setTimeout(() => {
+    try {
+      // Use "demo_image" if none uploaded, or the name if uploaded
+      const imageId = uploadedImage ? uploadedImage.name : "demo_field_01";
+      const data = await runAnalysis(imageId);
+      
       setAnalysisResults({
-        vegetationHealth: (Math.random() * (89 - 81) + 81).toFixed(1) + "%",
-        healthDelta: "+" + (Math.random() * 3).toFixed(1) + "%",
-        cropType: Math.random() > 0.5 ? "Winter Wheat" : "Spring Barley",
-        confidence: (Math.random() * (99 - 92) + 92).toFixed(1) + "%",
-        analyzedArea: (Math.random() * (150 - 135) + 135).toFixed(1) + " ha",
-        fieldCount: Math.floor(Math.random() * 5) + 10,
-        stressZonesCount: Math.floor(Math.random() * 4) + 1,
-        ndviValue: parseFloat((Math.random() * (0.85 - 0.65) + 0.65).toFixed(2))
+        vegetationHealth: data.vegetation_health + "%",
+        healthDelta: data.risk_level === 'Low' ? "+1.2%" : "-0.5%", // Dynamic mock delta
+        cropType: data.crop_type,
+        confidence: (data.confidence * 100).toFixed(1) + "%",
+        analyzedArea: data.analyzed_area + " ha",
+        fieldCount: 1, // API currently doesn't return count, assume 1 image
+        stressZonesCount: data.stress_zones_count,
+        ndviValue: data.ndvi_value,
+        riskLevel: data.risk_level
       });
-      setIsAnalyzing(false);
       setAnalysisStarted(true);
-    }, 1800);
+    } catch (error) {
+      console.error("Analysis failed", error);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   return (
     <div className="dashboard-container">
-      <Navbar />
+      <Navbar backendHealthy={backendHealthy} />
       <div className="dashboard-content">
         <Sidebar 
           uploadedImage={uploadedImage} 
           setUploadedImage={setUploadedImage}
+          uploadResponse={uploadResponse}
+          setUploadResponse={setUploadResponse}
+          uploadError={uploadError}
+          setUploadError={setUploadError}
           overlayVisible={overlayVisible}
           setOverlayVisible={setOverlayVisible}
           overlayOpacity={overlayOpacity}
@@ -67,6 +98,10 @@ function App() {
           setGeoJsonData={setGeoJsonData}
           geoJsonMeta={geoJsonMeta}
           setGeoJsonMeta={setGeoJsonMeta}
+          geoJsonUploadResponse={geoJsonUploadResponse}
+          setGeoJsonUploadResponse={setGeoJsonUploadResponse}
+          geoJsonUploadError={geoJsonUploadError}
+          setGeoJsonUploadError={setGeoJsonUploadError}
           fieldLayerVisible={fieldLayerVisible}
           setFieldLayerVisible={setFieldLayerVisible}
           setSelectedField={setSelectedField}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Leaf, BrainCircuit, Database, LineChart } from 'lucide-react';
 
-export default function Navbar() {
+export default function Navbar({ backendHealthy }) {
   const [activeTab, setActiveTab] = useState('Map');
   
   const tabs = [
@@ -32,9 +32,22 @@ export default function Navbar() {
         }}>
           <Leaf color="white" size={24} />
         </div>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>
-          Farmland Image Analysis System
-        </h1>
+        <div>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>
+            Farmland Image Analysis System
+          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+            <div style={{ 
+              width: '8px', 
+              height: '8px', 
+              borderRadius: '50%', 
+              backgroundColor: backendHealthy ? 'var(--status-healthy)' : 'var(--status-critical)' 
+            }} />
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+              {backendHealthy ? 'Backend Connected' : 'Backend Unavailable'}
+            </span>
+          </div>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: '8px' }}>

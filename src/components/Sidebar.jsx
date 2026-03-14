@@ -1,9 +1,14 @@
 import React, { useRef } from 'react';
-import { Upload, Play, Layers, Map as MapIcon, Settings, X, Image as ImageIcon } from 'lucide-react';
+import { Upload, Play, Layers, Map as MapIcon, Settings, X, Image as ImageIcon, AlertTriangle, FileJson } from 'lucide-react';
+import { checkHealth, runAnalysis, uploadImage, uploadGeoJSON } from '../api';
 
 export default function Sidebar({ 
   uploadedImage, 
-  setUploadedImage, 
+  setUploadedImage,
+  uploadResponse,
+  setUploadResponse,
+  uploadError,
+  setUploadError,
   overlayVisible, 
   setOverlayVisible, 
   overlayOpacity, 
@@ -14,6 +19,10 @@ export default function Sidebar({
   setGeoJsonData,
   geoJsonMeta,
   setGeoJsonMeta,
+  geoJsonUploadResponse,
+  setGeoJsonUploadResponse,
+  geoJsonUploadError,
+  setGeoJsonUploadError,
   fieldLayerVisible,
   setFieldLayerVisible,
   setSelectedField
@@ -21,9 +30,10 @@ export default function Sidebar({
   const fileInputRef = useRef(null);
   const geoJsonInputRef = useRef(null);
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (file && (file.type === 'image/jpeg' || file.type === 'image/png')) {
+      // 1. Immediate local preview for the map
       const url = URL.createObjectURL(file);
       const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
       setUploadedImage({
@@ -31,6 +41,16 @@ export default function Sidebar({
         name: file.name,
         size: sizeMB
       });
+      
+      // 2. Sync to backend
+      setUploadError(null);
+      try {
+        const response = await uploadImage(file);
+        setUploadResponse(response);
+      } catch (error) {
+        setUploadError("Backend sync failed. Analysis might be limited.");
+        console.error("Backend upload failed", error);
+      }
     }
   };
 
@@ -39,23 +59,36 @@ export default function Sidebar({
       URL.revokeObjectURL(uploadedImage.url);
     }
     setUploadedImage(null);
+    setUploadResponse(null);
+    setUploadError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
-  const handleGeoJsonUpload = (e) => {
+  const handleGeoJsonUpload = async (e) => {
     const file = e.target.files[0];
     if (file && (file.name.endsWith('.geojson') || file.name.endsWith('.json'))) {
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         try {
+          // 1. Immediate local parsing
           const json = JSON.parse(event.target.result);
           setGeoJsonData(json);
           setGeoJsonMeta({
             name: file.name,
             size: (file.size / 1024).toFixed(1) // KB
           });
+
+          // 2. Async backend validation
+          setGeoJsonUploadError(null);
+          try {
+            const response = await uploadGeoJSON(file);
+            setGeoJsonUploadResponse(response);
+          } catch (error) {
+            setGeoJsonUploadError("Backend validation failed. File might have issues.");
+            console.error("GeoJSON backend validation failed", error);
+          }
         } catch (error) {
           console.error("Error parsing GeoJSON", error);
           alert("Invalid GeoJSON file");
@@ -68,6 +101,8 @@ export default function Sidebar({
   const handleRemoveGeoJson = () => {
     setGeoJsonData(null);
     setGeoJsonMeta(null);
+    setGeoJsonUploadResponse(null);
+    setGeoJsonUploadError(null);
     setSelectedField(null);
     if (geoJsonInputRef.current) {
       geoJsonInputRef.current.value = "";
@@ -164,7 +199,21 @@ export default function Sidebar({
                 <div style={{ color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {uploadedImage.name}
                 </div>
-                <div>{uploadedImage.size} MB</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>{uploadedImage.size} MB</span>
+                  {uploadResponse ? (
+                    <span style={{ color: 'var(--status-healthy)', fontSize: '0.7rem' }}>● Synced</span>
+                  ) : uploadError ? (
+                    <span style={{ color: 'var(--status-critical)', fontSize: '0.7rem' }}>⚠ Sync Failed</span>
+                  ) : (
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>Syncing...</span>
+                  )}
+                </div>
+                {uploadError && (
+                  <div style={{ color: 'var(--status-critical)', fontSize: '0.65rem', marginTop: '4px' }}>
+                    {uploadError}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -232,7 +281,21 @@ export default function Sidebar({
                 <div style={{ color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {geoJsonMeta?.name}
                 </div>
-                <div>{geoJsonMeta?.size} KB</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>{geoJsonMeta?.size} KB</span>
+                  {geoJsonUploadResponse ? (
+                    <span style={{ color: 'var(--status-healthy)', fontSize: '0.7rem' }}>● Validated</span>
+                  ) : geoJsonUploadError ? (
+                    <span style={{ color: 'var(--status-critical)', fontSize: '0.7rem' }}>⚠ Validation Failed</span>
+                  ) : (
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>Validating...</span>
+                  )}
+                </div>
+                {geoJsonUploadError && (
+                  <div style={{ color: 'var(--status-critical)', fontSize: '0.65rem', marginTop: '4px' }}>
+                    {geoJsonUploadError}
+                  </div>
+                )}
               </div>
             </div>
           )}

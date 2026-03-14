@@ -117,7 +117,7 @@ export default function AnalyticsPanel({ analysisResults, isAnalyzing, selectedF
               title="Stress Detected" 
               value={data.stressZonesCount ? `${data.stressZonesCount} Zones` : "0 Zones"} 
               icon={<AlertTriangle />} 
-              subtext={data.stressZonesCount > 0 ? "Requires immediate attention" : "No obvious anomalies"}
+              subtext={`Risk: ${data.riskLevel || "Unknown"} (NDVI: ${data.ndviValue || "—"})`}
               color={data.stressZonesCount > 0 ? "var(--status-critical)" : "var(--status-healthy)"}
             />
           </div>
