@@ -1,0 +1,89 @@
+:root {
+  /* Premium Dark Mode GIS Color Palette */
+  --bg-dark: #0f172a;
+  --bg-panel: #1e293b;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --accent-color: #3b82f6;
+  --accent-hover: #2563eb;
+
+  /* Map Data Colors */
+  --status-healthy: #22c55e;
+  --status-warning: #eab308;
+  --status-critical: #ef4444;
+
+  --border-color: #334155;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  overflow: hidden;
+  /* Prevent full page scrolling, handle it inside components */
+}
+
+/* Base Layout */
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+.dashboard-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Reusable Glassmorphism Panels */
+.glass-panel {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Map specific overrides */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #111;
+  /* Darker background while tiles load */
+  z-index: 1;
+}
+
+.map-container {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Fix for Leaflet dark mode conflicts */
+.leaflet-control-container .leaflet-control {
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.leaflet-bar a {
+  background-color: var(--bg-panel);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.leaflet-bar a:hover {
+  background-color: var(--bg-dark);
+}
