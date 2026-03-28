@@ -4,10 +4,8 @@ from backend.services.analysis_service import run_analysis
 
 router = APIRouter()
 
-@router.post("/analysis/run", response_model=AnalysisResult)
 @router.post("/run-analysis", response_model=AnalysisResult)
 async def analyze(request: AnalysisRequest):
-    # Mock analysis trigger
     return run_analysis(request)
 
 @router.get("/analysis/results/{field_id}")

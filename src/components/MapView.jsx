@@ -50,9 +50,6 @@ const stressZones = [
 ];
 
 export default function MapView({ 
-  uploadedImage, 
-  overlayVisible, 
-  overlayOpacity,
   analysisStarted,
   isAnalyzing,
   geoJsonData,
@@ -105,12 +102,6 @@ export default function MapView({
       dashArray: isSelected ? '' : '3'
     };
   };
-
-  // Placeholder geographic bounds for the uploaded image (around the center point)
-  const imageBounds = [
-    [51.130, 71.390],
-    [51.170, 71.440]
-  ];
 
   return (
     <div style={{ flex: 1, width: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
@@ -186,19 +177,8 @@ export default function MapView({
             }}
           />
         ))}
-
-        {/* Uploaded Satellite Image Overlay */}
-        {uploadedImage && overlayVisible && (
-          <ImageOverlay
-            url={uploadedImage.url}
-            bounds={imageBounds}
-            opacity={overlayOpacity}
-            zIndex={10}
-          />
-        )}
-
       </MapContainer>
-      
+
       {/* Custom Overlay UI representing map controls could go here */}
       <div style={{
         position: 'absolute',

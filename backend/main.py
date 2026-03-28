@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.routers import health, upload, geo, analysis
+from backend.routers import health, satellite, geo, analysis
 
 app = FastAPI(
     title="Farmland Image Analysis System API",
@@ -19,7 +19,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(health.router, prefix="/api", tags=["Health"])
-app.include_router(upload.router, prefix="/api", tags=["Upload"])
+app.include_router(satellite.router, prefix="/api", tags=["Satellite"])
 app.include_router(geo.router, prefix="/api", tags=["Geospatial"])
 app.include_router(analysis.router, prefix="/api", tags=["Analysis"])
 

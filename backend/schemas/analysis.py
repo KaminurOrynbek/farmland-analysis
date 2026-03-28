@@ -1,8 +1,9 @@
 from pydantic import BaseModel
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 class AnalysisRequest(BaseModel):
-    image_id: str
+    field_id: Optional[str] = None
+    bbox: Optional[List[float]] = None
     parameters: Optional[Dict[str, Any]] = None
 
 class AnalysisResult(BaseModel):

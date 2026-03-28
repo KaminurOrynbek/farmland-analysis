@@ -7,14 +7,10 @@ import { checkHealth, runAnalysis } from './api';
 import './styles.css';
 
 function App() {
-  const [uploadedImage, setUploadedImage] = useState(null);
-  const [uploadResponse, setUploadResponse] = useState(null);
-  const [uploadError, setUploadError] = useState(null);
   const [geoJsonUploadResponse, setGeoJsonUploadResponse] = useState(null);
   const [geoJsonUploadError, setGeoJsonUploadError] = useState(null);
-  const [overlayVisible, setOverlayVisible] = useState(true);
-  const [overlayOpacity, setOverlayOpacity] = useState(0.7);
   const [backendHealthy, setBackendHealthy] = useState(false);
+  const [isFetchingSatelliteData, setIsFetchingSatelliteData] = useState(false);
 
   // Analysis Simulation State
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -54,9 +50,9 @@ function App() {
     setIsAnalyzing(true);
     
     try {
-      // Use "demo_image" if none uploaded, or the name if uploaded
-      const imageId = uploadedImage ? uploadedImage.name : "demo_field_01";
-      const data = await runAnalysis(imageId);
+      // For geospatial workflow, we'll use the selected field's ID or a default
+      const fieldId = selectedField?.properties?.id || "demo_field_01";
+      const data = await runAnalysis(fieldId);
       
       setAnalysisResults({
         vegetationHealth: data.vegetation_health + "%",
@@ -77,23 +73,28 @@ function App() {
     }
   };
 
+  const handleFetchSatelliteData = async () => {
+    if (!geoJsonData) {
+      alert("Please upload field boundaries first.");
+      return;
+    }
+    setIsFetchingSatelliteData(true);
+    // Placeholder for future /api/fetch-satellite-data
+    setTimeout(() => {
+      setIsFetchingSatelliteData(false);
+      alert("Satellite data successfully retrieved for the defined area.");
+    }, 2000);
+  };
+
   return (
     <div className="dashboard-container">
       <Navbar backendHealthy={backendHealthy} />
       <div className="dashboard-content">
         <Sidebar 
-          uploadedImage={uploadedImage} 
-          setUploadedImage={setUploadedImage}
-          uploadResponse={uploadResponse}
-          setUploadResponse={setUploadResponse}
-          uploadError={uploadError}
-          setUploadError={setUploadError}
-          overlayVisible={overlayVisible}
-          setOverlayVisible={setOverlayVisible}
-          overlayOpacity={overlayOpacity}
-          setOverlayOpacity={setOverlayOpacity}
           isAnalyzing={isAnalyzing}
           onRunAnalysis={handleRunAnalysis}
+          isFetchingSatelliteData={isFetchingSatelliteData}
+          onFetchSatelliteData={handleFetchSatelliteData}
           geoJsonData={geoJsonData}
           setGeoJsonData={setGeoJsonData}
           geoJsonMeta={geoJsonMeta}
@@ -108,9 +109,6 @@ function App() {
         />
         <main className="map-container">
           <MapView 
-            uploadedImage={uploadedImage}
-            overlayVisible={overlayVisible}
-            overlayOpacity={overlayOpacity}
             analysisStarted={analysisStarted}
             isAnalyzing={isAnalyzing}
             geoJsonData={geoJsonData}

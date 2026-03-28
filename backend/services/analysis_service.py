@@ -1,52 +1,74 @@
 from typing import Dict, Any
 from backend.schemas.analysis import AnalysisRequest, AnalysisResult
 
-def validate_analysis_input(request: AnalysisRequest):
+from typing import Dict, Any, List, Optional
+from backend.schemas.analysis import AnalysisRequest, AnalysisResult
+from backend.services.raster_service import raster_service
+
+def validate_field_coverage(field_metadata: Dict[str, Any], raster_metadata: Dict[str, Any]) -> bool:
     """
-    Validate and preprocess the input data before inference.
-    Future: Add checks for image availability in storage and preprocessing (resize, normalize).
+    Check if the field geometry falls within the satellite raster bounds.
     """
-    if not request.image_id:
-        raise ValueError("Image ID is required for analysis")
-    # TODO: Implement image preprocessing for transfer learning models (e.g., ResNet50 or EfficientNet)
+    # Placeholder for intersection logic
     return True
 
-def run_mock_inference(request: AnalysisRequest) -> Dict[str, Any]:
+def geoprocess_raster_input(field_metadata: Dict[str, Any], raster_path: Optional[str] = None):
     """
-    Simulate the execution of a machine learning model.
-    Future: Replace this with real model.predict() calls.
+    Geoprocessing Stage:
+    - Load raster
+    - Clip by field geometry
+    - Reproject if necessary
     """
-    # Placeholder for model loading: model = load_model("farmland_v1.h5")
-    # Placeholder for inference: results = model.predict(image_data)
-    
-    return {
-        "vegetation_health": 81,
-        "crop_type": "Winter Wheat",
-        "confidence": 0.89,
-        "analyzed_area": 24.6,
-        "stress_zones_count": 3,
-        "ndvi_value": 0.72,
-        "risk_level": "Moderate"
-    }
+    if not raster_path:
+        # For prototype, return mock success
+        return {"status": "mock_clipped", "data": None}
+        
+    # Real logic implementation foundation:
+    # clipped_data = raster_service.extract_field_tile(raster_path, field_metadata['geometry'])
+    return {"status": "processed"}
 
-def build_analysis_response(raw_results: Dict[str, Any]) -> AnalysisResult:
+def calculate_advanced_indices(raster_data: Any) -> float:
     """
-    Format raw inference outputs into a validated Pydantic response schema.
+    Spectral Analysis Stage:
+    - Compute NDVI/EVI/NDWI using clipped raster bands.
+    - Formula: (NIR - Red) / (NIR + Red)
     """
-    return AnalysisResult(
-        status="success",
-        **raw_results
-    )
+    # In future: ndvi = (raster_data[NIR] - raster_data[RED]) / ...
+    return 0.72 # Mock average NDVI
+
+def run_ml_analysis_pipeline(indices: float, metadata: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Machine Learning Stage:
+    - Input: Spectral indices + field metadata
+    - Output: Crop classification + Health assessment
+    """
+    # Mock ML inference result
+    return {
+        "crop_type": "Winter Wheat",
+        "confidence": 0.84,
+        "ndvi_value": indices,
+        "vegetation_health": 82,
+        "risk_level": "Low",
+        "analyzed_area": metadata.get("total_area_ha", 24.6),
+        "stress_zones_count": 2
+    }
 
 def run_analysis(request: AnalysisRequest) -> AnalysisResult:
     """
     Main entry point for triggering farmland analysis.
-    Coordinates input validation, model inference, and response formatting.
+    Coordinates the multi-stage geospatial pipeline.
     """
-    validate_analysis_input(request)
+    # 1. Geoprocessing (Raster clipping placeholder)
+    processing_results = geoprocess_raster_input(request.dict())
     
-    # Step 1: Execute Inference (currently mock)
-    inference_data = run_mock_inference(request)
+    # 2. Spectral Analysis
+    ndvi = calculate_advanced_indices(processing_results.get("data"))
     
-    # Step 2: Build and return validated response
-    return build_analysis_response(inference_data)
+    # 3. ML Inference
+    inference_data = run_ml_analysis_pipeline(ndvi, request.dict())
+    
+    # 4. Final Response Assembly
+    return AnalysisResult(
+        status="success",
+        **inference_data
+    )
