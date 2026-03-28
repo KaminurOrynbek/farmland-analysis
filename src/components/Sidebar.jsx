@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Upload, Play, Layers, Map as MapIcon, Settings, X, Image as ImageIcon, AlertTriangle, FileJson } from 'lucide-react';
-import { checkHealth, runAnalysis, uploadImage, uploadGeoJSON } from '../api';
+import { checkHealth, runAnalysis, saveField } from '../api';
 
 export default function Sidebar({ 
   isAnalyzing,
@@ -36,15 +36,24 @@ export default function Sidebar({
 
           setGeoJsonUploadError(null);
           try {
-            const response = await uploadGeoJSON(file);
+            // Extract geometry if it's a FeatureCollection or Feature
+            let geometryToSave = json;
+            if (json.type === "FeatureCollection" && json.features?.length > 0) {
+              geometryToSave = json.features[0].geometry;
+            } else if (json.type === "Feature") {
+              geometryToSave = json.geometry;
+            }
+            
+            // Send geometry to PostgreSQL database via our API adapter
+            const response = await saveField(file.name, geometryToSave, 0.0);
             setGeoJsonUploadResponse(response);
           } catch (error) {
-            setGeoJsonUploadError("Backend validation failed.");
-            console.error("GeoJSON backend validation failed", error);
+            setGeoJsonUploadError("Backend Database validation failed.");
+            console.error("GeoJSON DB save failed", error);
           }
         } catch (error) {
           console.error("Error parsing GeoJSON", error);
-          alert("Invalid GeoJSON file");
+          alert("Invalid GeoJSON file. Must be standard GeoJSON format.");
         }
       };
       reader.readAsText(file);

@@ -1,0 +1,41 @@
+{
+  "type": "FeatureCollection",
+  "name": "Test Field - Kazakhstan",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "field_test_01",
+        "crop": "wheat",
+        "area_ha": 35.4
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              69.51234,
+              54.81234
+            ],
+            [
+              69.51658,
+              54.81234
+            ],
+            [
+              69.51658,
+              54.81498
+            ],
+            [
+              69.51234,
+              54.81498
+            ],
+            [
+              69.51234,
+              54.81234
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

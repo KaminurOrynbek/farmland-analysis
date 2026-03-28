@@ -1,6 +1,10 @@
 import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, Polygon, Circle, Popup, useMap, ImageOverlay, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
+// FIX: Geoman expects L to be global when imported as a side-effect in some environments
+window.L = L;
+import '@geoman-io/leaflet-geoman-free';
+import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import 'leaflet/dist/leaflet.css';
 
 // Fix for icon issues in Leaflet with React
@@ -55,10 +59,76 @@ export default function MapView({
   geoJsonData,
   selectedField,
   setSelectedField,
-  fieldLayerVisible
+  fieldLayerVisible,
+  onPolygonDrawn
 }) {
   // Center of Kazakhstan farmland approximate coordinates (near Astana for demo)
   const center = [51.150, 71.415]; 
+
+  function GeomanDrawControl({ onDrawn }) {
+    const map = useMap();
+
+    useEffect(() => {
+      if (!map) return;
+      
+      // If map.pm is still not there, Geoman didn't attach. 
+      // We can try to manually re-init if the plugin exposed it, but usually it's on Map prototype.
+      if (!map.pm) {
+        console.error("Critical: Geoman (map.pm) is still undefined. Drawing tools will not load.");
+        return;
+      }
+
+      try {
+        // Initialize Geoman Controls
+        map.pm.addControls({
+        position: 'topleft',
+        drawCircle: false,
+        drawCircleMarker: false,
+        drawPolyline: false,
+        drawRectangle: true,
+        drawPolygon: true,
+        drawText: false,
+        drawMarker: false,
+        editMode: true,
+        dragMode: false,
+        cutPolygon: false,
+        removalMode: true,
+        });
+      } catch (err) {
+        console.error("Geoman control initialization failed", err);
+      }
+
+      // Listen for shape creation
+      map.on('pm:create', (e) => {
+        if (e.shape === 'Polygon' || e.shape === 'Rectangle') {
+          const geojson = e.layer.toGeoJSON();
+          if (typeof onDrawn === 'function') {
+            const featureCollection = {
+              type: "FeatureCollection",
+              features: [
+                {
+                  type: "Feature",
+                  properties: { name: "Manual Drawing" },
+                  geometry: geojson.geometry
+                }
+              ]
+            };
+            onDrawn(featureCollection);
+          }
+        }
+      });
+
+      // Cleanup
+      return () => {
+        if (map && map.pm) {
+          map.pm.removeControls();
+          map.off('pm:create');
+        }
+      };
+    }, [map, onDrawn]);
+
+    return null;
+  }
 
   // Component to automatically fit map to new GeoJSON bounds
   function GeoJSONFitter({ data }) {
@@ -124,6 +194,9 @@ export default function MapView({
 
         {/* Auto fit bounds when GeoJSON changes */}
         {geoJsonData && <GeoJSONFitter data={geoJsonData} />}
+
+        {/* Drawing Tools using Geoman */}
+        <GeomanDrawControl onDrawn={onPolygonDrawn} />
 
         {/* Render Uploaded GeoJSON or Fallback Polygons */}
         {fieldLayerVisible && geoJsonData ? (

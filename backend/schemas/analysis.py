@@ -5,6 +5,8 @@ class AnalysisRequest(BaseModel):
     field_id: Optional[str] = None
     bbox: Optional[List[float]] = None
     parameters: Optional[Dict[str, Any]] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
 
 class AnalysisResult(BaseModel):
     status: str

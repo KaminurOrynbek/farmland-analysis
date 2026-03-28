@@ -12,21 +12,23 @@ export const checkHealth = async () => {
   }
 };
 
-export const runAnalysis = async (imageId) => {
+export const runAnalysis = async (fieldId, startDate = null, endDate = null) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/run-analysis`, {
+    const response = await fetch(`${API_BASE_URL}/analysis/analyze`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        image_id: imageId,
-        parameters: {}
+        field_id: fieldId,
+        start_date: startDate,
+        end_date: endDate
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`Analysis failed: ${response.statusText}`);
+      const err = await response.json();
+      throw new Error(`Analysis failed: ${err.detail || response.statusText}`);
     }
 
     return await response.json();
@@ -36,44 +38,44 @@ export const runAnalysis = async (imageId) => {
   }
 };
 
-export const uploadImage = async (file) => {
-  const formData = new FormData();
-  formData.append('file', file);
-
+export const saveField = async (name, geometry, area_ha) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/upload-image`, {
+    const response = await fetch(`${API_BASE_URL}/geo/fields`, {
       method: 'POST',
-      body: formData,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: name,
+        geometry: geometry,
+        area_ha: area_ha
+      }),
     });
 
     if (!response.ok) {
-      throw new Error(`Upload failed: ${response.statusText}`);
+      throw new Error(`Field saving failed: ${response.statusText}`);
     }
 
     return await response.json();
   } catch (error) {
-    console.error("API Error - uploadImage:", error);
+    console.error("API Error - saveField:", error);
     throw error;
   }
 };
 
-export const uploadGeoJSON = async (file) => {
-  const formData = new FormData();
-  formData.append('file', file);
-
+export const fetchAllFields = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/upload-geojson`, {
-      method: 'POST',
-      body: formData,
-    });
-
+    const response = await fetch(`${API_BASE_URL}/geo/fields`);
     if (!response.ok) {
-      throw new Error(`GeoJSON upload failed: ${response.statusText}`);
+      throw new Error(`Failed to fetch fields: ${response.statusText}`);
     }
-
     return await response.json();
   } catch (error) {
-    console.error("API Error - uploadGeoJSON:", error);
+    console.error("API Error - fetchAllFields:", error);
     throw error;
   }
 };
+
+// Fallback exports for any un-refactored components
+export const uploadImage = async () => { console.warn("uploadImage is deprecated."); return {}; };
+export const uploadGeoJSON = async () => { console.warn("uploadGeoJSON is deprecated. Use saveField."); return {}; };
