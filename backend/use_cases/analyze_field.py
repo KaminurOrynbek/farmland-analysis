@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from backend.infrastructure.database.repositories import FieldRepository, AnalysisRepository
 from backend.infrastructure.satellite.gee_client import GEEClient
 from backend.infrastructure.geospatial.raster_processor import RasterProcessor
-from backend.infrastructure.ml.resnet_adapter import ResNetAdapter
+from backend.infrastructure.ml.resnet_adapter import get_ml_adapter
 
 class AnalyzeFieldUseCase:
     def __init__(self, db_session: Session):
@@ -17,7 +17,7 @@ class AnalyzeFieldUseCase:
         # Instantiate adapters mapping to our external systems
         self.gee_client = GEEClient()
         self.raster_processor = RasterProcessor()
-        self.ml_adapter = ResNetAdapter()
+        self.ml_adapter = get_ml_adapter()
         
     def execute(self, field_id: str, start_date: str, end_date: str) -> dict:
         """
@@ -66,21 +66,39 @@ class AnalyzeFieldUseCase:
             ml_result = self.ml_adapter.predict(tif_path)
             
             # 7. Domain: Save everything back to DB
+            ndvi_mean = indices_result.get("ndvi_mean", 0)
+            evi_mean = indices_result.get("evi_mean", None)
+
+            if ndvi_mean >= 0.6:
+                vegetation_health = 85
+                risk_level = "Low"
+            elif ndvi_mean >= 0.3:
+                vegetation_health = 55
+                risk_level = "Medium"
+            else:
+                vegetation_health = 25
+                risk_level = "High"
+
+            ml_result["vegetation_health"] = vegetation_health
+            ml_result["risk_level"] = risk_level
+
             self.analysis_repo.save_results(analysis_record.id, indices_result, ml_result)
 
             if os.path.exists(tif_path):
                 os.remove(tif_path)
-            
+
             return {
                 "status": "success",
                 "crop_type": ml_result["crop_type"],
+                "predicted_class": ml_result["predicted_class"],
                 "confidence": ml_result["confidence"],
-                "ndvi_value": indices_result["ndvi_mean"],
-                "vegetation_health": ml_result["vegetation_health"],
-                "risk_level": ml_result["risk_level"],
+                "ndvi_value": ndvi_mean,
+                "evi_value": evi_mean,
+                "vegetation_health": vegetation_health,
+                "risk_level": risk_level,
                 "analyzed_area": field.area_ha,
-                "stress_zones_count": indices_result["stress_zones_count"],
-                "message": "Analysis completed precisely through PyTorch and Rasterio."
+                "stress_zones_count": indices_result.get("stress_zones_count", 0),
+                "message": "Analysis completed using ResNet-50 classification and NDVI/EVI spectral indices."
             }
             
         except Exception as e:
