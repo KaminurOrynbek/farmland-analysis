@@ -1,3 +1,5 @@
+import json
+from typing import Dict, Any
 import torch
 import torch.nn as nn
 from torchvision import models, transforms
@@ -10,44 +12,51 @@ import os
 class ResNetAdapter:
     def __init__(self):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = self._initialize_model()
+        self.class_names = self._load_class_names()
         self.transform = self._get_transforms()
-        
-        # EuroSAT 10 classes as referenced in your methodology
-        self.class_names = [
+        self.model = self._initialize_model()
+
+    def _load_class_names(self):
+        default_classes = [
             "AnnualCrop", "Forest", "HerbaceousVegetation",
             "Highway", "Industrial", "Pasture",
             "PermanentCrop", "Residential", "River", "SeaLake"
         ]
 
-    def _initialize_model(self):
-        """
-        Initializes ResNet-50 and loads the custom EuroSAT weights.
-        """
-        model = models.resnet50(pretrained=False)
-        # Replace the final fully connected layer for 10 classes
-        model.fc = nn.Linear(in_features=2048, out_features=10)
-        
-        weights_path = settings.RESNET_WEIGHTS_PATH
-        
-        if os.path.exists(weights_path):
+        artifacts_path = getattr(settings, "ML_ARTIFACTS_PATH", None)
+
+        if artifacts_path and os.path.exists(artifacts_path):
             try:
-                # Load weights (map_location handles loading GPU model on CPU)
-                model.load_state_dict(torch.load(weights_path, map_location=self.device))
-                print(f"Successfully loaded ResNet-50 weights from {weights_path}")
+                with open(artifacts_path, "r", encoding="utf-8") as file:
+                    artifacts = json.load(file)
+                return artifacts.get("classes", default_classes)
             except Exception as e:
-                print(f"Warning: Failed to load weights: {e}")
-        else:
-            print(f"CRITICAL WARNING: No model weights found at {weights_path}. Inference will use random weights until the .pth file is provided!")
-            
+                print(f"Warning: failed to load ml_artifacts.json: {e}")
+
+        return default_classes
+
+    def _initialize_model(self):
+        model = models.resnet50(weights=None)
+        model.fc = nn.Linear(in_features=2048, out_features=len(self.class_names))
+
+        weights_path = settings.RESNET_WEIGHTS_PATH
+
+        if not os.path.exists(weights_path):
+            raise FileNotFoundError(
+                f"Model weights not found: {weights_path}. "
+                "Place best_resnet_satellite_model.pth inside backend/infrastructure/ml/models/"
+            )
+
+        state_dict = torch.load(weights_path, map_location=self.device)
+        model.load_state_dict(state_dict)
+
         model = model.to(self.device)
         model.eval()
+
+        print(f"Loaded ResNet-50 model from {weights_path}")
         return model
 
     def _get_transforms(self):
-        """
-        Methodology specifies Resize to 224x224 and ImageNet normalization.
-        """
         return transforms.Compose([
             transforms.Resize((224, 224)),
             transforms.ToTensor(),
@@ -57,46 +66,81 @@ class ResNetAdapter:
             )
         ])
 
-    def predict(self, image_path: str) -> dict:
+    def _extract_rgb_from_tif(self, image_path: str) -> Image.Image:
         """
-        Runs the ResNet-50 inference pipeline on a given image.
+        Converts Sentinel/Raster TIFF into RGB-like image for ResNet.
+
+        Important:
+        The ResNet was trained on RGB EuroSAT images.
+        For best reliability, the TIFF should contain RGB bands.
+        If the raster has only Red/NIR bands, this function will still create
+        a fallback image, but prediction quality can be lower.
         """
-        try:
-            with rasterio.open(image_path) as src:
-                # GEE exports B4 (Red) as Band 1, B8 (NIR) as Band 2, scaled by 10,000
+        with rasterio.open(image_path) as src:
+            band_count = src.count
+
+            if band_count >= 3:
+                red = src.read(1).astype(np.float32)
+                green = src.read(2).astype(np.float32)
+                blue = src.read(3).astype(np.float32)
+            elif band_count == 2:
                 red = src.read(1).astype(np.float32)
                 nir = src.read(2).astype(np.float32)
-                
-                # Normalize reflectance to standard 8-bit RGB image range [0, 255]
-                # We enhance contrast by clipping roughly at 0.3 reflectance
-                red_norm = np.clip((red / 3000.0) * 255, 0, 255).astype(np.uint8)
-                nir_norm = np.clip((nir / 3000.0) * 255, 0, 255).astype(np.uint8)
-                
-                # Synthesize a third channel (fake Green) to satisfy ResNet 3-channel requirement
-                fake_green = np.clip((red_norm.astype(int) + nir_norm.astype(int)) / 2, 0, 255).astype(np.uint8)
-                
-                # Stack HxWxC
-                rgb_array = np.dstack((red_norm, fake_green, nir_norm))
-                
-            image = Image.fromarray(rgb_array, "RGB")
-            input_tensor = self.transform(image).unsqueeze(0).to(self.device)
-            
-            with torch.no_grad():
-                outputs = self.model(input_tensor)
-                probabilities = torch.nn.functional.softmax(outputs, dim=1)[0]
-                
-                # Get the predicted class index
-                confidence, predicted_idx = torch.max(probabilities, 0)
-                
-            predicted_class = self.class_names[predicted_idx.item()]
-            
-            return {
-                "crop_type": predicted_class,
-                "confidence": float(confidence.item()),
-                # Basic heuristic mappings or external models would calculate this
-                "vegetation_health": int(confidence.item() * 100), 
-                "risk_level": "Low" if confidence.item() > 0.8 else "Medium"
-            }
-            
-        except Exception as e:
-            raise RuntimeError(f"Error during ML inference: {str(e)}")
+                green = (red + nir) / 2.0
+                blue = red
+            else:
+                single = src.read(1).astype(np.float32)
+                red = green = blue = single
+
+            rgb = np.dstack([red, green, blue])
+            rgb = self._normalize_to_uint8(rgb)
+
+        return Image.fromarray(rgb, "RGB")
+
+    def _normalize_to_uint8(self, image: np.ndarray) -> np.ndarray:
+        image = np.nan_to_num(image)
+
+        p2 = np.percentile(image, 2)
+        p98 = np.percentile(image, 98)
+
+        if p98 - p2 < 1e-6:
+            image = np.zeros_like(image)
+        else:
+            image = (image - p2) / (p98 - p2)
+
+        image = np.clip(image * 255, 0, 255)
+        return image.astype(np.uint8)
+
+    def predict(self, image_path: str) -> Dict[str, Any]:
+        image = self._extract_rgb_from_tif(image_path)
+        input_tensor = self.transform(image).unsqueeze(0).to(self.device)
+
+        with torch.no_grad():
+            outputs = self.model(input_tensor)
+            probabilities_tensor = torch.nn.functional.softmax(outputs, dim=1)[0]
+            confidence, predicted_idx = torch.max(probabilities_tensor, 0)
+
+        probabilities = {
+            self.class_names[i]: float(probabilities_tensor[i].item())
+            for i in range(len(self.class_names))
+        }
+
+        predicted_class = self.class_names[predicted_idx.item()]
+
+        return {
+            "predicted_class": predicted_class,
+            "crop_type": predicted_class,
+            "confidence": float(confidence.item()),
+            "probabilities": probabilities
+        }
+    
+     
+_ml_adapter_instance = None
+
+def get_ml_adapter():
+    global _ml_adapter_instance
+
+    if _ml_adapter_instance is None:
+        _ml_adapter_instance = ResNetAdapter()
+
+    return _ml_adapter_instance
