@@ -11,40 +11,54 @@ class RasterProcessor:
         self.scale_factor = 10000.0
 
     def calculate_spectral_indices(self, tif_path: str) -> dict:
-        """
-        Reads a local GeoTIFF containing GEE clipped bands (B4, B8),
-        applies the 10000.0 scale factor, and computes true NDVI.
-        """
         try:
             with rasterio.open(tif_path) as dataset:
-                # GEE exports B4 (Red) as Band 1, B8 (NIR) as Band 2
-                red = dataset.read(1).astype(float)
-                nir = dataset.read(2).astype(float)
-                
-                # Apply scaling factor for true surface reflectance
-                red = red / self.scale_factor
-                nir = nir / self.scale_factor
-                
-                # Avoid invalid arithmetic on missing data
+                red = dataset.read(1).astype(float) / self.scale_factor
+                nir = dataset.read(2).astype(float) / self.scale_factor
+
+                blue = None
+                if dataset.count >= 3:
+                    blue = dataset.read(3).astype(float) / self.scale_factor
+
                 valid_mask = (red > 0) & (nir > 0)
-                
+
+                if blue is not None:
+                    valid_mask = valid_mask & (blue > 0)
+
                 if not np.any(valid_mask):
-                    return {"ndvi_mean": 0.0, "stress_zones_count": 0}
-                
+                    return {
+                        "ndvi_mean": 0.0,
+                        "evi_mean": 0.0,
+                        "ndvi_min": 0.0,
+                        "ndvi_max": 0.0,
+                        "stress_zones_count": 0
+                    }
+
                 red_valid = red[valid_mask]
                 nir_valid = nir[valid_mask]
-                
-                # Compute true NDVI: (NIR - RED) / (NIR + RED)
-                ndvi = (nir_valid - red_valid) / (nir_valid + red_valid)
-                
-                # Pixels < 0.3 generally indicate stressed crop or bare soil
+
+                ndvi = (nir_valid - red_valid) / (nir_valid + red_valid + 1e-8)
+
+                if blue is not None:
+                    blue_valid = blue[valid_mask]
+                    evi = 2.5 * (nir_valid - red_valid) / (
+                        nir_valid + 6 * red_valid - 7.5 * blue_valid + 1 + 1e-8
+                    )
+                    evi_mean = float(np.mean(evi))
+                else:
+                    evi_mean = None
+
                 stress_pixels = np.sum(ndvi < 0.3)
-                
+
                 return {
                     "ndvi_mean": float(np.mean(ndvi)),
+                    "evi_mean": evi_mean,
+                    "ndvi_min": float(np.min(ndvi)),
+                    "ndvi_max": float(np.max(ndvi)),
                     "stress_zones_count": int(stress_pixels)
                 }
-                
+
         except Exception as e:
             print(f"RasterProcessor Error: {str(e)}")
             raise RuntimeError(f"Failed to calculate indices from {tif_path}: {str(e)}")
+                    
