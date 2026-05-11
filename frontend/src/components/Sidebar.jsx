@@ -47,6 +47,17 @@ export default function Sidebar({
             // Send geometry to PostgreSQL database via our API adapter
             const response = await saveField(file.name, geometryToSave, 0.0);
             setGeoJsonUploadResponse(response);
+
+            setSelectedField({
+              type: "Feature",
+              geometry: geometryToSave,
+              properties: {
+                id: response.data.field_id,
+                field_id: response.data.field_id,
+                name: response.data.name || file.name,
+                area: 0.0
+              }
+            });
           } catch (error) {
             setGeoJsonUploadError("Backend Database validation failed.");
             console.error("GeoJSON DB save failed", error);

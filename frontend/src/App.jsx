@@ -107,6 +107,16 @@ function App() {
       
       // Update state identically to a file upload so the UI responds
       setGeoJsonUploadResponse(response);
+      setSelectedField({
+        type: "Feature",
+        geometry: geometryToSave,
+        properties: {
+          id: response.data.field_id,
+          field_id: response.data.field_id,
+          name: response.data.name || "Drawn Field",
+          area: 0.0
+        }
+      });
       setGeoJsonData(geoJsonFeatureCollection);
       setGeoJsonMeta({ name: "Drawn Field.geojson", size: 0 }); // Mock file meta
       setGeoJsonUploadError(null);

@@ -28,6 +28,7 @@ export default function AnalyticsPanel({ analysisResults, isAnalyzing, selectedF
   // Graceful fallback values in case analysisResults hasn't populated
   const data = analysisResults || {};
   const props = selectedField?.properties || {};
+  const hasResults = data && data.cropType && data.cropType !== "—";
 
   return (
     <aside className="glass-panel" style={{
@@ -46,7 +47,7 @@ export default function AnalyticsPanel({ analysisResults, isAnalyzing, selectedF
     }}>
       <div>
         <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {selectedField ? (
+          {selectedField && !hasResults ? (
             <>
               <MapIcon size={18} color="var(--accent-color)" />
               {props.name || props.field_id || `Field ${props.id}`} Details
@@ -59,11 +60,11 @@ export default function AnalyticsPanel({ analysisResults, isAnalyzing, selectedF
           )}
         </h2>
         
-        {selectedField ? (
+        {selectedField && !hasResults ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <Card 
               title="Parcel Area" 
-              value={props.area ? `${props.area} ha` : (props.id ? `${(props.id * 12.4).toFixed(1)} ha` : "Unknown")} 
+              value={props.area ? `${props.area} ha` : "Unknown"}
               icon={<Maximize2 />} 
               subtext="Estimated field bounds"
               color="var(--accent-color)"
@@ -72,7 +73,7 @@ export default function AnalyticsPanel({ analysisResults, isAnalyzing, selectedF
               title="Vegetation Health" 
               value={props.health || "Pending Scan"} 
               icon={<Activity />} 
-              subtext={`NDVI: ${props.ndvi || (props.id ? (0.6 + (props.id * 0.05)).toFixed(2) : "—")}`}
+              subtext={`NDVI: ${props.ndvi || "—"}`}              
               color={props.health === 'Poor' ? "var(--status-critical)" : (props.health ? "var(--status-healthy)" : "var(--text-secondary)")}
             />
             <Card 
