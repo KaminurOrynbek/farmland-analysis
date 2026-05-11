@@ -113,4 +113,10 @@ backend/infrastructure/ml/models/best_resnet_satellite_model.pth
 ```
 
 This file is not committed to GitHub because it is ignored by .gitignore.
-Download it from the shared drive/model bundle.
+
+We added .pth to .gitignore because model weight files are usually:
+large
+binary
+bad for normal Git history
+can make pushing/pulling slow
+better stored in Google Drive, Kaggle, Hugging Face, or GitHub Releases
