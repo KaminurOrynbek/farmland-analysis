@@ -1,0 +1,17 @@
+{
+    "classes": [
+        "AnnualCrop",
+        "Forest",
+        "HerbaceousVegetation",
+        "Highway",
+        "Industrial",
+        "Pasture",
+        "PermanentCrop",
+        "Residential",
+        "River",
+        "SeaLake"
+    ],
+    "test_accuracy": 0.9833,
+    "single_prediction_class": "Forest",
+    "single_prediction_confidence": 0.9971
+}
