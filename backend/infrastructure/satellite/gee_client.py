@@ -42,8 +42,9 @@ class GEEClient:
             if collection.size().getInfo() == 0:
                 raise ValueError("No cloud-free Sentinel-2 imagery found for the specified dates and region.")
 
-            # Create median composite and select Red (B4) and NIR (B8)
-            composite = collection.median().select(['B4', 'B8']).clip(roi)
+            # Create median composite and select Red (B4) and NIR (B8) 
+            # Blue (B2) for RGB fallback and Green (B3) for potential vegetation indices
+            composite = collection.median().select(['B4', 'B8', 'B2', 'B3']).clip(roi)
 
             # Generate Download URL
             download_url = composite.getDownloadURL({
