@@ -13,8 +13,16 @@ class Settings(BaseSettings):
     EE_SERVICE_ACCOUNT: str = os.getenv("EE_SERVICE_ACCOUNT", "your-service-account@project.iam.gserviceaccount.com")
     
     # Machine Learning
-    RESNET_WEIGHTS_PATH: str = os.getenv("RESNET_WEIGHTS_PATH", "backend/infrastructure/ml/best_resnet_satellite_model.pth")
-    
+    RESNET_WEIGHTS_PATH: str = os.getenv(
+        "RESNET_WEIGHTS_PATH",
+        "backend/infrastructure/ml/models/best_resnet_satellite_model.pth"
+    )
+
+    ML_ARTIFACTS_PATH: str = os.getenv(
+        "ML_ARTIFACTS_PATH",
+        "backend/infrastructure/ml/models/ml_artifacts.json"
+    )
+        
     class Config:
         env_file = ".env"
 
