@@ -61,7 +61,7 @@ AI / ML:
 From project root:
 
 ```bash
-cd farm;and-analysis
+cd farmland-analysis
 ```
 ```bash
 python3 -m venv backend/venv
