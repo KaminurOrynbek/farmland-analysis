@@ -108,7 +108,9 @@ http://localhost:5174
 ## Backend connection with ML 
 Place model weights here:
 
+```bash
 backend/infrastructure/ml/models/best_resnet_satellite_model.pth
+```
 
 This file is not committed to GitHub because it is ignored by .gitignore.
 Download it from the shared drive/model bundle.
