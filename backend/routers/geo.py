@@ -7,6 +7,7 @@ import uuid
 from backend.infrastructure.database.database import get_db
 from backend.infrastructure.database import models
 from backend.infrastructure.database.repositories import FieldRepository
+from backend.services.geo_service import process_geojson_upload
 
 router = APIRouter()
 
@@ -32,11 +33,24 @@ def save_field_boundary(request: CreateFieldRequest, db: Session = Depends(get_d
             db.add(new_user)
             db.commit()
         
+        metadata = process_geojson_upload({
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": request.geometry,
+                    "properties": {}
+                }
+            ]
+        })
+
+        calculated_area_ha = metadata["total_area_ha"]
+
         field = repo.create(
             user_id=demo_user_id,
             name=request.name,
             geometry=request.geometry,
-            area_ha=request.area_ha
+            area_ha=calculated_area_ha
         )
         
         return {
@@ -44,7 +58,8 @@ def save_field_boundary(request: CreateFieldRequest, db: Session = Depends(get_d
             "message": "Field successfully saved to Database",
             "data": {
                 "field_id": field.id,
-                "name": field.name
+                "name": field.name,
+                "area_ha": field.area_ha
             }
         }
     except Exception as e:
