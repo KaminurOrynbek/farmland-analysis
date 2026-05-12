@@ -79,3 +79,14 @@ class AnalysisRepository:
             analysis.status = "Completed"
             
         self.db.commit()
+    
+    def get_history(self, limit: int = 20):
+        return (
+            self.db.query(Analysis, Field, SpectralIndices, MLPrediction)
+            .join(Field, Analysis.field_id == Field.id)
+            .outerjoin(SpectralIndices, SpectralIndices.analysis_id == Analysis.id)
+            .outerjoin(MLPrediction, MLPrediction.analysis_id == Analysis.id)
+            .order_by(Analysis.analysis_date.desc())
+            .limit(limit)
+            .all()
+        )
