@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Upload, Play, Layers, Map as MapIcon, Settings, X, Image as ImageIcon, AlertTriangle, FileJson } from 'lucide-react';
-import { checkHealth, runAnalysis, saveField } from '../api';
+import { saveField } from '../api';
 
 export default function Sidebar({ 
   isAnalyzing,
