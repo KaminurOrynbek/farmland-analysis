@@ -24,6 +24,7 @@ function App() {
     fieldCount: 0,
     stressZonesCount: 0,
     ndviValue: 0,
+    eviValue: 0,
     riskLevel: "—",
     message: ""
   });
@@ -71,6 +72,7 @@ function App() {
         fieldCount: 1,
         stressZonesCount: data.stress_zones_count,
         ndviValue: data.ndvi_value ? data.ndvi_value.toFixed(2) : 0,
+        eviValue: data.evi_value ? data.evi_value.toFixed(2) : "—",
         riskLevel: data.risk_level,
         message: data.message
       });
@@ -157,6 +159,7 @@ function App() {
             setSelectedField={setSelectedField}
             fieldLayerVisible={fieldLayerVisible}
             onPolygonDrawn={handlePolygonDrawn}
+            analysisResults={analysisResults}
           />
         </main>
         <AnalyticsPanel 

@@ -60,7 +60,9 @@ export default function MapView({
   selectedField,
   setSelectedField,
   fieldLayerVisible,
-  onPolygonDrawn
+  onPolygonDrawn,
+  analysisResults
+
 }) {
   // Center of Kazakhstan farmland approximate coordinates (near Astana for demo)
   const center = [51.150, 71.415]; 
@@ -159,16 +161,25 @@ export default function MapView({
     });
   };
 
+  const getRiskColor = () => {
+    if (!analysisStarted) return 'var(--text-secondary)';
+
+    if (analysisResults?.riskLevel === 'Low') return '#22c55e';
+    if (analysisResults?.riskLevel === 'Medium') return '#eab308';
+    if (analysisResults?.riskLevel === 'High') return '#ef4444';
+
+    return 'var(--text-secondary)';
+  };
+
   const getGeoJsonStyle = (feature) => {
     const isSelected = selectedField && selectedField.properties?.id === feature.properties?.id;
-    // Simulate some color based on analysis and properties, or fallback to default
-    const color = analysisStarted ? (feature.properties?.health === 'Poor' ? '#ef4444' : '#22c55e') : (isSelected ? '#3b82f6' : 'var(--text-secondary)');
-    
+    const color = getRiskColor();
+
     return {
-      color: isSelected ? '#ffffff' : color, 
+      color: isSelected ? '#ffffff' : color,
       weight: isSelected ? 3 : 2,
       fillColor: color,
-      fillOpacity: isSelected ? 0.6 : (analysisStarted ? 0.4 : 0.2),
+      fillOpacity: analysisStarted ? 0.45 : 0.2,
       dashArray: isSelected ? '' : '3'
     };
   };

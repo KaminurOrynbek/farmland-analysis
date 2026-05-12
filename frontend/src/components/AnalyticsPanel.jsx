@@ -97,7 +97,7 @@ export default function AnalyticsPanel({ analysisResults, isAnalyzing, selectedF
               title="Avg Vegetation Health" 
               value={data.vegetationHealth || "—"} 
               icon={<Activity />} 
-              subtext={`${data.healthDelta || ""} vs last scan (NDVI: ${data.ndviValue || "—"})`}
+              subtext={`NDVI: ${data.ndviValue || "—"} | EVI: ${data.eviValue || "—"}`}
               color="var(--status-healthy)"
             />
             <Card 
