@@ -1,9 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Leaf, BrainCircuit, Database, LineChart } from 'lucide-react';
 
-export default function Navbar({ backendHealthy }) {
-  const [activeTab, setActiveTab] = useState('Map');
-  
+export default function Navbar({ backendHealthy, activeTab, setActiveTab }) {  
   const tabs = [
     { id: 'Map', icon: <Leaf size={18} /> },
     { id: 'Analysis', icon: <LineChart size={18} /> },
