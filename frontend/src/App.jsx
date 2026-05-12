@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import MapView from './components/MapView';
 import AnalyticsPanel from './components/AnalyticsPanel';
+import ProjectsPage from './pages/ProjectsPage';
 import { checkHealth, runAnalysis, saveField } from './api';
 import './styles.css';
 
@@ -34,6 +35,9 @@ function App() {
   const [geoJsonMeta, setGeoJsonMeta] = useState(null);
   const [selectedField, setSelectedField] = useState(null);
   const [fieldLayerVisible, setFieldLayerVisible] = useState(true);
+
+  
+  const [activeTab, setActiveTab] = useState('Map');
 
   // Health check on load
   useEffect(() => {
@@ -131,42 +135,55 @@ function App() {
 
   return (
     <div className="dashboard-container">
-      <Navbar backendHealthy={backendHealthy} />
+      <Navbar
+        backendHealthy={backendHealthy}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+      />
+
       <div className="dashboard-content">
-        <Sidebar 
-          isAnalyzing={isAnalyzing}
-          onRunAnalysis={handleRunAnalysis}
-          isFetchingSatelliteData={isFetchingSatelliteData}
-          onFetchSatelliteData={handleFetchSatelliteData}
-          geoJsonData={geoJsonData}
-          setGeoJsonData={setGeoJsonData}
-          geoJsonMeta={geoJsonMeta}
-          setGeoJsonMeta={setGeoJsonMeta}
-          geoJsonUploadResponse={geoJsonUploadResponse}
-          setGeoJsonUploadResponse={setGeoJsonUploadResponse}
-          geoJsonUploadError={geoJsonUploadError}
-          setGeoJsonUploadError={setGeoJsonUploadError}
-          fieldLayerVisible={fieldLayerVisible}
-          setFieldLayerVisible={setFieldLayerVisible}
-          setSelectedField={setSelectedField}
-        />
-        <main className="map-container">
-          <MapView 
-            analysisStarted={analysisStarted}
-            isAnalyzing={isAnalyzing}
-            geoJsonData={geoJsonData}
-            selectedField={selectedField}
-            setSelectedField={setSelectedField}
-            fieldLayerVisible={fieldLayerVisible}
-            onPolygonDrawn={handlePolygonDrawn}
-            analysisResults={analysisResults}
-          />
-        </main>
-        <AnalyticsPanel 
-          analysisResults={analysisResults}
-          isAnalyzing={isAnalyzing}
-          selectedField={selectedField}
-        />
+        {activeTab === 'Data' ? (
+          <ProjectsPage />
+        ) : (
+          <>
+            <Sidebar
+              isAnalyzing={isAnalyzing}
+              onRunAnalysis={handleRunAnalysis}
+              isFetchingSatelliteData={isFetchingSatelliteData}
+              onFetchSatelliteData={handleFetchSatelliteData}
+              geoJsonData={geoJsonData}
+              setGeoJsonData={setGeoJsonData}
+              geoJsonMeta={geoJsonMeta}
+              setGeoJsonMeta={setGeoJsonMeta}
+              geoJsonUploadResponse={geoJsonUploadResponse}
+              setGeoJsonUploadResponse={setGeoJsonUploadResponse}
+              geoJsonUploadError={geoJsonUploadError}
+              setGeoJsonUploadError={setGeoJsonUploadError}
+              fieldLayerVisible={fieldLayerVisible}
+              setFieldLayerVisible={setFieldLayerVisible}
+              setSelectedField={setSelectedField}
+            />
+
+            <main className="map-container">
+              <MapView
+                analysisStarted={analysisStarted}
+                isAnalyzing={isAnalyzing}
+                geoJsonData={geoJsonData}
+                selectedField={selectedField}
+                setSelectedField={setSelectedField}
+                fieldLayerVisible={fieldLayerVisible}
+                onPolygonDrawn={handlePolygonDrawn}
+                analysisResults={analysisResults}
+              />
+            </main>
+
+            <AnalyticsPanel
+              analysisResults={analysisResults}
+              isAnalyzing={isAnalyzing}
+              selectedField={selectedField}
+            />
+          </>
+        )}
       </div>
     </div>
   );
