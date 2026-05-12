@@ -79,7 +79,11 @@ class ResNetAdapter:
         with rasterio.open(image_path) as src:
             band_count = src.count
 
-            if band_count >= 3:
+            if band_count >= 4:
+                red = src.read(1).astype(np.float32)    # B4
+                green = src.read(4).astype(np.float32)  # B3
+                blue = src.read(3).astype(np.float32)   # B2
+            elif band_count >= 3:
                 red = src.read(1).astype(np.float32)
                 green = src.read(2).astype(np.float32)
                 blue = src.read(3).astype(np.float32)
