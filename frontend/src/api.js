@@ -79,3 +79,15 @@ export const fetchAllFields = async () => {
 // Fallback exports for any un-refactored components
 export const uploadImage = async () => { console.warn("uploadImage is deprecated."); return {}; };
 export const uploadGeoJSON = async () => { console.warn("uploadGeoJSON is deprecated. Use saveField."); return {}; };
+
+
+// Fetch analysis history for Projects page
+export const fetchAnalysisHistory = async () => {
+  const response = await fetch(`${API_BASE_URL}/analysis/history`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch analysis history: ${response.statusText}`);
+  }
+
+  return await response.json();
+};
