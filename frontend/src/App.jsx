@@ -6,6 +6,8 @@ import AnalyticsPanel from './components/AnalyticsPanel';
 import ProjectsPage from './pages/ProjectsPage';
 import LandingPage from './pages/LandingPage';
 import AnalysisDetailsPage from './pages/AnalysisDetailsPage';
+import ModelInformationPage from './pages/ModelInformationPage';
+import GuidedTour from './components/GuidedTour';
 import { checkHealth, runAnalysis, saveField } from './api';
 import './styles.css';
 
@@ -158,12 +160,7 @@ function App() {
             selectedField={selectedField}
           />
         ) : activeTab === 'Model Information' ? (
-          <div style={{ padding: '32px', width: '100%', overflowY: 'auto' }}>
-            <h1>Model Information</h1>
-            <p style={{ color: 'var(--text-secondary)' }}>
-              ResNet-50 transfer learning model trained on EuroSAT dataset for crop and land-use classification.
-            </p>
-          </div>
+          <ModelInformationPage />
         ) : (
           <>
             <Sidebar
@@ -201,6 +198,11 @@ function App() {
               analysisResults={analysisResults}
               isAnalyzing={isAnalyzing}
               selectedField={selectedField}
+            />
+
+            <GuidedTour
+              activeTab={activeTab}
+              analysisStarted={analysisStarted}
             />
           </>
         )}
