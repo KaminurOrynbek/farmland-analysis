@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import MapView from './components/MapView';
 import AnalyticsPanel from './components/AnalyticsPanel';
 import ProjectsPage from './pages/ProjectsPage';
+import LandingPage from './pages/LandingPage';
 import { checkHealth, runAnalysis, saveField } from './api';
 import './styles.css';
 
@@ -38,6 +39,7 @@ function App() {
 
   
   const [activeTab, setActiveTab] = useState('Map');
+  const [showLanding, setShowLanding] = useState(true);
 
   // Health check on load
   useEffect(() => {
@@ -133,12 +135,17 @@ function App() {
     }
   };
 
+  if (showLanding) {
+    return <LandingPage onStart={() => setShowLanding(false)} />;
+  }
+
   return (
     <div className="dashboard-container">
       <Navbar
         backendHealthy={backendHealthy}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        onLogoClick={() => setShowLanding(true)}
       />
 
       <div className="dashboard-content">
