@@ -3,10 +3,10 @@ import { Leaf, BrainCircuit, Database, LineChart } from 'lucide-react';
 
 export default function Navbar({ backendHealthy, activeTab, setActiveTab, onLogoClick }) {
   const tabs = [
-    { id: 'Map', icon: <Leaf size={18} /> },
-    { id: 'Analysis', icon: <LineChart size={18} /> },
-    { id: 'Data', icon: <Database size={18} /> },
-    { id: 'Model', icon: <BrainCircuit size={18} /> }
+    { id: 'Workspace', icon: <Leaf size={18} /> },
+    { id: 'Analysis Details', icon: <LineChart size={18} /> },
+    { id: 'Projects', icon: <Database size={18} /> },
+    { id: 'Model Information', icon: <BrainCircuit size={18} /> }
   ];
 
   return (

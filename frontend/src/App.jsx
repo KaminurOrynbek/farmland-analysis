@@ -5,6 +5,7 @@ import MapView from './components/MapView';
 import AnalyticsPanel from './components/AnalyticsPanel';
 import ProjectsPage from './pages/ProjectsPage';
 import LandingPage from './pages/LandingPage';
+import AnalysisDetailsPage from './pages/AnalysisDetailsPage';
 import { checkHealth, runAnalysis, saveField } from './api';
 import './styles.css';
 
@@ -37,8 +38,7 @@ function App() {
   const [selectedField, setSelectedField] = useState(null);
   const [fieldLayerVisible, setFieldLayerVisible] = useState(true);
 
-  
-  const [activeTab, setActiveTab] = useState('Map');
+    const [activeTab, setActiveTab] = useState('Workspace');
   const [showLanding, setShowLanding] = useState(true);
 
   // Health check on load
@@ -83,6 +83,7 @@ function App() {
         message: data.message
       });
       setAnalysisStarted(true);
+      // no auto-switch yet. setActiveTab('Analysis Details');
     } catch (error) {
       console.error("Analysis failed:", error);
       alert(`Analysis failed: ${error.message}`);
@@ -149,8 +150,20 @@ function App() {
       />
 
       <div className="dashboard-content">
-        {activeTab === 'Data' ? (
+        {activeTab === 'Projects' ? (
           <ProjectsPage setActiveTab={setActiveTab} />
+        ) : activeTab === 'Analysis Details' ? (
+          <AnalysisDetailsPage
+            analysisResults={analysisResults}
+            selectedField={selectedField}
+          />
+        ) : activeTab === 'Model Information' ? (
+          <div style={{ padding: '32px', width: '100%', overflowY: 'auto' }}>
+            <h1>Model Information</h1>
+            <p style={{ color: 'var(--text-secondary)' }}>
+              ResNet-50 transfer learning model trained on EuroSAT dataset for crop and land-use classification.
+            </p>
+          </div>
         ) : (
           <>
             <Sidebar

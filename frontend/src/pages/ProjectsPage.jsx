@@ -69,7 +69,7 @@ export default function ProjectsPage({ setActiveTab }) {
         </div>
 
         <button
-          onClick={() => setActiveTab('Map')}
+          onClick={() => setActiveTab('Workspace')}
           onMouseEnter={e => {
             e.currentTarget.style.backgroundColor = 'var(--accent-hover)';
             e.currentTarget.style.transform = 'translateY(-1px)';
