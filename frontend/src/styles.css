@@ -87,3 +87,87 @@ body {
 .leaflet-bar a:hover {
   background-color: var(--bg-dark);
 }
+
+/* ── ProjectsPage: Summary Cards ── */
+.summary-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.summary-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
+}
+
+/* ── ProjectsPage: Compact Field Cards ── */
+.field-card-sm {
+  border: 1px solid var(--border-color);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.field-card-sm:hover {
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.12);
+}
+
+/* ── ProjectsPage: Table scroll wrapper ── */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+/* ── ProjectsPage: Analyses table ── */
+.projects-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.projects-table thead tr {
+  background: rgba(255, 255, 255, 0.04);
+}
+.projects-table th {
+  padding: 11px 16px;
+  text-align: left;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border-color);
+}
+.projects-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.projects-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.projects-table tbody tr {
+  transition: background 0.15s ease;
+}
+.projects-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ── ProjectsPage: Risk badge pill ── */
+.risk-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── ProjectsPage: Empty state ── */
+.empty-state {
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
+  padding: 40px 0;
+  border: 1px dashed var(--border-color);
+  border-radius: 10px;
+  font-size: 0.875rem;
+}

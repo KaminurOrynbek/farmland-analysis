@@ -143,7 +143,7 @@ function App() {
 
       <div className="dashboard-content">
         {activeTab === 'Data' ? (
-          <ProjectsPage />
+          <ProjectsPage setActiveTab={setActiveTab} />
         ) : (
           <>
             <Sidebar
