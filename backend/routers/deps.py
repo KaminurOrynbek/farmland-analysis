@@ -1,4 +1,4 @@
-from typing import Generator
+from typing import Generator, List
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
@@ -40,3 +40,17 @@ def get_current_active_user(
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
+
+class RoleChecker:
+    def __init__(self, allowed_roles: List[str]):
+        self.allowed_roles = allowed_roles
+
+    def __call__(self, user: User = Depends(get_current_active_user)):
+        # Handle both string and enum comparison
+        user_role_str = user.role.value if hasattr(user.role, 'value') else str(user.role)
+        if user_role_str not in self.allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"User role {user_role_str} is not authorized to access this resource"
+            )
+        return user
