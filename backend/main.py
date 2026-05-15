@@ -22,6 +22,12 @@ try:
 except Exception as e:
     print(f"CRITICAL WARNING: Database connection failed. Please ensure PostgreSQL is running. Error: {e}")
 
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    description="Backend API for agricultural farmland analysis using satellite imagery and geospatial data. Powered by Clean Architecture.",
+    version=settings.VERSION
+)
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logging.error(f"Global error: {exc}", exc_info=True)
@@ -29,12 +35,6 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"status": "error", "message": "Internal Server Error", "detail": str(exc)},
     )
-
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    description="Backend API for agricultural farmland analysis using satellite imagery and geospatial data. Powered by Clean Architecture.",
-    version=settings.VERSION
-)
 
 # Configure CORS
 app.add_middleware(

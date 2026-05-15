@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from pydantic import ValidationError
 
 from backend.core.config import settings
-from backend.core.security import ALGORITHM
 from backend.infrastructure.database.database import get_db
 from backend.infrastructure.database.models import User
 from backend.schemas.auth import TokenPayload
