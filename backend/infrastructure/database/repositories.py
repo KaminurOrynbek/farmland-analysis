@@ -2,8 +2,9 @@ import os
 import json
 import redis
 from sqlalchemy.orm import Session
-from backend.infrastructure.database.models import User, Field, Analysis, SatelliteImage, SpectralIndices, MLPrediction
+from backend.infrastructure.database.models import User, Field, Analysis, AnalysisStatus, AnalysisType, SatelliteImage, SpectralIndices, MLPrediction
 from backend.core.config import settings
+
 
 # Initialize Redis client for caching status
 redis_client = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
@@ -110,24 +111,30 @@ class AnalysisRepository:
             # Broadcast via Redis Pub/Sub for WebSockets
             redis_client.publish("analysis_updates", json.dumps(cache_data))
 
-    def create_analysis(self, field_id: str, image_id: str) -> Analysis:
+    def create_analysis(self, field_id: str, image_id: str = None) -> Analysis:
+
         # In this architecture, analysis has a many-to-many link to images via AnalysisImage
         analysis = Analysis(
             field_id=field_id,
-            status="Processing",
-            analysis_type="HEALTH_ANALYSIS" # Default type
+            status=AnalysisStatus.PROCESSING,
+            analysis_type=AnalysisType.HEALTH_ANALYSIS
         )
         self.db.add(analysis)
         self.db.flush() # Get the analysis ID
 
-        from backend.infrastructure.database.models import AnalysisImage
-        link = AnalysisImage(analysis_id=analysis.id, satellite_image_id=image_id)
-        self.db.add(link)
-        
+        if image_id:
+            from backend.infrastructure.database.models import AnalysisImage
+            link = AnalysisImage(
+                analysis_id=analysis.id,
+                satellite_image_id=image_id
+            )
+            self.db.add(link)
+
         self.db.commit()
         self.db.refresh(analysis)
         return analysis
-
+        
+        
     def save_results(self, analysis_id: str, indices_data: dict, ml_data: dict):
         # Save Spectral Indices
         indices = SpectralIndices(
@@ -155,7 +162,7 @@ class AnalysisRepository:
         # Update Analysis Status
         analysis = self.db.query(Analysis).filter(Analysis.id == analysis_id).first()
         if analysis:
-            analysis.status = "Completed"
+            analysis.status = AnalysisStatus.DONE
             
         self.db.commit()
     

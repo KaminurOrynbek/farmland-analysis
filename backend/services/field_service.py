@@ -35,7 +35,7 @@ class FieldService:
         access = FieldAccess(
             field_id=field.id,
             user_id=user.id,
-            access_role="OWNER" 
+            access_role=Role.OWNER 
         )
         self.db.add(access)
         self.db.commit()
