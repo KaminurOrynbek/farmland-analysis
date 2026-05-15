@@ -33,30 +33,32 @@ class AnalysisService:
              if not access:
                  raise HTTPException(status_code=403, detail="Not authorized to analyze this field")
 
-        # 2. Create Analysis Record in DB first (Job Tracking Pattern)
+        # 2. Create Analysis Record in DB (Job Tracking Pattern)
         analysis_record = self.repo.create_analysis(field_id=field_id, image_id=None)
 
-        # 3. Dispatch Asynchronous Task via Interface
+        # 3. Dispatch job to Worker with rich context (Worker handles ALL data I/O)
         task_id = self.dispatcher.dispatch(
-            "run_analysis_task", 
+            "run_analysis_task",
             payload={
-                "field_id": field_id, 
-                "start_date": start_date, 
-                "end_date": end_date, 
-                "analysis_id": str(analysis_record.id)
+                "job_id": str(analysis_record.id),
+                "field_id": field_id,
+                "params": {
+                    "start_date": start_date,
+                    "end_date": end_date,
+                },
+                "output_prefix": f"results/{analysis_record.id}/"
             }
         )
 
-        # 4. Save Task ID to the record
+        # 4. Save Task ID for traceability
         analysis_record.celery_task_id = task_id
         self.db.commit()
 
         return {
-            "status": "Processing",
-            "message": "Analysis started in background.",
+            "status": "Accepted",
+            "message": "Analysis job queued. Worker will handle data ingestion and processing.",
             "field_id": field_id,
             "analysis_id": analysis_record.id,
-            "task_id": task_id
         }
 
     def get_history(self, user: User, limit: int = 20) -> List[Dict[str, Any]]:
