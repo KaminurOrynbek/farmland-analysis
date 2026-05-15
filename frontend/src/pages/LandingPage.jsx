@@ -1,124 +1,343 @@
 import React from 'react';
-import { Leaf, Satellite, BarChart2, BrainCircuit, MapPin, ChevronRight } from 'lucide-react';
+import {
+  ArrowRight,
+  BrainCircuit,
+  ChevronRight,
+  Database,
+  Leaf,
+  LineChart,
+  Mail,
+  MapPin,
+  Satellite,
+  ShieldCheck,
+  Sprout
+} from 'lucide-react';
 
-const AUTH_ALERT = () => alert('Authentication will be added in the next version.');
+const NAV_LINKS = [
+  { id: 'features', label: 'Features' },
+  { id: 'how-it-works', label: 'How It Works' },
+  { id: 'benefits', label: 'Benefits' },
+  { id: 'faq', label: 'FAQ' },
+  { id: 'contact', label: 'Contact' }
+];
 
 const STEPS = [
-  { n: 1, title: 'Define Field Boundaries', desc: 'Draw or upload GeoJSON polygons to mark your agricultural fields on the map.' },
-  { n: 2, title: 'Fetch Sentinel-2 Imagery', desc: 'Pull multispectral satellite images for your field area via Google Earth Engine.' },
-  { n: 3, title: 'Calculate NDVI & EVI', desc: 'Compute vegetation indices from near-infrared and red bands using Rasterio.' },
-  { n: 4, title: 'Run ResNet-50 Classification', desc: 'Apply a transfer-learning model trained on crop patterns to classify field health.' },
-  { n: 5, title: 'View Health & Risk Insights', desc: 'Receive a full risk report with vegetation health score and stress zone detection.' },
+  {
+    n: 1,
+    title: 'Add your field',
+    desc: 'Upload field boundaries or draw a field directly on the map.'
+  },
+  {
+    n: 2,
+    title: 'Review satellite view',
+    desc: 'See your field from above and prepare it for analysis.'
+  },
+  {
+    n: 3,
+    title: 'Run field analysis',
+    desc: 'Let the system check vegetation condition and possible risk areas.'
+  },
+  {
+    n: 4,
+    title: 'Understand the results',
+    desc: 'Review field health, risk level, and suggested next steps.'
+  },
+  {
+    n: 5,
+    title: 'Save and compare reports',
+    desc: 'Keep previous analyses and track how fields change over time.'
+  }
 ];
 
 const FEATURES = [
   {
-    icon: <Satellite size={28} color="var(--accent-color)" />,
-    title: 'Satellite & Geodata',
-    desc: 'Sentinel-2 multispectral imagery processed via Google Earth Engine. Define precise field boundaries with GeoJSON.',
+    icon: <MapPin size={28} color="var(--accent-color)" />,
+    title: 'Field Monitoring',
+    desc: 'View your fields on an interactive map and understand their current condition.'
   },
   {
-    icon: <BarChart2 size={28} color="var(--status-healthy)" />,
-    title: 'Vegetation Indices',
-    desc: 'NDVI and EVI computed per field boundary using Rasterio, giving quantitative measures of canopy health.',
+    icon: <ShieldCheck size={28} color="var(--status-healthy)" />,
+    title: 'Risk Detection',
+    desc: 'Find areas that may need attention before problems become visible in the field.'
   },
   {
-    icon: <BrainCircuit size={28} color="#a855f7" />,
-    title: 'Transfer Learning AI',
-    desc: 'ResNet-50 fine-tuned on agricultural patterns classifies crop type and detects vegetation stress zones.',
-  },
+    icon: <LineChart size={28} color="#a855f7" />,
+    title: 'Clear Reports',
+    desc: 'Get simple reports with field health, risk level, and practical recommendations.'
+  }
 ];
 
-export default function LandingPage({ onStart }) {
+const BENEFITS = [
+  {
+    icon: <Leaf size={26} color="var(--status-healthy)" />,
+    title: 'Detect issues earlier',
+    desc: 'Identify weak or stressed areas before they spread across the field.'
+  },
+  {
+    icon: <Satellite size={26} color="var(--accent-color)" />,
+    title: 'Monitor remotely',
+    desc: 'Check field conditions without visiting every parcel manually.'
+  },
+  {
+    icon: <Database size={26} color="#8b5cf6" />,
+    title: 'Keep field history',
+    desc: 'Save analyses and compare field condition across different periods.'
+  }
+];
+
+const TECH_CARDS = [
+  {
+    icon: <Satellite size={26} color="var(--accent-color)" />,
+    title: 'Satellite imagery',
+    desc: 'Field conditions are reviewed using remote imagery instead of only manual inspection.'
+  },
+  {
+    icon: <BrainCircuit size={26} color="#a855f7" />,
+    title: 'AI-assisted analysis',
+    desc: 'The system helps classify field condition and highlight possible risk areas.'
+  },
+  {
+    icon: <Sprout size={26} color="var(--status-healthy)" />,
+    title: 'Vegetation insights',
+    desc: 'The platform converts raw imagery into understandable crop health indicators.'
+  }
+];
+
+const FAQ_ITEMS = [
+  {
+    title: 'What can AgroVision help me understand?',
+    text: 'It helps you see field condition, identify possible risk zones, and review previous analysis results.'
+  },
+  {
+    title: 'Do I need technical knowledge to use it?',
+    text: 'No. The system is designed around simple steps: add a field, run analysis, and read the report.'
+  },
+  {
+    title: 'Can I upload my own field boundaries?',
+    text: 'Yes. You can upload field boundaries or draw a field directly on the map.'
+  },
+  {
+    title: 'Does this replace agronomists?',
+    text: 'No. AgroVision supports decision-making by showing where attention may be needed. Final decisions should still include expert judgment.'
+  }
+];
+
+const scrollToSection = (sectionId) => {
+  document.getElementById(sectionId)?.scrollIntoView({
+    behavior: 'smooth',
+    block: 'start'
+  });
+};
+
+export default function LandingPage({ onSignIn, onGetStarted }) {
   return (
     <div className="landing-page">
-      {/* ── Nav ── */}
-      <nav className="landing-nav">
-        <div className="landing-nav-brand">
-          <div className="landing-logo-box">
-            <Leaf size={20} color="var(--accent-color)" />
-          </div>
-          <span className="landing-brand-name">AgroVision</span>
-        </div>
-        <div className="landing-nav-actions">
-          <button className="landing-btn-ghost" onClick={AUTH_ALERT}>Sign In</button>
-          <button className="landing-btn-outline" onClick={AUTH_ALERT}>Get Started</button>
-        </div>
-      </nav>
-
-      {/* ── Hero ── */}
-      <section className="landing-hero">
-        <div className="landing-hero-inner">
-          <div className="landing-hero-badge">
-            <MapPin size={13} />
-            <span>Satellite · AI · Agronomy</span>
-          </div>
-          <h1 className="landing-headline">
-            AI-Powered<br />Farmland Analysis
-          </h1>
-          <p className="landing-subheadline">
-            Define field boundaries, fetch Sentinel-2 imagery, calculate NDVI&nbsp;/&nbsp;EVI,
-            and run ResNet-50 classification — all in one place.
-          </p>
-          <div className="landing-cta-row">
-            <button className="landing-btn-primary" onClick={onStart}>
-              Start Monitoring <ChevronRight size={16} style={{ marginLeft: 4, verticalAlign: 'middle' }} />
-            </button>
-            <button className="landing-btn-secondary" onClick={onStart}>
-              View Demo
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* ── How It Works ── */}
-      <section className="landing-section">
-        <p className="landing-section-label">Workflow</p>
-        <h2 className="landing-section-title">How It Works</h2>
-        <div className="landing-steps">
-          {STEPS.map(({ n, title, desc }) => (
-            <div key={n} className="landing-step-card glass-panel">
-              <div className="landing-step-number">{n}</div>
-              <h3 className="landing-step-title">{title}</h3>
-              <p className="landing-step-desc">{desc}</p>
+      <div className="landing-shell">
+        <nav className="landing-nav">
+          <div className="landing-nav-brand">
+            <div className="landing-logo-box">
+              <Leaf size={20} color="var(--accent-color)" />
             </div>
-          ))}
-        </div>
-      </section>
+            <span className="landing-brand-name">AgroVision</span>
+          </div>
 
-      {/* ── Features ── */}
-      <section className="landing-section landing-section-alt">
-        <p className="landing-section-label">Capabilities</p>
-        <h2 className="landing-section-title">What You Get</h2>
-        <div className="landing-features">
-          {FEATURES.map(({ icon, title, desc }) => (
-            <div key={title} className="landing-feature-card glass-panel">
-              <div className="landing-feature-icon">{icon}</div>
-              <h3 className="landing-feature-title">{title}</h3>
-              <p className="landing-feature-desc">{desc}</p>
+          <div className="landing-nav-links">
+            {NAV_LINKS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="landing-nav-link"
+                onClick={() => scrollToSection(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="landing-nav-actions">
+            <button type="button" className="landing-btn-ghost" onClick={onSignIn}>Sign In</button>
+            <button type="button" className="landing-btn-outline" onClick={onGetStarted}>Get Started</button>
+          </div>
+        </nav>
+
+        <section className="landing-hero">
+          <div className="landing-hero-grid">
+            <div className="landing-hero-copy glass-panel">
+              <div className="landing-hero-badge">
+                <MapPin size={14} />
+                <span>Farmland monitoring · Field health · Risk insights</span>
+              </div>
+              <h1 className="landing-headline">
+                Monitor farmland health from one clear workspace.
+              </h1>
+              <p className="landing-subheadline">
+                AgroVision helps you review field condition, detect possible risk zones, and save analysis reports using satellite-powered agricultural insights.
+              </p>
+              <div className="landing-cta-row">
+                <button type="button" className="landing-btn-primary" onClick={onGetStarted}>
+                  Get Started
+                  <ChevronRight size={16} />
+                </button>
+                <button type="button" className="landing-btn-secondary" onClick={() => scrollToSection('how-it-works')}>
+                  See How It Works
+                </button>
+              </div>
             </div>
-          ))}
-        </div>
-      </section>
 
-      {/* ── Tech Stack ── */}
-      <div className="landing-tech">
-        <p>
-          Built with&nbsp;
-          {['FastAPI', 'React', 'PostgreSQL', 'Google Earth Engine', 'Rasterio', 'PyTorch', 'ResNet-50']
-            .join(' · ')}
-        </p>
+            <aside className="landing-product-panel glass-panel">
+              <div>
+                <div className="page-kicker">Service Snapshot</div>
+                <h3>Clear and practical tools</h3>
+                <p className="landing-panel-copy">
+                  Add your fields, run remote analysis, and get actionable insights without complex technical setups.
+                </p>
+              </div>
+
+              <div className="landing-hero-metrics">
+                <div className="landing-metric">
+                  <span className="landing-metric-value">Satellite</span>
+                  <span className="landing-metric-label">Remote imagery</span>
+                </div>
+                <div className="landing-metric">
+                  <span className="landing-metric-value">Health</span>
+                  <span className="landing-metric-label">Crop condition</span>
+                </div>
+                <div className="landing-metric">
+                  <span className="landing-metric-value">AI-assisted</span>
+                  <span className="landing-metric-label">Risk assessment</span>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section id="features" className="landing-section landing-section-anchor">
+          <div className="landing-section-header">
+            <p className="landing-section-label">Features</p>
+            <h2 className="landing-section-title">Everything you need to understand your fields</h2>
+            <p className="landing-section-copy">
+              AgroVision turns field boundaries and satellite-based analysis into clear information about crop condition, risk areas, and monitoring history.
+            </p>
+          </div>
+
+          <div className="landing-mission-grid">
+            {FEATURES.map(({ icon, title, desc }) => (
+              <div key={title} className="landing-mission-card glass-panel">
+                {icon}
+                <h3>{title}</h3>
+                <p>{desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section id="how-it-works" className="landing-section landing-section-anchor">
+          <div className="landing-section-header">
+            <p className="landing-section-label">How It Works</p>
+            <h2 className="landing-section-title">Simple steps to field insights</h2>
+            <p className="landing-section-copy">
+              Add your field and get a clear health report in minutes.
+            </p>
+          </div>
+
+          <div className="landing-steps">
+            {STEPS.map(({ n, title, desc }) => (
+              <div key={n} className="landing-step-card glass-panel">
+                <div className="landing-step-number">{n}</div>
+                <h3 className="landing-step-title">{title}</h3>
+                <p className="landing-step-desc">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section id="benefits" className="landing-section landing-section-anchor">
+          <div className="landing-section-header">
+            <p className="landing-section-label">Benefits</p>
+            <h2 className="landing-section-title">Why use AgroVision?</h2>
+            <p className="landing-section-copy">
+              Take the guesswork out of crop management. Get timely insights to protect your yield and optimize field operations.
+            </p>
+          </div>
+
+          <div className="landing-mission-grid">
+            {BENEFITS.map(({ icon, title, desc }) => (
+              <div key={title} className="landing-mission-card glass-panel">
+                {icon}
+                <h3>{title}</h3>
+                <p>{desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section id="technology" className="landing-section landing-section-anchor">
+          <div className="landing-section-header">
+            <p className="landing-section-label">Technology</p>
+            <h2 className="landing-section-title">Powered by satellite imagery and AI-assisted analysis</h2>
+            <p className="landing-section-copy">
+              The technical layer stays behind the interface, while users see simple field health results and practical reports.
+            </p>
+          </div>
+
+          <div className="landing-features">
+            {TECH_CARDS.map(({ icon, title, desc }) => (
+              <div key={title} className="landing-feature-card glass-panel">
+                <div className="landing-feature-icon">{icon}</div>
+                <h3 className="landing-feature-title">{title}</h3>
+                <p className="landing-feature-desc">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section id="faq" className="landing-section landing-section-anchor">
+          <div className="landing-section-header">
+            <p className="landing-section-label">FAQ</p>
+            <h2 className="landing-section-title">Frequently Asked Questions</h2>
+          </div>
+
+          <div className="landing-faq">
+            {FAQ_ITEMS.map((item) => (
+              <div key={item.title} className="landing-faq-item glass-panel">
+                <h3>{item.title}</h3>
+                <p>{item.text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section id="contact" className="landing-section landing-section-anchor">
+          <div className="landing-section-header">
+            <p className="landing-section-label">Get Started</p>
+            <h2 className="landing-section-title">Ready to monitor your fields?</h2>
+            <p className="landing-section-copy">
+              Start adding your fields today and let AgroVision help you identify risk zones and monitor crop health.
+            </p>
+          </div>
+
+          <div className="landing-contact-grid">
+            <div className="landing-contact-card glass-panel" style={{ gridColumn: '1 / -1', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <Leaf size={32} color="var(--status-healthy)" style={{ marginBottom: '1rem' }} />
+              <h3>Start Monitoring</h3>
+              <p style={{ maxWidth: '600px', margin: '0 auto 1.5rem' }}>Create an account to start adding field boundaries, running satellite analyses, and tracking your field history.</p>
+              <div className="landing-cta-row" style={{ justifyContent: 'center' }}>
+                <button type="button" className="landing-btn-primary" onClick={onGetStarted}>
+                  Get Started Now
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <footer className="landing-footer">
+          <div>
+            <p className="landing-footer-title">AgroVision</p>
+            <p>Farmland monitoring, field health analysis, and agricultural risk insights in one workspace.</p>
+          </div>
+        </footer>
       </div>
-
-      {/* ── Footer ── */}
-      <footer className="landing-footer">
-        <p className="landing-footer-title">AgroVision</p>
-        <p className="landing-footer-sub">
-          Diploma project: Developing a Web Service for Analyzing Farmland Images
-          Using Transfer Learning and Geodata
-        </p>
-        <p className="landing-footer-copy">© 2025</p>
-      </footer>
     </div>
   );
 }

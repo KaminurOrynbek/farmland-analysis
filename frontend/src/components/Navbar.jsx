@@ -1,76 +1,85 @@
 import React from 'react';
-import { Leaf, BrainCircuit, Database, LineChart } from 'lucide-react';
+import {
+  FolderOpen,
+  Home,
+  Leaf,
+  LineChart,
+  Map,
+  UserRound
+} from 'lucide-react';
 
-export default function Navbar({ backendHealthy, activeTab, setActiveTab, onLogoClick }) {
-  const tabs = [
-    { id: 'Workspace', icon: <Leaf size={18} /> },
-    { id: 'Analysis Details', icon: <LineChart size={18} /> },
-    { id: 'Projects', icon: <Database size={18} /> },
-    { id: 'Model Information', icon: <BrainCircuit size={18} /> }
-  ];
+const NAV_ITEMS = [
+  { id: 'Home', icon: <Home size={18} /> },
+  { id: 'Workspace', icon: <Map size={18} /> },
+  { id: 'Analysis Details', icon: <LineChart size={18} /> },
+  { id: 'Projects', icon: <FolderOpen size={18} /> },
+  { id: 'Profile', icon: <UserRound size={18} /> }
+];
+
+const getInitials = (name = 'AgroVision') => (
+  name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((segment) => segment.charAt(0).toUpperCase())
+    .join('') || 'AG'
+);
+
+export default function Navbar({ backendHealthy, activePage, onNavigate, user }) {
+  const initials = getInitials(user?.name);
 
   return (
-    <nav className="glass-panel" style={{
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: '0 24px',
-      height: '64px',
-      borderBottom: '1px solid var(--border-color)',
-      zIndex: 10
-    }}>
+    <nav className="app-navbar glass-panel">
       <div
-        onClick={onLogoClick}
-        style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
+        className="app-navbar-brand"
+        onClick={() => onNavigate('Home')}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            onNavigate('Home');
+          }
+        }}
       >
-        <div style={{
-          background: 'var(--accent-color)',
-          padding: '8px',
-          borderRadius: '8px'
-        }}>
-          <Leaf color="white" size={24} />
+        <div className="app-navbar-logo">
+          <Leaf color="white" size={22} />
         </div>
 
         <div>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>
-            AgroVision
-          </h1>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-            {backendHealthy ? 'Backend Connected' : 'Backend Unavailable'}
+          <h1 className="app-navbar-title">AgroVision</h1>
+          <span className="app-navbar-subtitle">
+            Premium farmland intelligence service
           </span>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '8px' }}>
-        {tabs.map((tab) => (
+      <div className="app-navbar-links">
+        {NAV_ITEMS.map((item) => (
           <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              background: activeTab === tab.id ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
-              border: 'none',
-              borderRadius: '6px',
-              color: activeTab === tab.id ? 'var(--accent-color)' : 'var(--text-secondary)',
-              cursor: 'pointer',
-              fontWeight: 500
-            }}
+            key={item.id}
+            type="button"
+            onClick={() => onNavigate(item.id)}
+            className={`app-nav-link ${activePage === item.id ? 'active' : ''}`}
           >
-            {tab.icon}
-            {tab.id}
+            {item.icon}
+            {item.id}
           </button>
         ))}
       </div>
 
-      <div style={{
-        width: '32px',
-        height: '32px',
-        borderRadius: '50%',
-        background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)'
-      }} />
+      <div className="app-navbar-right">
+        <span className={`status-pill ${backendHealthy ? 'healthy' : 'critical'}`}>
+          {backendHealthy ? 'Backend Connected' : 'Backend Unavailable'}
+        </span>
+
+        <div className="app-user-chip">
+          <div className="app-user-avatar">{initials}</div>
+          <div className="app-user-meta">
+            <strong>{user?.name || 'AgroVision User'}</strong>
+            <span>{user?.role || 'Research Analyst'}</span>
+          </div>
+        </div>
+      </div>
     </nav>
   );
 }
