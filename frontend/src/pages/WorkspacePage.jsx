@@ -5,6 +5,7 @@ import Sidebar from '../components/Sidebar';
 import { Loader2 } from 'lucide-react';
 
 export default function WorkspacePage({
+  user,
   activePage,
   isAnalyzing,
   onRunAnalysis,
@@ -30,6 +31,8 @@ export default function WorkspacePage({
   return (
     <div className="dashboard-content workspace-shell" style={{ position: 'relative' }}>
       <Sidebar
+        user={user} 
+        selectedField={selectedField}
         isAnalyzing={isAnalyzing}
         onRunAnalysis={onRunAnalysis}
         isFetchingSatelliteData={isFetchingSatelliteData}
@@ -50,6 +53,7 @@ export default function WorkspacePage({
 
       <main className="map-container" style={{ position: 'relative' }}>
         <MapView
+          user={user} 
           analysisStarted={analysisStarted}
           isAnalyzing={isAnalyzing}
           geoJsonData={geoJsonData}

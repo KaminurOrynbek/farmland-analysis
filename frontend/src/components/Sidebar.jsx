@@ -1,6 +1,8 @@
 import React, { useRef } from 'react';
 import { Upload, Play, Layers, Map as MapIcon, Settings, X, Image as ImageIcon, AlertTriangle, FileJson } from 'lucide-react';
 import { saveField } from '../api';
+import { getFieldPermissions } from '../permissions';
+
 
 const normalizeGeoJson = (geoJson, metadata = {}) => {
   if (geoJson.type === 'FeatureCollection') {
@@ -50,6 +52,8 @@ const normalizeGeoJson = (geoJson, metadata = {}) => {
 };
 
 export default function Sidebar({ 
+  user,
+  selectedField,
   isAnalyzing,
   onRunAnalysis,
   isFetchingSatelliteData,
@@ -68,6 +72,10 @@ export default function Sidebar({
   onFieldSaved
 }) {
   const geoJsonInputRef = useRef(null);
+
+  const permissions = getFieldPermissions(selectedField?.properties || selectedField, user);
+  const canCreateField = permissions.canCreateField;
+  const canAnalyze = permissions.canAnalyze;
 
   const handleGeoJsonUpload = async (e) => {
     const file = e.target.files[0];
@@ -89,11 +97,14 @@ export default function Sidebar({
             
             // Send geometry to PostgreSQL database via our API adapter
             const response = await saveField(file.name, geometryToSave, 0.0);
+            const field = response.data.data;
+
             const fieldMetadata = {
-              id: response.data.field_id,
-              field_id: response.data.field_id,
-              name: response.data.name || file.name,
-              area: 0.0
+              id: field.id,
+              field_id: field.id,
+              name: field.name || file.name,
+              area: field.area_ha || 0,
+              role: field.role
             };
             const enrichedData = normalizeGeoJson(parsedJson, fieldMetadata);
 
@@ -124,6 +135,8 @@ export default function Sidebar({
       geoJsonInputRef.current.value = "";
     }
   };
+
+  
 
   return (
     <aside className="glass-panel" style={{

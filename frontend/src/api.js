@@ -121,3 +121,72 @@ export const fetchAnalysisHistory = async () => {
   const response = await api.get('/analysis/history');
   return response.data;
 };
+
+
+export const shareField = async ({ fieldId, email, role }) => {
+  const response = await api.post('/geo/fields/share', {
+    field_id: fieldId,
+    email,
+    role
+  });
+
+  return response.data;
+};
+
+export const fetchFieldTeam = async (fieldId) => {
+  const response = await api.get(`/geo/fields/${fieldId}/team`);
+  return response.data;
+};
+
+export const revokeFieldAccess = async ({ fieldId, userId }) => {
+  const response = await api.delete(`/geo/fields/${fieldId}/team/${userId}`);
+  return response.data;
+};
+
+export const fetchAdminStats = async () => {
+  const response = await api.get('/admin/stats');
+  return response.data;
+};
+
+export const fetchAdminUsers = async () => {
+  const response = await api.get('/admin/users');
+  return response.data;
+};
+
+export const updateAdminUser = async ({
+  userId,
+  email,
+  fullName,
+  role,
+  isActive
+}) => {
+  const response = await api.patch(`/admin/users/${userId}`, {
+    email,
+    full_name: fullName,
+    role,
+    is_active: isActive
+  });
+
+  return response.data;
+};
+
+export const fetchAdminAudit = async () => {
+  const response = await api.get('/admin/audit');
+  return response.data;
+};
+
+export const createAdminUser = async ({ email, fullName, password, role }) => {
+  const response = await api.post('/admin/users', {
+    email,
+    full_name: fullName,
+    password,
+    role
+  });
+
+  return response.data;
+};
+
+export const deleteAdminUser = async (userId) => {
+  const response = await api.delete(`/admin/users/${userId}`);
+  return response.data;
+};

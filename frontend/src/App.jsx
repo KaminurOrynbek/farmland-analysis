@@ -7,7 +7,7 @@ import AuthPage from './pages/AuthPage';
 import HomePage from './pages/HomePage';
 import ProfilePage from './pages/ProfilePage';
 import WorkspacePage from './pages/WorkspacePage';
-import AdminDashboardPage from './pages/AdminDashboardPage';
+import AdminPanelPage from './pages/AdminPanelPage';
 
 import { checkHealth, runAnalysis, saveField } from './api';
 import './styles.css';
@@ -121,17 +121,19 @@ function App() {
   };
 
   const handleRunAnalysis = async () => {
-    // Prevent run if no field was successfully saved to the database
-    if (!geoJsonUploadResponse?.data?.field_id) {
-      alert('Please upload field boundaries first so they are saved to the database.');
+
+    const fieldId = geoJsonUploadResponse?.data?.data?.id;
+
+    if (!fieldId) {
+      alert('Please upload or draw a field first.');
       return;
     }
 
     setIsAnalyzing(true);
     try {
-      // Use the actual generated PostgreSQL field UUID
-      const fieldId = geoJsonUploadResponse.data.field_id;
-      
+   
+
+            
       // Use our Clean Architecture use case which orchestrates GEE, Rasterio, DB and ResNet
       const data = await runAnalysis(fieldId, '2023-05-01', '2023-08-30');
       
@@ -182,11 +184,15 @@ function App() {
       // Send geometry to PostgreSQL database via API
       const response = await saveField('Drawn Field', geometryToSave, 0.0);
 
+      
+      const field = response.data.data;
+
       const metadata = {
-        id: response.data.field_id,
-        field_id: response.data.field_id,
-        name: response.data.name || 'Drawn Field',
-        area: 0.0
+        id: field.id,
+        field_id: field.id,
+        name: field.name || 'Drawn Field',
+        area: field.area_ha || 0,
+        role: field.role
       };
       const enrichedFeatureCollection = enrichFeatureCollection(geoJsonFeatureCollection, metadata);
       
@@ -237,6 +243,7 @@ function App() {
       case 'Workspace':
         return (
           <WorkspacePage
+            user={sessionUser}
             activePage={activePage}
             isAnalyzing={isAnalyzing}
             onRunAnalysis={handleRunAnalysis}
@@ -273,6 +280,7 @@ function App() {
       case 'Projects':
         return (
           <ProjectsPage
+            user={sessionUser}
             onNavigate={handleNavigate}
             refreshKey={dataRefreshKey}
           />
@@ -306,7 +314,7 @@ function App() {
         );
       case 'Admin':
         return (
-          <AdminDashboardPage
+          <AdminPanelPage
             refreshKey={dataRefreshKey}
             onNavigate={handleNavigate}
             backendHealthy={backendHealthy}
@@ -329,11 +337,17 @@ function App() {
 
   return (
     <div className="dashboard-container dashboard-shell" style={{ flexDirection: 'row' }}>
-      <AppSidebar activePage={activePage} onNavigate={handleNavigate} onLogout={handleLogout} />
+      <AppSidebar
+        activePage={activePage}
+        onNavigate={handleNavigate}
+        onLogout={handleLogout}
+        user={sessionUser}
+      />
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
         <Navbar
           activePage={activePage}
           onNavigate={handleNavigate}
+          onLogout={handleLogout}
           user={sessionUser}
         />
         {renderPrivatePage()}

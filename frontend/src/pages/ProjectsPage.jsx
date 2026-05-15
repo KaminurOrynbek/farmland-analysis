@@ -15,6 +15,8 @@ export default function ProjectsPage({ onNavigate, refreshKey }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const canCreateProject = user?.role !== 'AGRONOMIST';
+
   useEffect(() => {
     let isActive = true;
 

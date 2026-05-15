@@ -7,7 +7,8 @@ import {
   Users,
   Settings,
   Leaf,
-  LogOut
+  LogOut,
+  ShieldCheck
 } from 'lucide-react';
 
 const MAIN_NAV = [
@@ -17,13 +18,25 @@ const MAIN_NAV = [
   { id: 'Projects', label: 'Projects', icon: <FolderOpen size={16} /> }
 ];
 
+const ADMIN_NAV = [
+  { id: 'Admin', label: 'Admin Panel', icon: <ShieldCheck size={16} /> }
+];
+
 const BOTTOM_NAV = [
   { id: 'Team / Access', label: 'Team / Access', icon: <Users size={16} /> },
   { id: 'Settings', label: 'Settings', icon: <Settings size={16} /> }
 ];
 
-export default function AppSidebar({ activePage, onNavigate, onLogout }) {
-  const NavButton = ({ item, isLogout }) => (
+const LOGOUT_NAV = {
+  id: 'Logout',
+  label: 'Logout',
+  icon: <LogOut size={16} />
+};
+
+function NavButton({ item, activePage, onNavigate, onLogout, isLogout = false }) {
+  const isActive = activePage === item.id && !isLogout;
+
+  return (
     <button
       onClick={isLogout ? onLogout : () => onNavigate(item.id)}
       style={{
@@ -32,8 +45,8 @@ export default function AppSidebar({ activePage, onNavigate, onLogout }) {
         gap: '10px',
         padding: '9px 12px',
         width: '100%',
-        background: activePage === item.id && !isLogout ? 'var(--accent-color)' : 'transparent',
-        color: activePage === item.id && !isLogout
+        background: isActive ? 'var(--accent-color)' : 'transparent',
+        color: isActive
           ? '#fff'
           : isLogout
             ? '#fca5a5'
@@ -51,6 +64,10 @@ export default function AppSidebar({ activePage, onNavigate, onLogout }) {
       {item.label}
     </button>
   );
+}
+
+export default function AppSidebar({ activePage, onNavigate, onLogout, user }) {
+  const isAdmin = user?.role === 'ADMIN';
 
   return (
     <aside
@@ -96,8 +113,36 @@ export default function AppSidebar({ activePage, onNavigate, onLogout }) {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
         {MAIN_NAV.map((item) => (
-          <NavButton key={item.id} item={item} />
+          <NavButton
+            key={item.id}
+            item={item}
+            activePage={activePage}
+            onNavigate={onNavigate}
+            onLogout={onLogout}
+          />
         ))}
+
+        {isAdmin && (
+          <>
+            <div
+              style={{
+                height: '1px',
+                background: 'var(--border-color)',
+                margin: '8px 0'
+              }}
+            />
+
+            {ADMIN_NAV.map((item) => (
+              <NavButton
+                key={item.id}
+                item={item}
+                activePage={activePage}
+                onNavigate={onNavigate}
+                onLogout={onLogout}
+              />
+            ))}
+          </>
+        )}
       </div>
 
       <div
@@ -111,9 +156,22 @@ export default function AppSidebar({ activePage, onNavigate, onLogout }) {
         }}
       >
         {BOTTOM_NAV.map((item) => (
-          <NavButton key={item.id} item={item} />
+          <NavButton
+            key={item.id}
+            item={item}
+            activePage={activePage}
+            onNavigate={onNavigate}
+            onLogout={onLogout}
+          />
         ))}
-        <NavButton item={{ label: 'Logout', icon: <LogOut size={16} /> }} isLogout />
+
+        <NavButton
+          item={LOGOUT_NAV}
+          activePage={activePage}
+          onNavigate={onNavigate}
+          onLogout={onLogout}
+          isLogout
+        />
       </div>
     </aside>
   );
