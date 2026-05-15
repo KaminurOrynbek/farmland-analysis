@@ -1,5 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+import logging
+
+# ... imports ...
 
 # Import core architecture modules
 from backend.core.config import settings
@@ -7,7 +11,7 @@ from backend.infrastructure.database.database import engine, Base
 # Import all models so SQLAlchemy discovers them and creates the tables
 from backend.infrastructure.database import models
 
-from backend.routers import health, satellite, geo, analysis
+from backend.routers import health, satellite, geo, analysis, auth
 
 # Automatically generate database tables 
 # (In production, you'd use Alembic migrations instead of create_all)
@@ -24,6 +28,14 @@ app = FastAPI(
     version=settings.VERSION
 )
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logging.error(f"Global error: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"status": "error", "message": "Internal Server Error", "detail": str(exc)},
+    )
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
@@ -35,6 +47,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(health.router, prefix="/api", tags=["Health"])
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(geo.router, prefix="/api/geo", tags=["Geospatial"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["Analysis"])
 # satellite.router logic is now mostly absorbed by analysis automatically, 

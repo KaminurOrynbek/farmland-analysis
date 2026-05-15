@@ -48,14 +48,17 @@ class RasterProcessor:
                 else:
                     evi_mean = None
 
+                total_pixels = len(ndvi)
                 stress_pixels = np.sum(ndvi < 0.3)
+                stress_percentage = (stress_pixels / total_pixels * 100) if total_pixels > 0 else 0
 
                 return {
                     "ndvi_mean": float(np.mean(ndvi)),
                     "evi_mean": evi_mean,
                     "ndvi_min": float(np.min(ndvi)),
                     "ndvi_max": float(np.max(ndvi)),
-                    "stress_zones_count": int(stress_pixels)
+                    "stress_zones_count": int(stress_pixels),
+                    "stress_area_percentage": round(float(stress_percentage), 2)
                 }
 
         except Exception as e:
