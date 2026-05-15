@@ -5,8 +5,8 @@ from typing import Dict, Any, List, Optional
 import uuid
 
 from backend.infrastructure.database.database import get_db
-from backend.routers.deps import get_current_active_user
-from backend.infrastructure.database.models import User
+from backend.routers.deps import get_current_active_user, FieldPermissionChecker
+from backend.infrastructure.database.models import User, FieldAccessRole
 from backend.services.field_service import FieldService
 
 router = APIRouter()
@@ -84,3 +84,22 @@ def share_field(
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to share field: {str(e)}")
+
+@router.get("/fields/{field_id}/team", dependencies=[Depends(FieldPermissionChecker(FieldAccessRole.OWNER))])
+def get_field_team(
+    field_id: uuid.UUID,
+    db: Session = Depends(get_db)
+):
+    """ Lists all users with access to this field (Owners only) """
+    service = FieldService(db)
+    return service.get_field_team(field_id)
+
+@router.delete("/fields/{field_id}/team/{user_id}", dependencies=[Depends(FieldPermissionChecker(FieldAccessRole.OWNER))])
+def revoke_field_access(
+    field_id: uuid.UUID,
+    user_id: uuid.UUID,
+    db: Session = Depends(get_db)
+):
+    """ Revokes access from a user (Owners only) """
+    service = FieldService(db)
+    return service.revoke_access(field_id, user_id)

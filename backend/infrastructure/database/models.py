@@ -22,7 +22,6 @@ class FieldAccessRole(enum.Enum):
     OWNER = "OWNER"
     EDITOR = "EDITOR"
     VIEWER = "VIEWER"
-    CONSULTANT = "CONSULTANT"
 
 class PlatformType(enum.Enum):
     SENTINEL_2 = "SENTINEL_2"
@@ -245,9 +244,24 @@ class AuditLog(Base):
     action = Column(String, nullable=False)
     old_values = Column(JSONB)
     new_values = Column(JSONB)
+    metadata_json = Column(JSONB, name="metadata", comment="Additional context for the action")
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
 
     user = relationship("User")
+
+# New model for Expert/User comments on fields
+class FieldComment(Base):
+    __tablename__ = "field_comments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id"), nullable=False)
+    author_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    comment = Column(String, nullable=False)
+    markers = Column(JSONB, comment="Array of {point: {lat, lng}, type, label}")
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+
+    field = relationship("Field", backref="comments")
+    author = relationship("User")
 
 # New model for spectral indices results
 class SpectralIndices(Base):

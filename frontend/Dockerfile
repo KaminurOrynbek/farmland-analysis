@@ -3,7 +3,10 @@ FROM node:20-bullseye
 WORKDIR /app
 
 COPY frontend/package*.json ./
-RUN npm install
+RUN npm cache clean --force && npm install --legacy-peer-deps
+
+# Verify axios is installed during build
+RUN ls node_modules/axios
 
 COPY frontend/ .
 
