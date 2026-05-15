@@ -1,94 +1,279 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Date, JSON
+import enum
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Integer, Float, Numeric, Date, Enum as SQLEnum, Table, UniqueConstraint
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
+
 from datetime import datetime
 import uuid
 
 from backend.infrastructure.database.database import Base
 
-def generate_uuid():
-    return str(uuid.uuid4())
+# =========================
+# ENUMS
+# =========================
+
+class UserRole(enum.Enum):
+    ADMIN = "ADMIN"
+    FARMER = "FARMER"
+    AGRONOMIST = "AGRONOMIST"
+
+class FieldAccessRole(enum.Enum):
+    OWNER = "OWNER"
+    EDITOR = "EDITOR"
+    VIEWER = "VIEWER"
+    CONSULTANT = "CONSULTANT"
+
+class PlatformType(enum.Enum):
+    SENTINEL_2 = "SENTINEL_2"
+    LANDSAT_8 = "LANDSAT_8"
+
+class AnalysisStatus(enum.Enum):
+    PENDING = "Pending"
+    PROCESSING = "Processing"
+    COMPLETED = "Completed"
+    FAILED = "Failed"
+    CANCELLED = "Cancelled"
+
+class AnalysisType(enum.Enum):
+    CROP_CLASSIFICATION = "CROP_CLASSIFICATION"
+    HEALTH_ANALYSIS = "HEALTH_ANALYSIS"
+    STRESS_DETECTION = "STRESS_DETECTION"
+    SOIL_ANALYSIS = "SOIL_ANALYSIS"
+    YIELD_PREDICTION = "YIELD_PREDICTION"
+
+class ArtifactType(enum.Enum):
+    NDVI_MAP = "NDVI_MAP"
+    EVI_MAP = "EVI_MAP"
+    HEATMAP = "HEATMAP"
+    SEGMENTATION_MASK = "SEGMENTATION_MASK"
+    GEOTIFF = "GEOTIFF"
+    PDF_REPORT = "PDF_REPORT"
+    RAW_EXPORT = "RAW_EXPORT"
+
+# =========================
+# USERS
+# =========================
 
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(String, primary_key=True, default=generate_uuid)
-    email = Column(String, unique=True, index=True, nullable=False)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email = Column(String, unique=True, nullable=False, index=True)
     password_hash = Column(String, nullable=False)
-    full_name = Column(String)
-    role = Column(String, default="Farmer")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    fields = relationship("Field", back_populates="owner")
+    full_name = Column(String, nullable=False)
+    role = Column(SQLEnum(UserRole, native_enum=False), nullable=False)
+    is_active = Column(Boolean, default=True)
+    email_verified = Column(Boolean, default=False)
+    last_login_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    deleted_at = Column(DateTime(timezone=True))
+
+    owned_fields = relationship("Field", back_populates="owner")
+    access_rights = relationship("FieldAccess", back_populates="user", foreign_keys="FieldAccess.user_id")
+
+# =========================
+# FIELDS
+# =========================
 
 class Field(Base):
     __tablename__ = "fields"
 
-    id = Column(String, primary_key=True, default=generate_uuid)
-    user_id = Column(String, ForeignKey("users.id"))
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     name = Column(String, nullable=False)
-    boundary_geometry = Column(JSON, nullable=False) # Storing GeoJSON dict
-    area_ha = Column(Float)
+    boundary_geom = Column(JSONB, comment='GeoJSON MULTIPOLYGON')
+    area_ha = Column(Numeric, comment='Auto-calculated from geometry')
     location_name = Column(String)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    owner = relationship("User", back_populates="fields")
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    deleted_at = Column(DateTime(timezone=True))
+
+    owner = relationship("User", back_populates="owned_fields")
+    access_control = relationship("FieldAccess", back_populates="field")
     satellite_images = relationship("SatelliteImage", back_populates="field")
     analyses = relationship("Analysis", back_populates="field")
+
+# =========================
+# FIELD ACCESS CONTROL
+# =========================
+
+class FieldAccess(Base):
+    __tablename__ = "field_access"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    access_role = Column(SQLEnum(FieldAccessRole, native_enum=False), nullable=False)
+    granted_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    is_active = Column(Boolean, default=True, nullable=False)
+    granted_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    revoked_at = Column(DateTime(timezone=True))
+    revoked_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (UniqueConstraint('field_id', 'user_id', name='uq_field_user_access'),)
+
+    field = relationship("Field", back_populates="access_control")
+    user = relationship("User", back_populates="access_rights", foreign_keys=[user_id])
+
+# =========================
+# SATELLITE IMAGES
+# =========================
 
 class SatelliteImage(Base):
     __tablename__ = "satellite_images"
 
-    id = Column(String, primary_key=True, default=generate_uuid)
-    field_id = Column(String, ForeignKey("fields.id"))
-    platform = Column(String, default="Sentinel-2")
-    acquisition_start_date = Column(Date, nullable=False)
-    acquisition_end_date = Column(Date, nullable=False)
-    cloud_cover_percentage = Column(Float)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id"), nullable=False)
+    platform = Column(SQLEnum(PlatformType, native_enum=False), nullable=False)
+    acquisition_date = Column(Date)
+    acquisition_start_date = Column(Date)
+    acquisition_end_date = Column(Date)
+    cloud_cover_percentage = Column(Float, comment='0-100')
+    resolution_meters = Column(Float)
     gee_asset_id = Column(String)
-    download_url = Column(String)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    download_url = Column(String, comment='GEO/S3/MinIO path')
+    checksum = Column(String, comment='Deduplication hash')
+    bands = Column(JSONB, comment='Available spectral bands')
+    bbox = Column(JSONB, comment='GeoJSON POLYGON')
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    deleted_at = Column(DateTime(timezone=True))
 
     field = relationship("Field", back_populates="satellite_images")
-    analyses = relationship("Analysis", back_populates="satellite_image")
+    analyses = relationship("Analysis", secondary="analysis_images", back_populates="satellite_images")
+
+# =========================
+# ML MODELS REGISTRY
+# =========================
+
+class MLModel(Base):
+    __tablename__ = "ml_models"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, nullable=False)
+    version = Column(String, nullable=False)
+    framework = Column(String, comment='PyTorch, TensorFlow, etc')
+    metrics = Column(JSONB, comment='Accuracy, F1, IoU, etc')
+    storage_url = Column(String)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+
+    analyses = relationship("Analysis", back_populates="model")
+
+# =========================
+# ANALYSES
+# =========================
 
 class Analysis(Base):
     __tablename__ = "analyses"
 
-    id = Column(String, primary_key=True, default=generate_uuid)
-    field_id = Column(String, ForeignKey("fields.id"))
-    satellite_image_id = Column(String, ForeignKey("satellite_images.id"), nullable=True)
-    analysis_date = Column(DateTime, default=datetime.utcnow)
-    status = Column(String, default="Pending") # Pending, Processing, Completed, Failed
-    processing_time_ms = Column(Integer, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id"), nullable=False)
+    model_id = Column(UUID(as_uuid=True), ForeignKey("ml_models.id"))
+    analysis_type = Column(SQLEnum(AnalysisType, native_enum=False), nullable=False)
+    status = Column(SQLEnum(AnalysisStatus, native_enum=False), nullable=False)
+    celery_task_id = Column(String, comment='Celery async task ID')
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    processing_time_ms = Column(Integer)
+    retry_count = Column(Integer, default=0)
+    error_message = Column(String)
+    analysis_results = Column(JSONB, comment='Predictions, indices, zones, metadata')
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    deleted_at = Column(DateTime(timezone=True))
 
     field = relationship("Field", back_populates="analyses")
-    satellite_image = relationship("SatelliteImage", back_populates="analyses")
-    spectral_indices = relationship("SpectralIndices", back_populates="analysis", uselist=False)
-    ml_prediction = relationship("MLPrediction", back_populates="analysis", uselist=False)
+    model = relationship("MLModel", back_populates="analyses")
+    satellite_images = relationship("SatelliteImage", secondary="analysis_images", back_populates="analyses")
+    artifacts = relationship("AnalysisArtifact", back_populates="analysis")
 
+    # One-to-one relationships for results
+    spectral_indices = relationship("SpectralIndices", uselist=False, back_populates="analysis")
+    ml_prediction = relationship("MLPrediction", uselist=False, back_populates="analysis")
+
+# =========================
+# ANALYSIS ↔ IMAGES
+# MANY-TO-MANY RELATION
+# =========================
+
+class AnalysisImage(Base):
+    __tablename__ = "analysis_images"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    analysis_id = Column(UUID(as_uuid=True), ForeignKey("analyses.id"), nullable=False)
+    satellite_image_id = Column(UUID(as_uuid=True), ForeignKey("satellite_images.id"), nullable=False)
+
+# =========================
+# ANALYSIS ARTIFACTS
+# =========================
+
+class AnalysisArtifact(Base):
+    __tablename__ = "analysis_artifacts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    analysis_id = Column(UUID(as_uuid=True), ForeignKey("analyses.id"), nullable=False)
+    artifact_type = Column(SQLEnum(ArtifactType, native_enum=False), nullable=False)
+    storage_url = Column(String, nullable=False)
+    mime_type = Column(String)
+    file_size_mb = Column(Float)
+    metadata_json = Column(JSONB, name="metadata")
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+
+    analysis = relationship("Analysis", back_populates="artifacts")
+
+
+# =========================
+# AUDIT LOGS
+# =========================
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    entity_type = Column(String, nullable=False)
+    entity_id = Column(UUID(as_uuid=True), nullable=False)
+    action = Column(String, nullable=False)
+    old_values = Column(JSONB)
+    new_values = Column(JSONB)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+
+    user = relationship("User")
+
+# New model for spectral indices results
 class SpectralIndices(Base):
     __tablename__ = "spectral_indices"
 
-    id = Column(String, primary_key=True, default=generate_uuid)
-    analysis_id = Column(String, ForeignKey("analyses.id"))
-    ndvi_mean = Column(Float, nullable=True)
-    evi_mean = Column(Float, nullable=True)
-    ndvi_min = Column(Float, nullable=True)
-    ndvi_max = Column(Float, nullable=True)
-    stress_zones_detected = Column(Integer, default=0)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    analysis_id = Column(UUID(as_uuid=True), ForeignKey("analyses.id"), nullable=False, unique=True)
+    ndvi_mean = Column(Float)
+    evi_mean = Column(Float)
+    ndvi_min = Column(Float)
+    ndvi_max = Column(Float)
+    stress_zones_detected = Column(Integer)
 
     analysis = relationship("Analysis", back_populates="spectral_indices")
 
+# New model for ML prediction results
 class MLPrediction(Base):
     __tablename__ = "ml_predictions"
 
-    id = Column(String, primary_key=True, default=generate_uuid)
-    analysis_id = Column(String, ForeignKey("analyses.id"))
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    analysis_id = Column(UUID(as_uuid=True), ForeignKey("analyses.id"), nullable=False, unique=True)
     crop_type_prediction = Column(String)
     confidence_score = Column(Float)
-    vegetation_health_index = Column(Integer)
+    vegetation_health_index = Column(Float)
     risk_level = Column(String)
-    model_version = Column(String, default="ResNet-50-EuroSAT-v1")
 
     analysis = relationship("Analysis", back_populates="ml_prediction")
+
+
+
+
+
+
+
+

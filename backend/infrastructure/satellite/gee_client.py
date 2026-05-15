@@ -29,9 +29,14 @@ class GEEClient:
         Returns a temporary download URL for the GeoTIFF containing bands B4, B8.
         """
         try:
-            # Parse GeoJSON into Earth Engine Feature
+            # Parse GeoJSON into Earth Engine Geometry
+            geom_type = geometry_dict.get("type", "Polygon")
             coords = geometry_dict["coordinates"]
-            roi = ee.Geometry.Polygon(coords)
+            
+            if geom_type == "MultiPolygon":
+                roi = ee.Geometry.MultiPolygon(coords)
+            else:
+                roi = ee.Geometry.Polygon(coords)
 
             # Define Sentinel-2 Harmonized Collection
             collection = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')

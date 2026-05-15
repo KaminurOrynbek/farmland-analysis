@@ -45,7 +45,7 @@ async def get_analysis_history(db: Session = Depends(get_db)):
                     "field_id": field.id,
                     "field_name": field.name,
                     "area_ha": field.area_ha,
-                    "analysis_date": analysis.analysis_date.isoformat() if analysis.analysis_date else None,
+                    "analysis_date": analysis.created_at.isoformat() if analysis.created_at else None,
                     "status": analysis.status,
 
                     "crop_type": ml.crop_type_prediction if ml else None,

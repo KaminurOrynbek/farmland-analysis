@@ -8,6 +8,8 @@ from backend.infrastructure.database.database import get_db
 from backend.infrastructure.database import models
 from backend.infrastructure.database.repositories import FieldRepository
 from backend.services.geo_service import process_geojson_upload
+from geoalchemy2.shape import to_shape
+from shapely.geometry import mapping
 
 router = APIRouter()
 
@@ -80,8 +82,8 @@ def get_all_fields(db: Session = Depends(get_db)):
                 {
                     "id": f.id,
                     "name": f.name,
-                    "area_ha": f.area_ha,
-                    "geometry": f.boundary_geometry
+                    "area_ha": float(f.area_ha) if f.area_ha else 0.0,
+                    "geometry": mapping(to_shape(f.boundary_geom)) if f.boundary_geom else None
                 } for f in fields
             ]
         }

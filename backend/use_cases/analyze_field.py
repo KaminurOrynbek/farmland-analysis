@@ -8,6 +8,8 @@ from backend.infrastructure.database.repositories import FieldRepository, Analys
 from backend.infrastructure.satellite.gee_client import GEEClient
 from backend.infrastructure.geospatial.raster_processor import RasterProcessor
 from backend.infrastructure.ml.resnet_adapter import get_ml_adapter
+from geoalchemy2.shape import to_shape
+from shapely.geometry import mapping
 
 class AnalyzeFieldUseCase:
     def __init__(self, db_session: Session):
@@ -41,8 +43,9 @@ class AnalyzeFieldUseCase:
         try:
             # 3. Infra: Fetch imagery URL from GEE
             print(f"Requesting GEE composite for field {field.name}...")
+            geometry_dict = mapping(to_shape(field.boundary_geom))
             download_url = self.gee_client.get_median_composite_url(
-                geometry_dict=field.boundary_geometry,
+                geometry_dict=geometry_dict,
                 start_date=start_date,
                 end_date=end_date
             )

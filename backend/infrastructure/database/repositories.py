@@ -7,9 +7,9 @@ class FieldRepository:
 
     def create(self, user_id: str, name: str, geometry: dict, area_ha: float) -> Field:
         db_field = Field(
-            user_id=user_id,
+            owner_id=user_id,
             name=name,
-            boundary_geometry=geometry,
+            boundary_geom=geometry,
             area_ha=area_ha
         )
         self.db.add(db_field)
@@ -21,7 +21,7 @@ class FieldRepository:
         return self.db.query(Field).filter(Field.id == field_id).first()
         
     def get_by_user(self, user_id: str):
-        return self.db.query(Field).filter(Field.user_id == user_id).all()
+        return self.db.query(Field).filter(Field.owner_id == user_id).all()
 
 class AnalysisRepository:
     def __init__(self, db: Session):
@@ -41,12 +41,19 @@ class AnalysisRepository:
         return image
 
     def create_analysis(self, field_id: str, image_id: str) -> Analysis:
+        # In this architecture, analysis has a many-to-many link to images via AnalysisImage
         analysis = Analysis(
             field_id=field_id,
-            satellite_image_id=image_id,
-            status="Processing"
+            status="Processing",
+            analysis_type="HEALTH_ANALYSIS" # Default type
         )
         self.db.add(analysis)
+        self.db.flush() # Get the analysis ID
+
+        from backend.infrastructure.database.models import AnalysisImage
+        link = AnalysisImage(analysis_id=analysis.id, satellite_image_id=image_id)
+        self.db.add(link)
+        
         self.db.commit()
         self.db.refresh(analysis)
         return analysis
@@ -86,7 +93,7 @@ class AnalysisRepository:
             .join(Field, Analysis.field_id == Field.id)
             .outerjoin(SpectralIndices, SpectralIndices.analysis_id == Analysis.id)
             .outerjoin(MLPrediction, MLPrediction.analysis_id == Analysis.id)
-            .order_by(Analysis.analysis_date.desc())
+            .order_by(Analysis.created_at.desc())
             .limit(limit)
             .all()
         )
