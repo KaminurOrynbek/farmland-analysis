@@ -40,11 +40,14 @@ class FieldService:
         self.db.add(access)
         self.db.commit()
         
+        from geoalchemy2.shape import to_shape
+        from shapely.geometry import mapping
+        
         return {
             "id": field.id,
             "name": field.name,
             "area_ha": float(field.area_ha) if field.area_ha else 0.0,
-            "geometry": field.boundary_geom,
+            "geometry": mapping(to_shape(field.boundary_geom)),
             "role": "OWNER"
         }
 
@@ -52,9 +55,9 @@ class FieldService:
         """
         Retrieves all fields belonging to the user or where they have access.
         """
-        # 1. Fields owned by user
-        # 2. Fields where user has an entry in field_access table
-        
+        from geoalchemy2.shape import to_shape
+        from shapely.geometry import mapping
+
         fields_with_access = (
             self.db.query(Field, FieldAccess.access_role)
             .join(FieldAccess, Field.id == FieldAccess.field_id)
@@ -69,7 +72,7 @@ class FieldService:
                 "id": f.id,
                 "name": f.name,
                 "area_ha": float(f.area_ha) if f.area_ha else 0.0,
-                "geometry": f.boundary_geom,
+                "geometry": mapping(to_shape(f.boundary_geom)),
                 "role": role_str
             })
         return result

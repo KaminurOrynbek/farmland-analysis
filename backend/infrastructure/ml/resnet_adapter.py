@@ -116,6 +116,76 @@ class ResNetAdapter:
         return image.astype(np.uint8)
 
     def predict(self, image_path: str) -> Dict[str, Any]:
+        """
+        Perform Patch-based inference: split image into 224x224 tiles, 
+        predict each, and aggregate results.
+        """
+        with rasterio.open(image_path) as src:
+            w, h = src.width, src.height
+            patch_size = 224
+            
+            # If image is smaller than patch size, do single prediction
+            if w <= patch_size and h <= patch_size:
+                return self._predict_single_patch(image_path)
+
+            # Slicing logic
+            all_predictions = []
+            all_confidences = []
+
+            # Step through the image in tiles
+            for y in range(0, h, patch_size):
+                for x in range(0, w, patch_size):
+                    # Read window
+                    window = rasterio.windows.Window(x, y, min(patch_size, w-x), min(patch_size, h-y))
+                    
+                    # Read bands and create RGB
+                    try:
+                        # Re-using normalization logic but on a per-patch basis
+                        # For efficiency, we extract the patch as a numpy array
+                        red = src.read(1, window=window).astype(np.float32)
+                        green = src.read(4, window=window).astype(np.float32) if src.count >= 4 else src.read(min(2, src.count), window=window).astype(np.float32)
+                        blue = src.read(3, window=window).astype(np.float32) if src.count >= 3 else src.read(1, window=window).astype(np.float32)
+                        
+                        rgb = np.dstack([red, green, blue])
+                        rgb = self._normalize_to_uint8(rgb)
+                        
+                        # Pad patch to 224x224 if it's on the edge
+                        if rgb.shape[0] < patch_size or rgb.shape[1] < patch_size:
+                            padded = np.zeros((patch_size, patch_size, 3), dtype=np.uint8)
+                            padded[:rgb.shape[0], :rgb.shape[1], :] = rgb
+                            rgb = padded
+                        
+                        image = Image.fromarray(rgb, "RGB")
+                        input_tensor = self.transform(image).unsqueeze(0).to(self.device)
+                        
+                        with torch.no_grad():
+                            outputs = self.model(input_tensor)
+                            probs = torch.nn.functional.softmax(outputs, dim=1)[0]
+                            conf, idx = torch.max(probs, 0)
+                            
+                            all_predictions.append(self.class_names[idx.item()])
+                            all_confidences.append(float(conf.item()))
+                    except Exception:
+                        continue
+
+            if not all_predictions:
+                return self._predict_single_patch(image_path)
+
+            # Aggregate: Majority Vote
+            from collections import Counter
+            counts = Counter(all_predictions)
+            most_common_class = counts.most_common(1)[0][0]
+            avg_confidence = sum(all_confidences) / len(all_confidences)
+
+            return {
+                "predicted_class": most_common_class,
+                "crop_type": most_common_class,
+                "confidence": avg_confidence,
+                "patch_count": len(all_predictions),
+                "class_distribution": dict(counts)
+            }
+
+    def _predict_single_patch(self, image_path: str) -> Dict[str, Any]:
         image = self._extract_rgb_from_tif(image_path)
         input_tensor = self.transform(image).unsqueeze(0).to(self.device)
 
@@ -124,18 +194,12 @@ class ResNetAdapter:
             probabilities_tensor = torch.nn.functional.softmax(outputs, dim=1)[0]
             confidence, predicted_idx = torch.max(probabilities_tensor, 0)
 
-        probabilities = {
-            self.class_names[i]: float(probabilities_tensor[i].item())
-            for i in range(len(self.class_names))
-        }
-
         predicted_class = self.class_names[predicted_idx.item()]
-
         return {
             "predicted_class": predicted_class,
             "crop_type": predicted_class,
             "confidence": float(confidence.item()),
-            "probabilities": probabilities
+            "patch_count": 1
         }
     
      

@@ -43,7 +43,11 @@ class AnalyzeFieldUseCase:
         try:
             # 3. Infra: Fetch imagery URL from GEE
             print(f"Requesting GEE composite for field {field.name}...")
+            
+            from geoalchemy2.shape import to_shape
+            from shapely.geometry import mapping
             geometry_dict = mapping(to_shape(field.boundary_geom))
+
             download_url = self.gee_client.get_median_composite_url(
                 geometry_dict=geometry_dict,
                 start_date=start_date,
@@ -68,23 +72,25 @@ class AnalyzeFieldUseCase:
             print("Running ResNet-50 model inference...")
             ml_result = self.ml_adapter.predict(tif_path)
             
-            # 7. Domain: Save everything back to DB
+            # 7. Agronomic Interpretation Layer
             ndvi_mean = indices_result.get("ndvi_mean", 0)
-            evi_mean = indices_result.get("evi_mean", None)
-
-            if ndvi_mean >= 0.6:
-                vegetation_health = 85
-                risk_level = "Low"
-            elif ndvi_mean >= 0.3:
-                vegetation_health = 55
-                risk_level = "Medium"
-            else:
-                vegetation_health = 25
-                risk_level = "High"
-
-            ml_result["vegetation_health"] = vegetation_health
+            evi_mean = indices_result.get("evi_mean", 0)
+            
+            from backend.services.agronomic_service import AgronomicService
+            assessment = AgronomicService.generate_assessment(
+                ndvi=ndvi_mean,
+                stress_percentage=indices_result.get("stress_area_percentage", 0),
+                crop_type=ml_result["crop_type"]
+            )
+            
+            vegetation_health = assessment["overall_status"] # Simplified for now
+            risk_level = "High" if assessment["overall_status"] == "Critical" else "Medium" if assessment["overall_status"] == "Warning" else "Low"
+            
+            ml_result["vegetation_health_score"] = 85 if vegetation_health == "Healthy" else 55 if vegetation_health == "Warning" else 25
             ml_result["risk_level"] = risk_level
+            ml_result["assessment"] = assessment
 
+            # 8. Domain: Save everything back to DB
             self.analysis_repo.save_results(analysis_record.id, indices_result, ml_result)
 
             if os.path.exists(tif_path):
@@ -101,7 +107,9 @@ class AnalyzeFieldUseCase:
                 "risk_level": risk_level,
                 "analyzed_area": field.area_ha,
                 "stress_zones_count": indices_result.get("stress_zones_count", 0),
-                "message": "Analysis completed using ResNet-50 classification and NDVI/EVI spectral indices."
+                "stress_area_percentage": indices_result.get("stress_area_percentage", 0),
+                "assessment": assessment,
+                "message": "Analysis completed using ResNet-50 classification and Agronomic Interpretation Engine."
             }
             
         except Exception as e:

@@ -2,6 +2,7 @@ import enum
 from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Integer, Float, Numeric, Date, Enum as SQLEnum, Table, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
+from geoalchemy2 import Geometry
 
 from datetime import datetime
 import uuid
@@ -82,7 +83,7 @@ class Field(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     name = Column(String, nullable=False)
-    boundary_geom = Column(JSONB, comment='GeoJSON MULTIPOLYGON')
+    boundary_geom = Column(Geometry(geometry_type='POLYGON', srid=4326), comment='PostGIS POLYGON WGS84')
     area_ha = Column(Numeric, comment='Auto-calculated from geometry')
     location_name = Column(String)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
@@ -254,6 +255,7 @@ class SpectralIndices(Base):
     ndvi_min = Column(Float)
     ndvi_max = Column(Float)
     stress_zones_detected = Column(Integer)
+    stress_area_percentage = Column(Float)
 
     analysis = relationship("Analysis", back_populates="spectral_indices")
 
@@ -267,6 +269,7 @@ class MLPrediction(Base):
     confidence_score = Column(Float)
     vegetation_health_index = Column(Float)
     risk_level = Column(String)
+    agronomic_assessment = Column(JSONB)
 
     analysis = relationship("Analysis", back_populates="ml_prediction")
 
