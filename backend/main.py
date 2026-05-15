@@ -28,6 +28,14 @@ app = FastAPI(
     version=settings.VERSION
 )
 
+import asyncio
+from backend.core.websocket_manager import redis_listener
+
+@app.on_event("startup")
+async def startup_event():
+    # Start the Redis listener as a background task
+    asyncio.create_task(redis_listener())
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logging.error(f"Global error: {exc}", exc_info=True)

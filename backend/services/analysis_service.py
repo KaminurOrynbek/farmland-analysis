@@ -32,14 +32,24 @@ class AnalysisService:
              if not access:
                  raise HTTPException(status_code=403, detail="Not authorized to analyze this field")
 
-        # 2. Run analysis (using the existing use case for now, but following service pattern)
-        use_case = AnalyzeFieldUseCase(self.db)
-        result = use_case.execute(
-            field_id=field_id,
-            start_date=start_date,
-            end_date=end_date
-        )
-        return result
+        # 2. Create Analysis Record in DB first (Job Tracking Pattern)
+        analysis_record = self.repo.create_analysis(field_id=field_id, image_id=None)
+
+        # 3. Trigger Asynchronous Task with the Analysis ID
+        from backend.infrastructure.celery.tasks import run_analysis_task
+        task = run_analysis_task.delay(field_id, start_date, end_date, analysis_id=analysis_record.id)
+
+        # 4. Save Task ID to the record
+        analysis_record.celery_task_id = task.id
+        self.db.commit()
+
+        return {
+            "status": "Processing",
+            "message": "Analysis started in background.",
+            "field_id": field_id,
+            "analysis_id": analysis_record.id,
+            "task_id": task.id
+        }
 
     def get_history(self, user: User, limit: int = 20) -> List[Dict[str, Any]]:
         """
