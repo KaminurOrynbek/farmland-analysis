@@ -47,6 +47,16 @@ def run_migration():
                 # We continue because some columns might already exist
                 continue
 
+        # Add input_key and result_key to Analysis
+        try:
+            conn.execute(text("ALTER TABLE analyses ADD COLUMN IF NOT EXISTS input_key VARCHAR;"))
+            conn.execute(text("ALTER TABLE analyses ADD COLUMN IF NOT EXISTS result_key VARCHAR;"))
+            conn.commit()
+            print("Added input_key and result_key columns to analyses table.")
+        except Exception as e:
+            conn.rollback()
+            print(f"S3 key columns might already exist: {e}")
+
     print("\n✅ Migration completed successfully!")
     print("Your database is now fully PostGIS-enabled and synchronized with the latest production models.")
 

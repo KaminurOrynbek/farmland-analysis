@@ -27,6 +27,13 @@ class Settings(BaseSettings):
         "ML_ARTIFACTS_PATH",
         "backend/infrastructure/ml/models/ml_artifacts.json"
     )
+
+    # Object Storage (MinIO / S3-compatible)
+    MINIO_URL: str = os.getenv("MINIO_URL", "http://minio:9000")
+    MINIO_ROOT_USER: str = os.getenv("MINIO_ROOT_USER", "admin")
+    MINIO_ROOT_PASSWORD: str = os.getenv("MINIO_ROOT_PASSWORD", "minioadmin")
+    MINIO_BUCKET_RAW: str = os.getenv("MINIO_BUCKET_RAW", "satellite-data")
+    MINIO_BUCKET_RESULTS: str = os.getenv("MINIO_BUCKET_RESULTS", "analysis-results")
         
     class Config:
         env_file = ".env"

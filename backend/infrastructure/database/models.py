@@ -29,11 +29,11 @@ class PlatformType(enum.Enum):
     LANDSAT_8 = "LANDSAT_8"
 
 class AnalysisStatus(enum.Enum):
-    PENDING = "Pending"
-    PROCESSING = "Processing"
-    COMPLETED = "Completed"
-    FAILED = "Failed"
-    CANCELLED = "Cancelled"
+    PENDING = "PENDING"
+    INGESTING = "INGESTING"
+    PROCESSING = "PROCESSING"
+    DONE = "DONE"
+    FAILED = "FAILED"
 
 class AnalysisType(enum.Enum):
     CROP_CLASSIFICATION = "CROP_CLASSIFICATION"
@@ -178,6 +178,8 @@ class Analysis(Base):
     celery_task_id = Column(String, comment='Celery async task ID')
     progress_percent = Column(Integer, default=0)
     current_stage = Column(String, default="Pending")
+    input_key = Column(String, comment='S3 key for raw imagery')
+    result_key = Column(String, comment='S3 key for processed results map')
     event_log = Column(JSONB, default=list, comment='List of events {timestamp, stage, progress}')
     started_at = Column(DateTime(timezone=True))
     completed_at = Column(DateTime(timezone=True))

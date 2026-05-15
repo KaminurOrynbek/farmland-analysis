@@ -31,6 +31,34 @@ services:
     ports:
       - "6379:6379"
 
+  minio:
+    image: minio/minio
+    container_name: farmland_minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+
+  minio-init:
+    image: minio/mc
+    container_name: farmland_minio_init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-admin} ${MINIO_ROOT_PASSWORD:-minioadmin};
+      /usr/bin/mc mb --ignore-existing local/satellite-data;
+      /usr/bin/mc mb --ignore-existing local/analysis-results;
+      /usr/bin/mc anonymous set public local/analysis-results;
+      exit 0;
+      "
+
 
   backend:
     build:
@@ -51,6 +79,9 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-0000}@db:5432/${POSTGRES_DB:-farmland_db}
       REDIS_URL: redis://redis:6379/0
       EE_CREDENTIALS_PATH: /app/gee_service_account.json
+      MINIO_URL: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     volumes:
       - ./backend:/app/backend
       - ./alembic:/app/alembic
@@ -66,20 +97,25 @@ services:
     image: farmland-worker:latest
     container_name: farmland_celery_worker
     restart: unless-stopped
-    command: celery -A backend.infrastructure.celery.celery_app worker --loglevel=info
+    command: python -m celery -A backend.infrastructure.celery.celery_app worker --loglevel=info
     mem_limit: 2048m
     depends_on:
       redis:
         condition: service_started
       db:
         condition: service_healthy
+      minio:
+        condition: service_started
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-0000}@db:5432/${POSTGRES_DB:-farmland_db}
       REDIS_URL: redis://redis:6379/0
       EE_CREDENTIALS_PATH: /app/gee_service_account.json
-    # No volumes here for production consistency - uses code from the image
+      MINIO_URL: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     volumes:
       - ./gee_service_account.json:/app/gee_service_account.json:ro
+      - ./backend/infrastructure/ml/models:/app/backend/infrastructure/ml/models:ro
 
 
   frontend:
@@ -103,3 +139,4 @@ services:
 
 volumes:
   postgres_data:
+  minio_data:
