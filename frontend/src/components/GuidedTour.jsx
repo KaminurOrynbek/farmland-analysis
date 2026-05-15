@@ -43,7 +43,7 @@ const steps = [
   },
   {
     title: 'Step 5 — Open full report',
-    text: 'After analysis, open the Analysis Details tab to view NDVI, EVI, crop prediction, risk level, AI explanation, and recommendations.',
+    text: 'After analysis, open the Analysis Report tab to view NDVI, EVI, crop prediction, risk level, AI explanation, and recommendations.',
     top: 74,
     left: '50%',
     transform: 'translateX(-15%)',

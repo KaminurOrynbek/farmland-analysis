@@ -9,9 +9,9 @@ import ProfilePage from './pages/ProfilePage';
 import WorkspacePage from './pages/WorkspacePage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 
-
 import { checkHealth, runAnalysis, saveField } from './api';
 import './styles.css';
+import AppSidebar from './components/AppSidebar';
 
 const DEFAULT_ANALYSIS_RESULTS = {
   vegetationHealth: '—',
@@ -146,6 +146,7 @@ function App() {
       setAnalysisStarted(true);
       setLatestAnalysisAt(new Date().toISOString());
       handleDataChanged();
+      handleNavigate('Analysis Report');
     } catch (error) {
       console.error('Analysis failed:', error);
       alert(`Analysis failed: ${error.message}`);
@@ -254,7 +255,7 @@ function App() {
             onFieldSaved={handleDataChanged}
           />
         );
-      case 'Analysis Details':
+      case 'Analysis Report':
         return (
           <AnalysisDetailsPage
             analysisResults={analysisResults}
@@ -271,6 +272,7 @@ function App() {
             refreshKey={dataRefreshKey}
           />
         );
+      case 'Settings':
       case 'Profile':
         return (
           <ProfilePage
@@ -280,6 +282,21 @@ function App() {
             onOpenAdmin={sessionUser?.role === 'ADMIN' ? () => handleNavigate('Admin') : null}
             backendHealthy={backendHealthy}
           />
+        );
+      case 'Team / Access':
+        return (
+          <div className="content-page" style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
+            <h1 className="page-title" style={{ marginBottom: '32px' }}>Team & Access Management</h1>
+            <div className="glass-panel" style={{ padding: '32px', borderRadius: '24px', color: 'var(--text-secondary)' }}>
+              <p style={{ fontSize: '1.1rem', marginBottom: '16px', color: 'var(--text-primary)' }}>Share fields and collaborate.</p>
+              <ul style={{ lineHeight: '2' }}>
+                <li>Invite agronomist</li>
+                <li>Give Viewer / Editor access</li>
+                <li>See who has access to this field</li>
+              </ul>
+              <p style={{ marginTop: '24px', fontStyle: 'italic' }}>This feature will be available in the next release.</p>
+            </div>
+          </div>
         );
       case 'Admin':
         return (
@@ -305,15 +322,16 @@ function App() {
   };
 
   return (
-    <div className="dashboard-container dashboard-shell">
-      <Navbar
-        backendHealthy={backendHealthy}
-        activePage={activePage}
-        onNavigate={handleNavigate}
-        user={sessionUser}
-      />
-      
-      {renderPrivatePage()}
+    <div className="dashboard-container dashboard-shell" style={{ flexDirection: 'row' }}>
+      <AppSidebar activePage={activePage} onNavigate={handleNavigate} onLogout={handleLogout} />
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+        <Navbar
+          activePage={activePage}
+          onNavigate={handleNavigate}
+          user={sessionUser}
+        />
+        {renderPrivatePage()}
+      </div>
     </div>
   );
 }

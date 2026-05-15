@@ -165,7 +165,7 @@ export default function HomePage({
             <button type="button" className="primary-btn" onClick={() => onNavigate('Workspace')}>
               Open Workspace
             </button>
-            <button type="button" className="secondary-btn" onClick={() => onNavigate('Analysis Details')}>
+            <button type="button" className="secondary-btn" onClick={() => onNavigate('Analysis Report')}>
               Latest Report
             </button>
           </div>
@@ -198,7 +198,7 @@ export default function HomePage({
               title="Review the latest AI report"
               text="Inspect NDVI, EVI, crop prediction, stress zones, and recommendations from the most recent run."
               icon={<LineChart size={18} color="var(--status-healthy)" />}
-              onClick={() => onNavigate('Analysis Details')}
+              onClick={() => onNavigate('Analysis Report')}
             />
             <QuickAction
               title="Browse saved projects"
@@ -322,7 +322,7 @@ export default function HomePage({
           <div className="insight-card">
             <LineChart size={18} color="#8b5cf6" />
             <div>
-              <strong>Use Analysis Details for interpretation</strong>
+              <strong>Use Analysis Report for interpretation</strong>
               <p>Report pages should answer what happened, how confident the model is, and what an agronomist should inspect next.</p>
             </div>
           </div>

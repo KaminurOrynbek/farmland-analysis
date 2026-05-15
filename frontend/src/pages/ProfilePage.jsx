@@ -1,196 +1,179 @@
-import React from 'react';
-import {
-  ChevronRight,
-  LogOut,
-  Map,
-  ShieldCheck,
-  UserRound
-} from 'lucide-react';
+import React, { useState } from 'react';
+import { LogOut, ShieldCheck, Map, CheckCircle2, History, AlertTriangle } from 'lucide-react';
 
-const initialsFromName = (name = 'AgroVision User') => (
-  name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((segment) => segment.charAt(0).toUpperCase())
-    .join('') || 'AG'
-);
+export default function ProfilePage({ user, onLogout }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    name: user?.name || 'AgroVision User',
+    email: user?.email || 'farmer@agrovision.ai'
+  });
 
-export default function ProfilePage({
-  user,
-  onNavigate,
-  onLogout,
-  onOpenAdmin,
-  backendHealthy
-}) {
-  const profile = user || {
-    name: 'AgroVision User',
-    email: 'analyst@agrovision.ai',
-    role: 'Research Analyst'
+  const handleSave = () => {
+    setIsEditing(false);
   };
 
   return (
-    <div className="content-page">
-      <section className="profile-hero glass-panel">
-        <div className="profile-avatar">{initialsFromName(profile.name)}</div>
+    <div className="content-page" style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
+      <h1 className="page-title" style={{ marginBottom: '32px' }}>Profile / Account Settings</h1>
+      
+      <div style={{ display: 'flex', gap: '32px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        
+        {/* LEFT COLUMN: Profile info */}
+        <div style={{ flex: '1 1 400px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          
+          <div className="glass-panel" style={{ padding: '32px', borderRadius: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '32px' }}>
+              <div style={{
+                width: '80px', height: '80px', borderRadius: '20px',
+                background: 'linear-gradient(135deg, var(--accent-color), #1d4ed8)',
+                color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '2rem', fontWeight: 800
+              }}>
+                {formData.name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <h2 style={{ fontSize: '1.5rem', marginBottom: '4px' }}>{formData.name}</h2>
+                <span className="status-pill neutral" style={{ textTransform: 'capitalize' }}>{user?.role?.toLowerCase() || 'Farmer'}</span>
+              </div>
+            </div>
 
-        <div className="profile-hero-copy">
-          <div className="page-kicker">User Profile</div>
-          <h1 className="page-title">{profile.name}</h1>
-          <p className="page-subtitle">
-            Manage your AgroVision workspace access, review your role, and move quickly back into your analysis flow.
-          </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '8px' }}>Full Name</label>
+                {isEditing ? (
+                  <input 
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }}
+                  />
+                ) : (
+                  <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px' }}>{formData.name}</div>
+                )}
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '8px' }}>Email Address</label>
+                {isEditing ? (
+                  <input 
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }}
+                  />
+                ) : (
+                  <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px' }}>{formData.email}</div>
+                )}
+              </div>
+            </div>
 
-          <div className="profile-meta-row">
-            <span className="status-pill neutral">{profile.email}</span>
-            <span className="status-pill neutral">{profile.role}</span>
-            <span className={`status-pill ${backendHealthy ? 'healthy' : 'critical'}`}>
-              {backendHealthy ? 'Backend Connected' : 'Backend Unavailable'}
-            </span>
+            <div style={{ marginTop: '24px', display: 'flex', gap: '12px' }}>
+              {isEditing ? (
+                <>
+                  <button className="primary-btn" onClick={handleSave}>Save Changes</button>
+                  <button className="secondary-btn" onClick={() => setIsEditing(false)}>Cancel</button>
+                </>
+              ) : (
+                <button className="secondary-btn" onClick={() => setIsEditing(true)}>Edit Profile</button>
+              )}
+            </div>
           </div>
+
+          <div className="glass-panel" style={{ padding: '32px', borderRadius: '24px' }}>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <History size={20} color="var(--accent-color)" />
+              Recent Activity
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                <strong style={{ color: 'var(--text-primary)', display: 'block' }}>Analyzed: North Field 4</strong>
+                2 days ago • NDVI 0.65 • Low Risk
+              </div>
+              <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                <strong style={{ color: 'var(--text-primary)', display: 'block' }}>Analyzed: Valley Parcel B</strong>
+                5 days ago • NDVI 0.42 • High Risk
+              </div>
+              <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                <strong style={{ color: 'var(--text-primary)', display: 'block' }}>Created: West Sector</strong>
+                1 week ago • 142 ha
+              </div>
+            </div>
+          </div>
+
         </div>
 
-        <div className="page-hero-actions">
-          <button type="button" className="primary-btn" onClick={() => onNavigate('Workspace')}>
-            Return to Workspace
-          </button>
-          <button type="button" className="secondary-btn" onClick={onLogout}>
-            Logout
-          </button>
-        </div>
-      </section>
+        {/* RIGHT COLUMN: Stats & Permissions */}
+        <div style={{ flex: '1 1 340px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          
+          <div className="glass-panel" style={{ padding: '24px', borderRadius: '24px' }}>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <ShieldCheck size={20} color="var(--status-healthy)" />
+              My Permissions
+            </h3>
+            <div style={{ marginBottom: '12px', color: 'var(--text-primary)', fontWeight: 600 }}>
+              {user?.role === 'ADMIN' ? 'Admin' : 'Farmer'}
+            </div>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px', color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+              <li style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <CheckCircle2 size={16} color="var(--accent-color)" /> Can create fields
+              </li>
+              <li style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <CheckCircle2 size={16} color="var(--accent-color)" /> Can run analysis
+              </li>
+              <li style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <CheckCircle2 size={16} color="var(--accent-color)" /> Can view reports
+              </li>
+              <li style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <CheckCircle2 size={16} color="var(--accent-color)" /> Can share fields
+              </li>
+              {user?.role === 'ADMIN' && (
+                <li style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <CheckCircle2 size={16} color="var(--status-warning)" /> Can access admin tools
+                </li>
+              )}
+            </ul>
+          </div>
 
-      <section className="split-panel-grid">
-        <div className="section-card glass-panel">
-          <div className="section-card-header">
-            <div>
-              <div className="section-kicker">Account</div>
-              <h2>Profile details</h2>
+          <div className="glass-panel" style={{ padding: '24px', borderRadius: '24px' }}>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '20px' }}>Stats</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  Saved fields
+                </span>
+                <strong style={{ fontSize: '1.2rem' }}>3</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  Completed analyses
+                </span>
+                <strong style={{ fontSize: '1.2rem' }}>12</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  Shared fields
+                </span>
+                <strong style={{ fontSize: '1.2rem' }}>1</strong>
+              </div>
             </div>
           </div>
 
-          <div className="stack-list">
-            <div className="stack-row">
-              <span>Name</span>
-              <strong>{profile.name}</strong>
-            </div>
-            <div className="stack-row">
-              <span>Email</span>
-              <strong>{profile.email}</strong>
-            </div>
-            <div className="stack-row">
-              <span>Role</span>
-              <strong>{profile.role}</strong>
-            </div>
-            <div className="stack-row">
-              <span>Access model</span>
-              <strong>Mock authentication for diploma demo</strong>
-            </div>
-          </div>
-        </div>
-
-        <div className="section-card glass-panel">
-          <div className="section-card-header">
-            <div>
-              <div className="section-kicker">Workspace</div>
-              <h2>Recommended next actions</h2>
-            </div>
-          </div>
-
-          <div className="stack-list">
-            <button type="button" className="list-action-row" onClick={() => onNavigate('Home')}>
-              <div>
-                <strong>Go to Home Dashboard</strong>
-                <p>Review summary cards, recent projects, and latest analysis status.</p>
-              </div>
-              <ChevronRight size={18} color="var(--text-secondary)" />
-            </button>
-            <button type="button" className="list-action-row" onClick={() => onNavigate('Projects')}>
-              <div>
-                <strong>Open Projects & History</strong>
-                <p>Inspect saved fields, historical analyses, and field-level risk trends.</p>
-              </div>
-              <ChevronRight size={18} color="var(--text-secondary)" />
-            </button>
-            <button type="button" className="list-action-row" onClick={onLogout}>
-              <div>
-                <strong>Sign out of AgroVision</strong>
-                <p>Return to the public product experience and mock auth entry point.</p>
-              </div>
-              <LogOut size={18} color="var(--text-secondary)" />
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section className="split-panel-grid">
-        <div className="section-card glass-panel">
-          <div className="section-card-header">
-            <div>
-              <div className="section-kicker">Product Role</div>
-              <h2>How this account is positioned</h2>
-            </div>
-          </div>
-
-          <div className="insight-grid">
-            <div className="insight-card">
-              <UserRound size={18} color="var(--accent-color)" />
-              <div>
-                <strong>Research-oriented workflow</strong>
-                <p>This account is designed for demoing field monitoring, vegetation indices, and model-driven agronomic support.</p>
-              </div>
-            </div>
-            <div className="insight-card">
-              <Map size={18} color="var(--status-healthy)" />
-              <div>
-                <strong>Workspace-first execution</strong>
-                <p>Map tools remain the operational layer, while Home and Projects create a clearer product journey around them.</p>
-              </div>
-            </div>
-            <div className="insight-card">
-              <ShieldCheck size={18} color="#8b5cf6" />
-              <div>
-                <strong>Expandable governance model</strong>
-                <p>The frontend is now structured so an admin-only control surface can exist without complicating the main user navigation.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {onOpenAdmin ? (
-          <div className="section-card glass-panel">
-            <div className="section-card-header">
-              <div>
-                <div className="section-kicker">Admin Access</div>
-                <h2>Optional administration workspace</h2>
-              </div>
-            </div>
-
-            <p className="card-copy">
-              Because this mock account has administrator access, you can open the optional admin dashboard without exposing it in the main private navbar.
+          <div className="glass-panel" style={{ padding: '24px', borderRadius: '24px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', color: '#fca5a5', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <AlertTriangle size={18} /> Danger Zone
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+              Sign out of your current session. You will need to log back in to access your data.
             </p>
-
-            <div className="page-hero-actions">
-              <button type="button" className="primary-btn" onClick={onOpenAdmin}>
-                Open Admin Dashboard
-              </button>
-            </div>
+            <button 
+              className="secondary-btn" 
+              onClick={onLogout}
+              style={{ width: '100%', display: 'flex', justifyContent: 'center', color: '#fca5a5', borderColor: 'rgba(239, 68, 68, 0.4)', background: 'rgba(239, 68, 68, 0.05)' }}
+            >
+              <LogOut size={18} /> Logout
+            </button>
           </div>
-        ) : (
-          <div className="section-card glass-panel">
-            <div className="section-card-header">
-              <div>
-                <div className="section-kicker">Permissions</div>
-                <h2>Standard research access</h2>
-              </div>
-            </div>
 
-            <p className="card-copy">
-              This account follows the normal analyst flow: Home, Workspace, Analysis Details, Projects, and Profile. Admin tools stay out of the primary navigation to keep the product journey focused.
-            </p>
-          </div>
-        )}
-      </section>
+        </div>
+      </div>
     </div>
   );
 }

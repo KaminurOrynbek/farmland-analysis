@@ -1,20 +1,4 @@
 import React from 'react';
-import {
-  FolderOpen,
-  Home,
-  Leaf,
-  LineChart,
-  Map,
-  UserRound
-} from 'lucide-react';
-
-const NAV_ITEMS = [
-  { id: 'Home', icon: <Home size={18} /> },
-  { id: 'Workspace', icon: <Map size={18} /> },
-  { id: 'Analysis Details', icon: <LineChart size={18} /> },
-  { id: 'Projects', icon: <FolderOpen size={18} /> },
-  { id: 'Profile', icon: <UserRound size={18} /> }
-];
 
 const getInitials = (name = 'AgroVision') => (
   name
@@ -25,61 +9,22 @@ const getInitials = (name = 'AgroVision') => (
     .join('') || 'AG'
 );
 
-export default function Navbar({ backendHealthy, activePage, onNavigate, user }) {
+export default function Navbar({ onNavigate, user }) {
   const initials = getInitials(user?.name);
 
   return (
-    <nav className="app-navbar glass-panel">
-      <div
-        className="app-navbar-brand"
-        onClick={() => onNavigate('Home')}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            onNavigate('Home');
-          }
-        }}
+    <nav className="app-navbar glass-panel" style={{ minHeight: '74px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', padding: '0 24px', background: 'var(--bg-panel)' }}>
+      <button 
+        className="app-user-chip" 
+        onClick={() => onNavigate('Profile')}
+        style={{ cursor: 'pointer', background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', gap: '12px' }}
       >
-        <div className="app-navbar-logo">
-          <Leaf color="white" size={22} />
+        <div className="app-user-avatar">{initials}</div>
+        <div className="app-user-meta" style={{ textAlign: 'left' }}>
+          <strong style={{ color: 'var(--text-primary)' }}>{user?.name || 'AgroVision User'}</strong>
+          <span style={{ color: 'var(--text-secondary)' }}>{user?.role || 'FARMER'}</span>
         </div>
-
-        <div>
-          <h1 className="app-navbar-title">AgroVision</h1>
-          <span className="app-navbar-subtitle">
-            Premium farmland intelligence service
-          </span>
-        </div>
-      </div>
-
-      <div className="app-navbar-links">
-        {NAV_ITEMS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => onNavigate(item.id)}
-            className={`app-nav-link ${activePage === item.id ? 'active' : ''}`}
-          >
-            {item.icon}
-            {item.id}
-          </button>
-        ))}
-      </div>
-
-      <div className="app-navbar-right">
-        <span className={`status-pill ${backendHealthy ? 'healthy' : 'critical'}`}>
-          {backendHealthy ? 'Backend Connected' : 'Backend Unavailable'}
-        </span>
-
-        <div className="app-user-chip">
-          <div className="app-user-avatar">{initials}</div>
-          <div className="app-user-meta">
-            <strong>{user?.name || 'AgroVision User'}</strong>
-            <span>{user?.role || 'Research Analyst'}</span>
-          </div>
-        </div>
-      </div>
+      </button>
     </nav>
   );
 }

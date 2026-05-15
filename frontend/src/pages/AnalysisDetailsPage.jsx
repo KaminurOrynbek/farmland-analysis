@@ -78,7 +78,7 @@ export default function AnalysisDetailsPage({
       <div className="content-page">
         <section className="page-hero glass-panel">
           <div>
-            <div className="page-kicker">Analysis Details</div>
+            <div className="page-kicker">Analysis Report</div>
             <h1 className="page-title">No analysis report yet</h1>
             <p className="page-subtitle">
               The report page is ready, but it only becomes useful after a field is uploaded or drawn in Workspace and the current analysis pipeline finishes running.
