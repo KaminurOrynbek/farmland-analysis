@@ -42,6 +42,15 @@ def get_current_active_user(
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
+from backend.infrastructure.database.models import FieldAccess, FieldAccessRole, UserRole
+
+# Define role hierarchy for field-level access
+ACCESS_LEVELS = {
+    FieldAccessRole.VIEWER: 1,
+    FieldAccessRole.EDITOR: 2,
+    FieldAccessRole.OWNER: 3
+}
+
 class RoleChecker:
     def __init__(self, allowed_roles: List[str]):
         self.allowed_roles = allowed_roles
@@ -55,3 +64,44 @@ class RoleChecker:
                 detail=f"User role {user_role_str} is not authorized to access this resource"
             )
         return user
+
+class FieldPermissionChecker:
+    """
+    Modular permission checker for specific field access.
+    Admins bypass checks.
+    """
+    def __init__(self, required_level: FieldAccessRole):
+        self.required_level = required_level
+
+    def __call__(
+        self,
+        field_id: str,
+        user: User = Depends(get_current_active_user),
+        db: Session = Depends(get_db)
+    ):
+        # 1. Global Admin bypass
+        user_role_str = user.role.value if hasattr(user.role, 'value') else str(user.role)
+        if user_role_str == UserRole.ADMIN.value:
+            return True
+
+        # 2. Check specific field access
+        access = db.query(FieldAccess).filter(
+            FieldAccess.field_id == field_id,
+            FieldAccess.user_id == user.id,
+            FieldAccess.is_active == True
+        ).first()
+
+        if not access:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have access to this field"
+            )
+
+        # 3. Verify hierarchy
+        if ACCESS_LEVELS[access.access_role] < ACCESS_LEVELS[self.required_level]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Minimum required access: {self.required_level.value}. Your access: {access.access_role.value}"
+            )
+
+        return True

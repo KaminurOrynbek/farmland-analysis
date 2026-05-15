@@ -5,8 +5,8 @@ import json
 
 from backend.schemas.analysis import AnalysisRequest
 from backend.infrastructure.database.database import get_db
-from backend.routers.deps import get_current_active_user
-from backend.infrastructure.database.models import User
+from backend.routers.deps import get_current_active_user, FieldPermissionChecker
+from backend.infrastructure.database.models import User, FieldAccessRole
 from backend.services.analysis_service import AnalysisService
 from backend.core.websocket_manager import manager
 
@@ -21,6 +21,10 @@ async def run_field_analysis(
     """
     Triggers the end-to-end processing pipeline for a specific field.
     """
+    # Verify permission: EDITOR level required
+    permission_checker = FieldPermissionChecker(FieldAccessRole.EDITOR)
+    permission_checker(str(request.field_id), current_user, db)
+
     try:
         from backend.infrastructure.celery.celery_dispatcher import CeleryJobDispatcher
         dispatcher = CeleryJobDispatcher()
@@ -84,10 +88,9 @@ async def get_analysis_status(
     if not analysis:
         raise HTTPException(status_code=404, detail="Analysis job not found")
 
-    from backend.infrastructure.database.repositories import FieldRepository
-    field_repo = FieldRepository(db)
-    if not field_repo.check_access(str(current_user.id), str(analysis.field_id), ["OWNER", "EDITOR", "VIEWER"]):
-        raise HTTPException(status_code=403, detail="Not authorized")
+    # Verify permission: VIEWER level required
+    permission_checker = FieldPermissionChecker(FieldAccessRole.VIEWER)
+    permission_checker(str(analysis.field_id), current_user, db)
 
     return {
         "analysis_id": analysis.id,

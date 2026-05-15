@@ -121,3 +121,44 @@ class FieldService:
         
         self.db.commit()
         return {"status": "success", "message": f"Field shared with {target_user_email} as {role}"}
+
+    def get_field_team(self, field_id: UUID) -> List[Dict[str, Any]]:
+        """
+        Lists all users who have access to a specific field.
+        """
+        team = (
+            self.db.query(FieldAccess, User.email, User.full_name)
+            .join(User, FieldAccess.user_id == User.id)
+            .filter(FieldAccess.field_id == field_id)
+            .all()
+        )
+        
+        return [
+            {
+                "user_id": access.user_id,
+                "email": email,
+                "full_name": full_name,
+                "role": access.access_role.value if hasattr(access.access_role, 'value') else str(access.access_role),
+                "granted_at": access.granted_at
+            }
+            for access, email, full_name in team
+        ]
+
+    def revoke_access(self, field_id: UUID, user_id: UUID) -> Dict[str, Any]:
+        """
+        Removes a user's access to a field.
+        """
+        access = self.db.query(FieldAccess).filter(
+            FieldAccess.field_id == field_id,
+            FieldAccess.user_id == user_id
+        ).first()
+        
+        if not access:
+            raise HTTPException(status_code=404, detail="Access record not found")
+        
+        if access.access_role == "OWNER":
+             raise HTTPException(status_code=400, detail="Cannot revoke access from an OWNER. Delete the field instead.")
+
+        self.db.delete(access)
+        self.db.commit()
+        return {"status": "success", "message": "Access revoked"}
