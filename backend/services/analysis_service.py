@@ -1,15 +1,16 @@
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
 from backend.infrastructure.database.repositories import AnalysisRepository, FieldRepository
-from backend.use_cases.analyze_field import AnalyzeFieldUseCase
 from backend.infrastructure.database.models import User
+from backend.core.interfaces import JobDispatcher
 from fastapi import HTTPException
 
 class AnalysisService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, dispatcher: JobDispatcher):
         self.db = db
         self.repo = AnalysisRepository(db)
         self.field_repo = FieldRepository(db)
+        self.dispatcher = dispatcher
 
     def run_analysis(self, user: User, field_id: str, start_date: str, end_date: str) -> Dict[str, Any]:
         """
@@ -35,12 +36,19 @@ class AnalysisService:
         # 2. Create Analysis Record in DB first (Job Tracking Pattern)
         analysis_record = self.repo.create_analysis(field_id=field_id, image_id=None)
 
-        # 3. Trigger Asynchronous Task with the Analysis ID
-        from backend.infrastructure.celery.tasks import run_analysis_task
-        task = run_analysis_task.delay(field_id, start_date, end_date, analysis_id=analysis_record.id)
+        # 3. Dispatch Asynchronous Task via Interface
+        task_id = self.dispatcher.dispatch(
+            "run_analysis_task", 
+            payload={
+                "field_id": field_id, 
+                "start_date": start_date, 
+                "end_date": end_date, 
+                "analysis_id": str(analysis_record.id)
+            }
+        )
 
         # 4. Save Task ID to the record
-        analysis_record.celery_task_id = task.id
+        analysis_record.celery_task_id = task_id
         self.db.commit()
 
         return {
@@ -48,7 +56,7 @@ class AnalysisService:
             "message": "Analysis started in background.",
             "field_id": field_id,
             "analysis_id": analysis_record.id,
-            "task_id": task.id
+            "task_id": task_id
         }
 
     def get_history(self, user: User, limit: int = 20) -> List[Dict[str, Any]]:
