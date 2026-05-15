@@ -27,18 +27,16 @@ class UserRepository:
         self.db.commit()
         self.db.refresh(db_obj)
         return db_obj
+    
 
     def update(self, db_obj: User, obj_in: UserUpdate) -> User:
-        if obj_in.password:
-            db_obj.password_hash = get_password_hash(obj_in.password)
-        if obj_in.email:
-            db_obj.email = obj_in.email
-        if obj_in.full_name:
-            db_obj.full_name = obj_in.full_name
-        if obj_in.role:
-            db_obj.role = obj_in.role.value if hasattr(obj_in.role, 'value') else obj_in.role
-        
+        update_data = obj_in.model_dump(exclude_unset=True)
+
+        for field, value in update_data.items():
+            setattr(db_obj, field, value)
+
         self.db.add(db_obj)
         self.db.commit()
         self.db.refresh(db_obj)
         return db_obj
+    

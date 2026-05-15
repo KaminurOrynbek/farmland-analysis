@@ -5,7 +5,7 @@ const steps = [
     title: 'Step 1 — Define your field',
     text: 'Start by uploading a GeoJSON boundary from the left sidebar. You can also draw a polygon directly on the map using the drawing tools.',
     top: 118,
-    left: 300,
+    left: 460,
     arrow: 'left',
     button: 'OK, next'
   },
@@ -13,7 +13,7 @@ const steps = [
     title: 'Drawing option',
     text: 'To draw manually, use the polygon or rectangle tools on the left side of the map.',
     top: 110,
-    left: 365,
+    left: 510,
     arrow: 'left',
     button: 'Got it'
   },
@@ -21,33 +21,33 @@ const steps = [
     title: 'Step 2 — Choose satellite source',
     text: 'For this MVP, Sentinel-2 is recommended. Landsat 8-9 has lower spatial resolution. PlanetScope is a high-resolution commercial option shown for demonstration.',
     top: 250,
-    left: 300,
+    left: 460,
     arrow: 'left',
     button: 'OK, next'
   },
   {
     title: 'Step 3 — Fetch imagery',
     text: 'This prepares satellite imagery for the selected field. In the backend, imagery is processed through the analysis pipeline.',
-    top: 360,
-    left: 300,
+    top: 340,
+    left: 460,
     arrow: 'left',
     button: 'OK, next'
   },
   {
     title: 'Step 4 — Run AI analysis',
     text: 'This calculates NDVI and EVI, detects stress zones, and runs ResNet-50 classification for crop and land-use prediction.',
-    top: 420,
-    left: 300,
+    top: 400,
+    left: 460,
     arrow: 'left',
     button: 'OK, next'
   },
   {
     title: 'Step 5 — Open full report',
     text: 'After analysis, open the Analysis Report tab to view NDVI, EVI, crop prediction, risk level, AI explanation, and recommendations.',
-    top: 74,
-    left: '50%',
-    transform: 'translateX(-15%)',
-    arrow: 'top',
+    top: 180,
+    left: 240,
+    transform: 'none',
+    arrow: 'left',
     button: 'Finish guide'
   }
 ];

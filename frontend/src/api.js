@@ -44,6 +44,21 @@ export const registerUser = async ({ email, password, fullName, role }) => {
   return response.data;
 };
 
+export const fetchCurrentUser = async () => {
+  const response = await api.get('/users/me');
+  return response.data;
+};
+
+export const updateCurrentUser = async ({ fullName, email }) => {
+  const response = await api.patch('/users/me', {
+    full_name: fullName,
+    email
+  });
+
+  return response.data;
+};
+
+
 export const loginUser = async ({ email, password }) => {
   const formData = new URLSearchParams();
   formData.append('username', email);
@@ -56,7 +71,11 @@ export const loginUser = async ({ email, password }) => {
   });
 
   localStorage.setItem('token', response.data.access_token);
-  return response.data;
+
+  const currentUser = await fetchCurrentUser();
+  localStorage.setItem('user', JSON.stringify(currentUser));
+
+  return currentUser;
 };
 
 export const logoutUser = () => {

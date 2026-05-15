@@ -33,18 +33,9 @@ export default function AuthPage({ onBack, onLogin }) {
     setIsSubmitting(true);
 
     try {
-      await loginUser(loginForm);
 
-      const inferredRole =
-        loginForm.email.includes('admin')
-          ? 'ADMIN'
-          : 'FARMER';
+      const user = await loginUser(loginForm);
 
-      const user = {
-        name: loginForm.email.split('@')[0],
-        email: loginForm.email,
-        role: inferredRole
-      };
 
       onLogin(user);
     } catch (err) {

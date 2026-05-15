@@ -34,7 +34,7 @@ services:
       - "6379:6379"
 
   minio:
-    image: minio/minio
+    image: minio/minio:latest
     container_name: farmland_minio
     restart: unless-stopped
     ports:
@@ -48,7 +48,7 @@ services:
       - minio_data:/data
 
   minio-init:
-    image: minio/mc
+    image: quay.io/minio/mc:latest
     container_name: farmland_minio_init
     depends_on:
       - minio

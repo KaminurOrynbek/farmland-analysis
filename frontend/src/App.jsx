@@ -99,6 +99,11 @@ function App() {
     setActivePage('Home');
   };
 
+  const handleUpdateUser = (updatedUser) => {
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    setSessionUser(updatedUser);
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -279,6 +284,7 @@ function App() {
             user={sessionUser}
             onNavigate={handleNavigate}
             onLogout={handleLogout}
+            onUpdateUser={handleUpdateUser}
             onOpenAdmin={sessionUser?.role === 'ADMIN' ? () => handleNavigate('Admin') : null}
             backendHealthy={backendHealthy}
           />
