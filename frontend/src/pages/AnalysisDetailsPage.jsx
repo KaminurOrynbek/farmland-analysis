@@ -65,44 +65,67 @@ const ReportCard = ({ title, value, subtitle, icon, color }) => (
 
 export default function AnalysisDetailsPage({
   analysisResults,
-  selectedField
+  selectedField,
+  analysisStarted,
+  latestAnalysisAt,
+  onNavigate
 }) {
-  const fieldName =
-    selectedField?.properties?.name || 'Unnamed Field';
+  const fieldName = selectedField?.properties?.name || 'Unnamed Field';
+  const hasAnalysis = analysisStarted && analysisResults.cropType && analysisResults.cropType !== '—';
+
+  if (!hasAnalysis) {
+    return (
+      <div className="content-page">
+        <section className="page-hero glass-panel">
+          <div>
+            <div className="page-kicker">Analysis Details</div>
+            <h1 className="page-title">No analysis report yet</h1>
+            <p className="page-subtitle">
+              The report page is ready, but it only becomes useful after a field is uploaded or drawn in Workspace and the current analysis pipeline finishes running.
+            </p>
+          </div>
+
+          <div className="page-hero-actions">
+            <button type="button" className="primary-btn" onClick={() => onNavigate('Workspace')}>
+              Open Workspace
+            </button>
+            <button type="button" className="secondary-btn" onClick={() => onNavigate('Projects')}>
+              View Projects
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
-    <div
-      style={{
-        padding: '32px',
-        width: '100%',
-        overflowY: 'auto',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '24px'
-      }}
-    >
+    <div className="content-page">
       {/* HEADER */}
-      <div>
-        <h1
-          style={{
-            fontSize: '2.2rem',
-            marginBottom: '8px'
-          }}
-        >
-          AI Agricultural Analysis Report
-        </h1>
+      <section className="page-hero glass-panel">
+        <div>
+          <div className="page-kicker">Latest Analysis Report</div>
+          <h1 className="page-title">AI Agricultural Analysis Report</h1>
+          <p className="page-subtitle">
+            Deep analysis of satellite imagery using NDVI, EVI, geospatial processing, and AI-based crop classification.
+          </p>
+        </div>
 
-        <p
-          style={{
-            color: 'var(--text-secondary)',
-            maxWidth: '900px',
-            lineHeight: 1.7
-          }}
-        >
-          Deep analysis of satellite imagery using NDVI, EVI,
-          geospatial processing, and AI-based crop classification.
-        </p>
-      </div>
+        <div className="page-hero-meta">
+          <div className="page-hero-meta-card">
+            <span className="page-hero-meta-label">Field</span>
+            <strong>{fieldName}</strong>
+          </div>
+          <div className="page-hero-meta-card">
+            <span className="page-hero-meta-label">Latest run</span>
+            <strong>{latestAnalysisAt ? new Date(latestAnalysisAt).toLocaleString() : 'Current session'}</strong>
+          </div>
+          <div className="page-hero-actions">
+            <button type="button" className="secondary-btn" onClick={() => onNavigate('Workspace')}>
+              Reopen Workspace
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* FIELD INFO */}
       <div
@@ -129,6 +152,7 @@ export default function AnalysisDetailsPage({
           <p><strong>Field Name:</strong> {fieldName}</p>
           <p><strong>Analyzed Area:</strong> {analysisResults.analyzedArea}</p>
           <p><strong>Risk Level:</strong> {analysisResults.riskLevel}</p>
+          <p><strong>Pipeline Message:</strong> {analysisResults.message || 'Latest report generated from the current analysis session.'}</p>
         </div>
       </div>
 
