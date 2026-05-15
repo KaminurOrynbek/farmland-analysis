@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Lock, Mail, UserRound, ShieldCheck } from 'lucide-react';
-import { loginUser, registerUser } from '../api';
+import { loginUser, registerUser } from '../api/client';
 
 const DEFAULT_LOGIN = {
   email: '',

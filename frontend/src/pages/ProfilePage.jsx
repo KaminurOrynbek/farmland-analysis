@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Mail, UserRound, Save, X, Edit3 } from 'lucide-react';
-import { updateCurrentUser } from '../api';
+import { updateCurrentUser } from '../api/client';
 
 export default function ProfilePage({ user, onUpdateUser }) {
   const displayName = user?.full_name || user?.name || 'AgroVision User';

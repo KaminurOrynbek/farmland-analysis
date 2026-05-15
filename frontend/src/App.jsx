@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import Navbar from './components/Navbar';
+import Navbar from './components/layout/TopNavbar';
 import ProjectsPage from './pages/ProjectsPage';
 import LandingPage from './pages/LandingPage';
 import AnalysisDetailsPage from './pages/AnalysisDetailsPage';
@@ -9,9 +9,9 @@ import ProfilePage from './pages/ProfilePage';
 import WorkspacePage from './pages/WorkspacePage';
 import AdminPanelPage from './pages/AdminPanelPage';
 
-import { checkHealth, runAnalysis, saveField } from './api';
+import { checkHealth, runAnalysis, saveField } from './api/client';
 import './styles.css';
-import AppSidebar from './components/AppSidebar';
+import AppSidebar from './components/layout/MainSidebar';
 
 const DEFAULT_ANALYSIS_RESULTS = {
   vegetationHealth: '—',

@@ -1,7 +1,7 @@
 import React from 'react';
-import GuidedTour from '../components/GuidedTour';
-import MapView from '../components/MapView';
-import Sidebar from '../components/Sidebar';
+import GuidedTour from '../components/common/GuidedTour';
+import MapView from '../components/workspace/MapView';
+import Sidebar from '../components/workspace/WorkspaceSidebar';
 import { Loader2 } from 'lucide-react';
 
 export default function WorkspacePage({

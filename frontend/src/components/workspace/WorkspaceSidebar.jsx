@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { Upload, Play, Layers, Map as MapIcon, Settings, X, Image as ImageIcon, AlertTriangle, FileJson } from 'lucide-react';
-import { saveField } from '../api';
-import { getFieldPermissions } from '../permissions';
+import { saveField } from '../../api/client';
+import { getFieldPermissions } from '../../permissions/permissions';
 
 
 const normalizeGeoJson = (geoJson, metadata = {}) => {

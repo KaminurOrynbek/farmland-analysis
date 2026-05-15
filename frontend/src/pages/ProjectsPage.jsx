@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Database, AlertTriangle, Leaf, BarChart2, TrendingUp, Plus, MapPin } from 'lucide-react';
-import { fetchAllFields, fetchAnalysisHistory } from '../api';
+import { fetchAllFields, fetchAnalysisHistory } from '../api/client';
 
 const formatDateTime = (value) => {
   if (!value) {

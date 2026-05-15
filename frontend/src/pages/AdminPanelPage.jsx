@@ -4,7 +4,7 @@ import {
   fetchAdminUsers,
   updateAdminUser,
   createAdminUser
-} from '../api';
+} from '../api/client';
 
 const ROLES = ['FARMER', 'AGRONOMIST', 'ADMIN'];
 

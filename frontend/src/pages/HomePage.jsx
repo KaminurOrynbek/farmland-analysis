@@ -10,7 +10,7 @@ import {
   Map,
   ShieldCheck
 } from 'lucide-react';
-import { fetchAllFields, fetchAnalysisHistory } from '../api';
+import { fetchAllFields, fetchAnalysisHistory } from '../api/client';
 
 const formatDateTime = (value) => {
   if (!value) {
