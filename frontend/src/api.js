@@ -1,93 +1,104 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
+import axios from 'axios';
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api';
+
+export const api = axios.create({
+  baseURL: API_BASE_URL
+});
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const url = error.config?.url || '';
+    const isAuthRequest = url.includes('/auth/login') || url.includes('/auth/register');
+
+    if (!isAuthRequest && (error.response?.status === 401 || error.response?.status === 403)) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+export const registerUser = async ({ email, password, fullName, role }) => {
+  const response = await api.post('/auth/register', {
+    email,
+    password,
+    full_name: fullName,
+    role
+  });
+
+  return response.data;
+};
+
+export const loginUser = async ({ email, password }) => {
+  const formData = new URLSearchParams();
+  formData.append('username', email);
+  formData.append('password', password);
+
+  const response = await api.post('/auth/login', formData, {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    }
+  });
+
+  localStorage.setItem('token', response.data.access_token);
+  return response.data;
+};
+
+export const logoutUser = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+};
 
 export const checkHealth = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/health`);
-    if (!response.ok) return false;
-    const data = await response.json();
-    return data.status === "ok";
-  } catch (error) {
-    console.error("Health check failed:", error);
+    const response = await api.get('/health');
+    return response.data.status === 'ok';
+  } catch {
     return false;
   }
 };
 
 export const runAnalysis = async (fieldId, startDate = null, endDate = null) => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/analysis/analyze`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        field_id: fieldId,
-        start_date: startDate,
-        end_date: endDate
-      }),
-    });
+  const response = await api.post('/analysis/analyze', {
+    field_id: fieldId,
+    start_date: startDate,
+    end_date: endDate
+  });
 
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(`Analysis failed: ${err.detail || response.statusText}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("API Error - runAnalysis:", error);
-    throw error;
-  }
+  return response.data;
 };
 
 export const saveField = async (name, geometry, area_ha) => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/geo/fields`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: name,
-        geometry: geometry,
-        area_ha: area_ha
-      }),
-    });
+  const response = await api.post('/geo/fields', {
+    name,
+    geometry,
+    area_ha
+  });
 
-    if (!response.ok) {
-      throw new Error(`Field saving failed: ${response.statusText}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("API Error - saveField:", error);
-    throw error;
-  }
+  return response.data;
 };
 
 export const fetchAllFields = async () => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/geo/fields`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch fields: ${response.statusText}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("API Error - fetchAllFields:", error);
-    throw error;
-  }
+  const response = await api.get('/geo/fields');
+  return response.data;
 };
 
-// Fallback exports for any un-refactored components
-export const uploadImage = async () => { console.warn("uploadImage is deprecated."); return {}; };
-export const uploadGeoJSON = async () => { console.warn("uploadGeoJSON is deprecated. Use saveField."); return {}; };
-
-
-// Fetch analysis history for Projects page
 export const fetchAnalysisHistory = async () => {
-  const response = await fetch(`${API_BASE_URL}/analysis/history`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch analysis history: ${response.statusText}`);
-  }
-
-  return await response.json();
+  const response = await api.get('/analysis/history');
+  return response.data;
 };

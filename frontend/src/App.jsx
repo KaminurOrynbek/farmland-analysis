@@ -92,20 +92,23 @@ function App() {
     setAppView('auth');
   };
 
-  const handleMockLogin = (user) => {
+  const handleLogin = (user) => {
+    localStorage.setItem('user', JSON.stringify(user));
     setSessionUser(user);
     setAppView('app');
     setActivePage('Home');
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setSessionUser(null);
     setAppView('landing');
     setActivePage('Home');
   };
 
   const handleNavigate = (page) => {
-    if (page === 'Admin' && sessionUser?.role !== 'Administrator') {
+      if (page === 'Admin' && sessionUser?.role !== 'ADMIN') {
       return;
     }
 
@@ -195,6 +198,16 @@ function App() {
     }
   };
 
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
+
+    if (token && storedUser) {
+      setSessionUser(JSON.parse(storedUser));
+      setAppView('app');
+    }
+  }, []);
+
   if (appView === 'landing') {
     return (
       <LandingPage
@@ -208,7 +221,7 @@ function App() {
     return (
       <AuthPage
         onBack={() => setAppView('landing')}
-        onLogin={handleMockLogin}
+        onLogin={handleLogin}
       />
     );
   }
@@ -264,7 +277,7 @@ function App() {
             user={sessionUser}
             onNavigate={handleNavigate}
             onLogout={handleLogout}
-            onOpenAdmin={sessionUser?.role === 'Administrator' ? () => handleNavigate('Admin') : null}
+            onOpenAdmin={sessionUser?.role === 'ADMIN' ? () => handleNavigate('Admin') : null}
             backendHealthy={backendHealthy}
           />
         );
@@ -299,6 +312,7 @@ function App() {
         onNavigate={handleNavigate}
         user={sessionUser}
       />
+      
       {renderPrivatePage()}
     </div>
   );
