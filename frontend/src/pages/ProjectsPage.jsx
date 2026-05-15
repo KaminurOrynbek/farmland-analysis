@@ -2,26 +2,52 @@ import React, { useEffect, useState } from 'react';
 import { Database, AlertTriangle, Leaf, BarChart2, TrendingUp, Plus, MapPin } from 'lucide-react';
 import { fetchAllFields, fetchAnalysisHistory } from '../api';
 
-export default function ProjectsPage({ setActiveTab }) {
+const formatDateTime = (value) => {
+  if (!value) {
+    return '—';
+  }
+
+  return new Date(value).toLocaleString();
+};
+
+export default function ProjectsPage({ onNavigate, refreshKey }) {
   const [fields, setFields] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isActive = true;
+
     const loadProjectsData = async () => {
-      try {
-        const fieldsResponse = await fetchAllFields();
-        const historyResponse = await fetchAnalysisHistory();
-        setFields(fieldsResponse.data || []);
-        setHistory(historyResponse.data || []);
-      } catch (error) {
-        console.error('Failed to load projects data:', error);
-      } finally {
-        setLoading(false);
+      const [fieldsResponse, historyResponse] = await Promise.allSettled([
+        fetchAllFields(),
+        fetchAnalysisHistory()
+      ]);
+
+      if (!isActive) {
+        return;
       }
+
+      if (fieldsResponse.status === 'fulfilled') {
+        setFields(fieldsResponse.value.data || []);
+      }
+
+      if (historyResponse.status === 'fulfilled') {
+        const sortedHistory = [...(historyResponse.value.data || [])].sort(
+          (left, right) => new Date(right.analysis_date) - new Date(left.analysis_date)
+        );
+        setHistory(sortedHistory);
+      }
+
+      setLoading(false);
     };
+
     loadProjectsData();
-  }, []);
+
+    return () => {
+      isActive = false;
+    };
+  }, [refreshKey]);
 
   const riskColor = (risk) => {
     if (risk === 'Low') return 'var(--status-healthy)';
@@ -48,7 +74,7 @@ export default function ProjectsPage({ setActiveTab }) {
   ];
 
   return (
-    <div style={{ flex: 1, padding: '32px', overflowY: 'auto', minWidth: 0 }}>
+    <div className="content-page">
 
       {/* ── Page header ── */}
       <div style={{
@@ -69,7 +95,8 @@ export default function ProjectsPage({ setActiveTab }) {
         </div>
 
         <button
-          onClick={() => setActiveTab('Workspace')}
+          type="button"
+          onClick={() => onNavigate('Workspace')}
           onMouseEnter={e => {
             e.currentTarget.style.backgroundColor = 'var(--accent-hover)';
             e.currentTarget.style.transform = 'translateY(-1px)';
@@ -263,7 +290,7 @@ export default function ProjectsPage({ setActiveTab }) {
                             </span>
                           </td>
                           <td style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
-                            {new Date(item.analysis_date).toLocaleString()}
+                            {formatDateTime(item.analysis_date)}
                           </td>
                         </tr>
                       );

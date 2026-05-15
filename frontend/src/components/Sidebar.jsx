@@ -2,6 +2,53 @@ import React, { useRef } from 'react';
 import { Upload, Play, Layers, Map as MapIcon, Settings, X, Image as ImageIcon, AlertTriangle, FileJson } from 'lucide-react';
 import { saveField } from '../api';
 
+const normalizeGeoJson = (geoJson, metadata = {}) => {
+  if (geoJson.type === 'FeatureCollection') {
+    return {
+      ...geoJson,
+      features: geoJson.features.map((feature, index) => (
+        index === 0
+          ? {
+              ...feature,
+              properties: {
+                ...feature.properties,
+                ...metadata
+              }
+            }
+          : feature
+      ))
+    };
+  }
+
+  if (geoJson.type === 'Feature') {
+    return {
+      type: 'FeatureCollection',
+      features: [
+        {
+          ...geoJson,
+          properties: {
+            ...geoJson.properties,
+            ...metadata
+          }
+        }
+      ]
+    };
+  }
+
+  return {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: {
+          ...metadata
+        },
+        geometry: geoJson
+      }
+    ]
+  };
+};
+
 export default function Sidebar({ 
   isAnalyzing,
   onRunAnalysis,
@@ -17,7 +64,8 @@ export default function Sidebar({
   setGeoJsonUploadError,
   fieldLayerVisible,
   setFieldLayerVisible,
-  setSelectedField
+  setSelectedField,
+  onFieldSaved
 }) {
   const geoJsonInputRef = useRef(null);
 
@@ -27,8 +75,9 @@ export default function Sidebar({
       const reader = new FileReader();
       reader.onload = async (event) => {
         try {
-          const json = JSON.parse(event.target.result);
-          setGeoJsonData(json);
+          const parsedJson = JSON.parse(event.target.result);
+          const normalizedData = normalizeGeoJson(parsedJson);
+          setGeoJsonData(normalizedData);
           setGeoJsonMeta({
             name: file.name,
             size: (file.size / 1024).toFixed(1) // KB
@@ -36,35 +85,29 @@ export default function Sidebar({
 
           setGeoJsonUploadError(null);
           try {
-            // Extract geometry if it's a FeatureCollection or Feature
-            let geometryToSave = json;
-            if (json.type === "FeatureCollection" && json.features?.length > 0) {
-              geometryToSave = json.features[0].geometry;
-            } else if (json.type === "Feature") {
-              geometryToSave = json.geometry;
-            }
+            const geometryToSave = normalizedData.features[0]?.geometry;
             
             // Send geometry to PostgreSQL database via our API adapter
             const response = await saveField(file.name, geometryToSave, 0.0);
-            setGeoJsonUploadResponse(response);
+            const fieldMetadata = {
+              id: response.data.field_id,
+              field_id: response.data.field_id,
+              name: response.data.name || file.name,
+              area: 0.0
+            };
+            const enrichedData = normalizeGeoJson(parsedJson, fieldMetadata);
 
-            setSelectedField({
-              type: "Feature",
-              geometry: geometryToSave,
-              properties: {
-                id: response.data.field_id,
-                field_id: response.data.field_id,
-                name: response.data.name || file.name,
-                area: 0.0
-              }
-            });
+            setGeoJsonData(enrichedData);
+            setGeoJsonUploadResponse(response);
+            setSelectedField(enrichedData.features[0]);
+            onFieldSaved?.();
           } catch (error) {
-            setGeoJsonUploadError("Backend Database validation failed.");
-            console.error("GeoJSON DB save failed", error);
+            setGeoJsonUploadError('Backend database validation failed.');
+            console.error('GeoJSON DB save failed', error);
           }
         } catch (error) {
-          console.error("Error parsing GeoJSON", error);
-          alert("Invalid GeoJSON file. Must be standard GeoJSON format.");
+          console.error('Error parsing GeoJSON', error);
+          alert('Invalid GeoJSON file. Must be standard GeoJSON format.');
         }
       };
       reader.readAsText(file);
@@ -163,7 +206,7 @@ export default function Sidebar({
                 {geoJsonMeta?.name}
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>{geoJsonMeta?.size} KB</span>
+                <span>{geoJsonMeta?.size ? `${geoJsonMeta.size} KB` : 'Manual drawing'}</span>
                 {geoJsonUploadResponse ? (
                   <span style={{ color: 'var(--status-healthy)', fontSize: '0.7rem' }}>● Validated</span>
                 ) : geoJsonUploadError ? (

@@ -52,11 +52,11 @@ const steps = [
   }
 ];
 
-export default function GuidedTour({ activeTab, analysisStarted }) {
+export default function GuidedTour({ activePage, analysisStarted }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [visible, setVisible] = useState(true);
 
-  if (!visible || activeTab !== 'Workspace' || analysisStarted) {
+  if (!visible || activePage !== 'Workspace' || analysisStarted) {
     return null;
   }
 
