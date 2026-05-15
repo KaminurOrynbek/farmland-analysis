@@ -21,9 +21,9 @@ class AnalyzeFieldUseCase:
         self.raster_processor = RasterProcessor()
         self.ml_adapter = get_ml_adapter()
         
-    def execute(self, field_id: str, start_date: str, end_date: str) -> dict:
+    def execute(self, field_id: str, start_date: str, end_date: str, analysis_id: str = None) -> dict:
         """
-        Orchestrates the Clean Architecture pipeline for assessing a farmland field.
+        Orchestrates the Clean Architecture pipeline for assessing a farmland field with progress tracking.
         """
         # 1. Domain: Fetch field from DB
         field = self.field_repo.get(field_id)
@@ -31,18 +31,24 @@ class AnalyzeFieldUseCase:
             raise ValueError(f"Field with ID {field_id} not found in database.")
 
         # 2. Infra: Start DB Analysis tracking
-        sat_image = self.analysis_repo.create_satellite_image(
-            field_id=field.id,
-            platform="Sentinel-2",
-            start_date=datetime.strptime(start_date, "%Y-%m-%d").date(),
-            end_date=datetime.strptime(end_date, "%Y-%m-%d").date(),
-            url=""
-        )
-        analysis_record = self.analysis_repo.create_analysis(field.id, sat_image.id)
+        if not analysis_id:
+            # Fallback if no ID provided (legacy support)
+            sat_image = self.analysis_repo.create_satellite_image(
+                field_id=field.id,
+                platform="Sentinel-2",
+                start_date=datetime.strptime(start_date, "%Y-%m-%d").date(),
+                end_date=datetime.strptime(end_date, "%Y-%m-%d").date(),
+                url=""
+            )
+            analysis_record = self.analysis_repo.create_analysis(field.id, sat_image.id)
+            analysis_id = analysis_record.id
+        else:
+            self.analysis_repo.update_progress(analysis_id, 10, "Initializing environment...")
 
         try:
             # 3. Infra: Fetch imagery URL from GEE
             print(f"Requesting GEE composite for field {field.name}...")
+            self.analysis_repo.update_progress(analysis_id, 30, "Fetching satellite imagery...")
             
             from geoalchemy2.shape import to_shape
             from shapely.geometry import mapping
@@ -54,12 +60,9 @@ class AnalyzeFieldUseCase:
                 end_date=end_date
             )
             
-            # Update satellite record with the fetched URL
-            sat_image.download_url = download_url
-            self.analysis_repo.db.commit()
-
             # 4. Process Imagery Locally
             print("Downloading composite TIFF locally...")
+            self.analysis_repo.update_progress(analysis_id, 50, "Calculating spectral indices...")
             with tempfile.NamedTemporaryFile(suffix=".tif", delete=False) as tmp_tif:
                 urllib.request.urlretrieve(download_url, tmp_tif.name)
                 tif_path = tmp_tif.name
@@ -70,11 +73,12 @@ class AnalyzeFieldUseCase:
 
             # 6. Infra: ML Model Inference (PyTorch ResNet-50)
             print("Running ResNet-50 model inference...")
+            self.analysis_repo.update_progress(analysis_id, 75, "Performing ML classification...")
             ml_result = self.ml_adapter.predict(tif_path)
             
             # 7. Agronomic Interpretation Layer
+            self.analysis_repo.update_progress(analysis_id, 90, "Generating expert assessment...")
             ndvi_mean = indices_result.get("ndvi_mean", 0)
-            evi_mean = indices_result.get("evi_mean", 0)
             
             from backend.services.agronomic_service import AgronomicService
             assessment = AgronomicService.generate_assessment(
@@ -83,7 +87,7 @@ class AnalyzeFieldUseCase:
                 crop_type=ml_result["crop_type"]
             )
             
-            vegetation_health = assessment["overall_status"] # Simplified for now
+            vegetation_health = assessment["overall_status"]
             risk_level = "High" if assessment["overall_status"] == "Critical" else "Medium" if assessment["overall_status"] == "Warning" else "Low"
             
             ml_result["vegetation_health_score"] = 85 if vegetation_health == "Healthy" else 55 if vegetation_health == "Warning" else 25
@@ -91,7 +95,8 @@ class AnalyzeFieldUseCase:
             ml_result["assessment"] = assessment
 
             # 8. Domain: Save everything back to DB
-            self.analysis_repo.save_results(analysis_record.id, indices_result, ml_result)
+            self.analysis_repo.save_results(analysis_id, indices_result, ml_result)
+            self.analysis_repo.update_progress(analysis_id, 100, "Completed")
 
             if os.path.exists(tif_path):
                 os.remove(tif_path)

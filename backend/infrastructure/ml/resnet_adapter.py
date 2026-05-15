@@ -1,16 +1,23 @@
 import json
 from typing import Dict, Any
-import torch
-import torch.nn as nn
-from torchvision import models, transforms
+import os
+import numpy as np
 from PIL import Image
 import rasterio
-import numpy as np
 from backend.core.config import settings
-import os
 
 class ResNetAdapter:
     def __init__(self):
+        # Lazy imports inside constructor to avoid top-level dependency
+        import torch
+        import torch.nn as nn
+        from torchvision import models, transforms
+        
+        self.torch = torch
+        self.nn = nn
+        self.models = models
+        self.transforms = transforms
+        
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.class_names = self._load_class_names()
         self.transform = self._get_transforms()
@@ -36,8 +43,8 @@ class ResNetAdapter:
         return default_classes
 
     def _initialize_model(self):
-        model = models.resnet50(weights=None)
-        model.fc = nn.Linear(in_features=2048, out_features=len(self.class_names))
+        model = self.models.resnet50(weights=None)
+        model.fc = self.nn.Linear(in_features=2048, out_features=len(self.class_names))
 
         weights_path = settings.RESNET_WEIGHTS_PATH
 
@@ -47,7 +54,7 @@ class ResNetAdapter:
                 "Place best_resnet_satellite_model.pth inside backend/infrastructure/ml/models/"
             )
 
-        state_dict = torch.load(weights_path, map_location=self.device)
+        state_dict = self.torch.load(weights_path, map_location=self.device)
         model.load_state_dict(state_dict)
 
         model = model.to(self.device)
@@ -57,10 +64,10 @@ class ResNetAdapter:
         return model
 
     def _get_transforms(self):
-        return transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(
+        return self.transforms.Compose([
+            self.transforms.Resize((224, 224)),
+            self.transforms.ToTensor(),
+            self.transforms.Normalize(
                 mean=[0.485, 0.456, 0.406],
                 std=[0.229, 0.224, 0.225]
             )
@@ -158,10 +165,10 @@ class ResNetAdapter:
                         image = Image.fromarray(rgb, "RGB")
                         input_tensor = self.transform(image).unsqueeze(0).to(self.device)
                         
-                        with torch.no_grad():
+                        with self.torch.no_grad():
                             outputs = self.model(input_tensor)
-                            probs = torch.nn.functional.softmax(outputs, dim=1)[0]
-                            conf, idx = torch.max(probs, 0)
+                            probs = self.torch.nn.functional.softmax(outputs, dim=1)[0]
+                            conf, idx = self.torch.max(probs, 0)
                             
                             all_predictions.append(self.class_names[idx.item()])
                             all_confidences.append(float(conf.item()))
@@ -189,10 +196,10 @@ class ResNetAdapter:
         image = self._extract_rgb_from_tif(image_path)
         input_tensor = self.transform(image).unsqueeze(0).to(self.device)
 
-        with torch.no_grad():
+        with self.torch.no_grad():
             outputs = self.model(input_tensor)
-            probabilities_tensor = torch.nn.functional.softmax(outputs, dim=1)[0]
-            confidence, predicted_idx = torch.max(probabilities_tensor, 0)
+            probabilities_tensor = self.torch.nn.functional.softmax(outputs, dim=1)[0]
+            confidence, predicted_idx = self.torch.max(probabilities_tensor, 0)
 
         predicted_class = self.class_names[predicted_idx.item()]
         return {

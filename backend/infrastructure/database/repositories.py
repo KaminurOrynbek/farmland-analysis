@@ -1,5 +1,12 @@
+import os
+import json
+import redis
 from sqlalchemy.orm import Session
 from backend.infrastructure.database.models import User, Field, Analysis, SatelliteImage, SpectralIndices, MLPrediction
+from backend.core.config import settings
+
+# Initialize Redis client for caching status
+redis_client = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
 
 class FieldRepository:
     def __init__(self, db: Session):
@@ -58,6 +65,50 @@ class AnalysisRepository:
         self.db.commit()
         self.db.refresh(image)
         return image
+
+    def get_by_id(self, analysis_id: str) -> Analysis:
+        return self.db.query(Analysis).filter(Analysis.id == analysis_id).first()
+
+    def update_progress(self, analysis_id: str, percent: int, stage: str, status: str = "Processing"):
+        analysis = self.get_by_id(analysis_id)
+        if analysis:
+            analysis.progress_percent = percent
+            analysis.current_stage = stage
+            if status:
+                analysis.status = status
+            
+            # Update Event Log
+            event = {
+                "timestamp": datetime.utcnow().isoformat(),
+                "stage": stage,
+                "progress": percent
+            }
+            if not analysis.event_log:
+                analysis.event_log = []
+            
+            # Re-assign to trigger SQLAlchemy change tracking
+            new_log = list(analysis.event_log)
+            new_log.append(event)
+            analysis.event_log = new_log
+            
+            self.db.commit()
+            
+            # Update Redis Cache (TTL: 1 hour)
+            cache_data = {
+                "analysis_id": str(analysis_id),
+                "status": str(status),
+                "progress": percent,
+                "stage": stage,
+                "event": event
+            }
+            redis_client.setex(
+                f"analysis_status:{analysis_id}", 
+                3600, 
+                json.dumps(cache_data)
+            )
+            
+            # Broadcast via Redis Pub/Sub for WebSockets
+            redis_client.publish("analysis_updates", json.dumps(cache_data))
 
     def create_analysis(self, field_id: str, image_id: str) -> Analysis:
         # In this architecture, analysis has a many-to-many link to images via AnalysisImage

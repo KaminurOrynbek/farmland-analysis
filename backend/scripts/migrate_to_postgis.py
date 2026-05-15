@@ -27,7 +27,12 @@ def run_migration():
         
         # 4. Add professional metrics columns
         "ALTER TABLE spectral_indices ADD COLUMN IF NOT EXISTS stress_area_percentage FLOAT DEFAULT 0;",
-        "ALTER TABLE ml_predictions ADD COLUMN IF NOT EXISTS agronomic_assessment JSONB;"
+        "ALTER TABLE ml_predictions ADD COLUMN IF NOT EXISTS agronomic_assessment JSONB;",
+        
+        # 5. Add Job Tracking columns (Senior+ level)
+        "ALTER TABLE analyses ADD COLUMN IF NOT EXISTS progress_percent INTEGER DEFAULT 0;",
+        "ALTER TABLE analyses ADD COLUMN IF NOT EXISTS current_stage VARCHAR DEFAULT 'Pending';",
+        "ALTER TABLE analyses ADD COLUMN IF NOT EXISTS event_log JSONB DEFAULT '[]'::jsonb;"
     ]
     
     with engine.connect() as conn:
