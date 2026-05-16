@@ -98,8 +98,9 @@ def get_field_team(
 def revoke_field_access(
     field_id: uuid.UUID,
     user_id: uuid.UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """ Revokes access from a user (Owners only) """
     service = FieldService(db)
-    return service.revoke_access(field_id, user_id)
+    return service.revoke_access(field_id, user_id, current_user.id)

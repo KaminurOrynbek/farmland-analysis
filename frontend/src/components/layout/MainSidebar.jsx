@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import AgroVisionLogo from '../common/AgroVisionLogo';
 import {
   Home,
   Map as MapIcon,
@@ -6,25 +7,12 @@ import {
   FolderOpen,
   Users,
   Settings,
-  Leaf,
   LogOut,
   ShieldCheck
 } from 'lucide-react';
 
-const MAIN_NAV = [
-  { id: 'Home', label: 'Home', icon: <Home size={16} /> },
-  { id: 'Workspace', label: 'Workspace', icon: <MapIcon size={16} /> },
-  { id: 'Analysis Report', label: 'Analysis Report', icon: <LineChart size={16} /> },
-  { id: 'Projects', label: 'Projects', icon: <FolderOpen size={16} /> }
-];
-
 const ADMIN_NAV = [
   { id: 'Admin', label: 'Admin Panel', icon: <ShieldCheck size={16} /> }
-];
-
-const BOTTOM_NAV = [
-  { id: 'Team / Access', label: 'Team / Access', icon: <Users size={16} /> },
-  { id: 'Settings', label: 'Settings', icon: <Settings size={16} /> }
 ];
 
 const LOGOUT_NAV = {
@@ -68,6 +56,28 @@ function NavButton({ item, activePage, onNavigate, onLogout, isLogout = false })
 
 export default function AppSidebar({ activePage, onNavigate, onLogout, user }) {
   const isAdmin = user?.role === 'ADMIN';
+  const isAgronomist = user?.role === 'AGRONOMIST';
+  const isFarmer = user?.role === 'FARMER';
+
+  const mainNav = useMemo(() => ([
+    { id: 'Home', label: isAdmin ? 'System Dashboard' : 'Dashboard', icon: <Home size={16} /> },
+    { id: 'Workspace', label: isAgronomist ? 'Field Review' : 'Workspace', icon: <MapIcon size={16} /> },
+    { id: 'Analysis Report', label: isAgronomist ? 'Reports' : 'Analysis Report', icon: <LineChart size={16} /> },
+    {
+      id: 'Projects',
+      label: isFarmer ? 'My Farm' : isAgronomist ? 'Clients' : 'Projects',
+      icon: <FolderOpen size={16} />
+    }
+  ]), [isAdmin, isAgronomist, isFarmer]);
+
+  const bottomNav = useMemo(() => ([
+    {
+      id: 'Team / Access',
+      label: isFarmer ? 'Field Sharing' : isAgronomist ? 'Collaborators' : 'Team / Access',
+      icon: <Users size={16} />
+    },
+    { id: 'Settings', label: 'Settings', icon: <Settings size={16} /> }
+  ]), [isAgronomist, isFarmer]);
 
   return (
     <aside
@@ -95,24 +105,11 @@ export default function AppSidebar({ activePage, onNavigate, onLogout, user }) {
         }}
         onClick={() => onNavigate('Home')}
       >
-        <div
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, var(--accent-color), #1d4ed8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-        >
-          <Leaf color="white" size={16} />
-        </div>
-        AgroVision
+        <AgroVisionLogo size={32} showText />
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
-        {MAIN_NAV.map((item) => (
+        {mainNav.map((item) => (
           <NavButton
             key={item.id}
             item={item}
@@ -155,7 +152,7 @@ export default function AppSidebar({ activePage, onNavigate, onLogout, user }) {
           marginTop: 'auto'
         }}
       >
-        {BOTTOM_NAV.map((item) => (
+        {bottomNav.map((item) => (
           <NavButton
             key={item.id}
             item={item}

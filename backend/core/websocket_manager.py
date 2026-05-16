@@ -1,9 +1,12 @@
 import asyncio
 import json
 import redis.asyncio as redis
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import WebSocket
 from typing import List, Dict
 import os
+
+from backend.infrastructure.database.database import SessionLocal
+from backend.infrastructure.database.models import Analysis, FieldAccess, User, UserRole
 
 class ConnectionManager:
     def __init__(self):
@@ -27,6 +30,39 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+def get_analysis_recipient_ids(analysis_id: str) -> List[str]:
+    db = SessionLocal()
+
+    try:
+        field_access_rows = (
+            db.query(FieldAccess.user_id)
+            .join(Analysis, Analysis.field_id == FieldAccess.field_id)
+            .filter(
+                Analysis.id == analysis_id,
+                FieldAccess.is_active == True
+            )
+            .all()
+        )
+
+        admin_rows = (
+            db.query(User.id)
+            .filter(
+                User.role == UserRole.ADMIN,
+                User.is_active == True
+            )
+            .all()
+        )
+
+        recipient_ids = {
+            str(user_id)
+            for (user_id,) in [*field_access_rows, *admin_rows]
+            if user_id is not None
+        }
+
+        return list(recipient_ids)
+    finally:
+        db.close()
+
 async def redis_listener():
     """
     Background task that listens to Redis Pub/Sub and broadcasts to connected clients.
@@ -41,12 +77,12 @@ async def redis_listener():
         async for message in pubsub.listen():
             if message["type"] == "message":
                 data = json.loads(message["data"])
-                # In a real app, we would verify which user owns this analysis_id 
-                # before broadcasting to them. For now, we broadcast to all 
-                # (or we could store user_id in the message).
-                
-                # Simplified: Broadcast to everyone or implement user-specific routing
-                for user_id in manager.active_connections:
+                analysis_id = data.get("analysis_id")
+
+                if not analysis_id:
+                    continue
+
+                for user_id in get_analysis_recipient_ids(analysis_id):
                     await manager.broadcast_to_user(user_id, data)
     except Exception as e:
         print(f"Redis Listener Error: {e}")

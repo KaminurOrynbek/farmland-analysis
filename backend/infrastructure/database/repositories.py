@@ -175,20 +175,26 @@ class AnalysisRepository:
             
         self.db.commit()
     
-    def get_history(self, user_id: str, limit: int = 20):
+    def get_history(self, user_id: str, limit: int = 20, include_all: bool = False):
         from backend.infrastructure.database.models import FieldAccess
 
-        return (
+        query = (
             self.db.query(Analysis, Field, SpectralIndices, MLPrediction)
             .join(Field, Analysis.field_id == Field.id)
-            .join(
+            .outerjoin(SpectralIndices, SpectralIndices.analysis_id == Analysis.id)
+            .outerjoin(MLPrediction, MLPrediction.analysis_id == Analysis.id)
+        )
+
+        if not include_all:
+            query = query.join(
                 FieldAccess,
                 (FieldAccess.field_id == Field.id)
                 & (FieldAccess.user_id == user_id)
                 & (FieldAccess.is_active == True)
             )
-            .outerjoin(SpectralIndices, SpectralIndices.analysis_id == Analysis.id)
-            .outerjoin(MLPrediction, MLPrediction.analysis_id == Analysis.id)
+
+        return (
+            query
             .order_by(Analysis.created_at.desc())
             .limit(limit)
             .all()

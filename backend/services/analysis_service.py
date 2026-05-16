@@ -16,13 +16,15 @@ class AnalysisService:
         """
         Orchestrates field analysis, ensuring the user has access to the field.
         """
+        user_role = user.role.value if hasattr(user.role, 'value') else str(user.role)
+
         # 1. Check access
         field = self.field_repo.get(field_id)
         if not field:
             raise HTTPException(status_code=404, detail="Field not found")
         
         # Verify ownership (or EDITOR access in the future)
-        if str(field.owner_id) != str(user.id):
+        if user_role != "ADMIN" and str(field.owner_id) != str(user.id):
              # For now, only owner can analyze. Later we can check FieldAccess table.
              from backend.infrastructure.database.models import FieldAccess
              access = self.db.query(FieldAccess).filter(
@@ -65,7 +67,12 @@ class AnalysisService:
         """
         Retrieves analysis history for the user.
         """
-        rows = self.repo.get_history(user_id=user.id, limit=limit)
+        user_role = user.role.value if hasattr(user.role, 'value') else str(user.role)
+        rows = self.repo.get_history(
+            user_id=user.id,
+            limit=limit,
+            include_all=user_role == "ADMIN"
+        )
         
         result = []
         for analysis, field, indices, ml in rows:

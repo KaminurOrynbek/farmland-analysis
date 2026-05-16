@@ -22,6 +22,8 @@ export default function ProjectsPage({
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const isAgronomist = user?.role === 'AGRONOMIST';
+  const isFarmer = user?.role === 'FARMER';
   const canCreateProject = user?.role !== 'AGRONOMIST';
 
   useEffect(() => {
@@ -76,11 +78,18 @@ export default function ProjectsPage({
 
   // Field lookup by UUID — avoids fragile name matching
   const fieldMap = Object.fromEntries(fields.map(f => [f.id, f]));
+  const pageTitle = isFarmer ? 'My Farm' : isAgronomist ? 'Client Fields' : 'Projects & Analysis History';
+  const pageSubtitle = isFarmer
+    ? 'Review your saved fields, open reports, and keep track of parcels you own.'
+    : isAgronomist
+      ? 'Browse fields shared by farmers and jump into the latest advisory context.'
+      : 'View saved field boundaries and completed satellite image analyses.';
+  const createLabel = isFarmer ? 'Add Field' : 'Add New Project';
 
   const summaryCards = [
-    { label: 'Saved Fields',    value: fields.length,  icon: <MapPin size={20} />,        color: 'var(--accent-color)' },
+    { label: isAgronomist ? 'Accessible Fields' : 'Saved Fields', value: fields.length, icon: <MapPin size={20} />, color: 'var(--accent-color)' },
     { label: 'Total Analyses',  value: history.length, icon: <BarChart2 size={20} />,      color: '#8b5cf6' },
-    { label: 'High Risk Fields',value: highRisk,        icon: <AlertTriangle size={20} />,  color: 'var(--status-critical)' },
+    { label: isAgronomist ? 'Fields Needing Attention' : 'High Risk Fields', value: highRisk, icon: <AlertTriangle size={20} />, color: 'var(--status-critical)' },
     { label: 'Average NDVI',    value: avgNdvi,         icon: <TrendingUp size={20} />,     color: 'var(--status-healthy)' },
   ];
 
@@ -98,10 +107,10 @@ export default function ProjectsPage({
       }}>
         <div>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '4px' }}>
-            Projects & Analysis History
+            {pageTitle}
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            View saved field boundaries and completed satellite image analyses.
+            {pageSubtitle}
           </p>
         </div>
 
@@ -117,11 +126,15 @@ export default function ProjectsPage({
               onNavigate('Workspace');
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = 'var(--accent-hover)';
+              if (!isFarmer) {
+                e.currentTarget.style.backgroundColor = 'var(--accent-hover)';
+              }
               e.currentTarget.style.transform = 'translateY(-1px)';
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = 'var(--accent-color)';
+              if (!isFarmer) {
+                e.currentTarget.style.backgroundColor = 'var(--accent-color)';
+              }
               e.currentTarget.style.transform = 'translateY(0)';
             }}
             style={{
@@ -129,20 +142,20 @@ export default function ProjectsPage({
               alignItems: 'center',
               gap: '8px',
               padding: '10px 18px',
-              backgroundColor: 'var(--accent-color)',
+              background: isFarmer ? 'linear-gradient(135deg, #16a34a, #22c55e)' : 'var(--accent-color)',
               border: 'none',
               borderRadius: '8px',
               color: 'white',
               fontWeight: 600,
               fontSize: '0.875rem',
               cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(59,130,246,0.35)',
+              boxShadow: isFarmer ? '0 4px 16px rgba(34, 197, 94, 0.35)' : '0 4px 14px rgba(59,130,246,0.35)',
               transition: 'all 0.2s',
               flexShrink: 0
             }}
           >
             <Plus size={16} />
-            Add New Project
+            {createLabel}
           </button>
         )}
       </div>
@@ -240,6 +253,11 @@ export default function ProjectsPage({
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
                       {field.area_ha ? `${field.area_ha.toFixed(2)} ha` : 'Area unknown'}
                     </p>
+                    {(isAgronomist || user?.role === 'ADMIN') && (
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', marginTop: '4px' }}>
+                        {field.owner_name || field.owner_email || 'Unknown client'}
+                      </p>
+                    )}
                     <p style={{
                       color: 'var(--text-secondary)',
                       fontSize: '0.7rem',
@@ -280,6 +298,7 @@ export default function ProjectsPage({
                   <thead>
                     <tr>
                       <th>Field Name</th>
+                      {(isAgronomist || user?.role === 'ADMIN') && <th>Client</th>}
                       <th>Area</th>
                       <th>Crop Type</th>
                       <th>NDVI</th>
@@ -298,6 +317,9 @@ export default function ProjectsPage({
                           style={{ cursor: 'pointer' }}
                         >
                           <td style={{ fontWeight: 500 }}>{item.field_name || '—'}</td>
+                          {(isAgronomist || user?.role === 'ADMIN') && (
+                            <td>{matchedField?.owner_name || matchedField?.owner_email || '—'}</td>
+                          )}
                           <td>
                             {matchedField?.area_ha
                               ? `${matchedField.area_ha.toFixed(2)} ha`

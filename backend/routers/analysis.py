@@ -1,14 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
 import json
+from jose import JWTError, jwt
+from pydantic import ValidationError
 
 from backend.schemas.analysis import AnalysisRequest
+from backend.schemas.auth import TokenPayload
+from backend.core.config import settings
 from backend.infrastructure.database.database import get_db
 from backend.routers.deps import get_current_active_user, FieldPermissionChecker
 from backend.infrastructure.database.models import User, FieldAccessRole
 from backend.services.analysis_service import AnalysisService
 from backend.core.websocket_manager import manager
+from backend.repositories.user_repository import UserRepository
+from backend.infrastructure.database.database import SessionLocal
+from backend.services.audit_service import AuditService
 
 router = APIRouter()
 
@@ -40,6 +47,21 @@ async def run_field_analysis(
             start_date=start,
             end_date=end
         )
+
+        analysis_id = result.get("analysis_id") if isinstance(result, dict) else None
+        if analysis_id:
+            AuditService(db).log_action(
+                user_id=current_user.id,
+                action="ANALYSIS_STARTED",
+                entity_type="analysis",
+                entity_id=analysis_id,
+                metadata={
+                    "field_id": str(request.field_id),
+                    "start_date": start,
+                    "end_date": end
+                }
+            )
+
         return result
     except HTTPException as e:
         raise e
@@ -102,13 +124,39 @@ async def get_analysis_status(
     }
 
 @router.websocket("/ws/{user_id}")
-async def websocket_endpoint(websocket: WebSocket, user_id: str):
+async def websocket_endpoint(
+    websocket: WebSocket,
+    user_id: str,
+    token: str = Query(...)
+):
     """
     Real-time updates via WebSockets.
     """
-    await manager.connect(websocket, user_id)
+    db = SessionLocal()
+
     try:
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        manager.disconnect(websocket, user_id)
+        try:
+            payload = jwt.decode(
+                token,
+                settings.SECRET_KEY,
+                algorithms=[settings.ALGORITHM]
+            )
+            token_data = TokenPayload(**payload)
+        except (JWTError, ValidationError):
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+        user = UserRepository(db).get(id=token_data.sub)
+
+        if not user or not user.is_active or str(user.id) != user_id:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+        await manager.connect(websocket, user_id)
+        try:
+            while True:
+                await websocket.receive_text()
+        except WebSocketDisconnect:
+            manager.disconnect(websocket, user_id)
+    finally:
+        db.close()

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 const steps = [
   {
@@ -52,26 +52,42 @@ const steps = [
   }
 ];
 
-export default function GuidedTour({ activePage, analysisStarted }) {
+export default function GuidedTour({ activePage, isOpen, onClose }) {
   const [stepIndex, setStepIndex] = useState(0);
-  const [visible, setVisible] = useState(true);
 
-  if (!visible || activePage !== 'Workspace' || analysisStarted) {
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setStepIndex(0);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isOpen]);
+
+  if (!isOpen || activePage !== 'Workspace') {
     return null;
   }
 
   const step = steps[stepIndex];
 
+  const closeGuide = () => {
+    setStepIndex(0);
+    onClose?.();
+  };
+
   const nextStep = () => {
     if (stepIndex < steps.length - 1) {
-      setStepIndex(stepIndex + 1);
+      setStepIndex((current) => current + 1);
     } else {
-      setVisible(false);
+      closeGuide();
     }
   };
 
   const skipGuide = () => {
-    setVisible(false);
+    closeGuide();
   };
 
   return (

@@ -34,6 +34,42 @@ const statusConfig = {
   }
 };
 
+const NDVI_LEVELS = [
+  {
+    label: 'Healthy vegetation',
+    range: '> 0.60',
+    text: 'Strong green biomass and active plant growth.'
+  },
+  {
+    label: 'Moderate activity',
+    range: '0.30 - 0.60',
+    text: 'Vegetation is present, but some zones may need attention.'
+  },
+  {
+    label: 'Weak activity',
+    range: '< 0.30',
+    text: 'Often linked to bare soil, poor growth, or visible stress.'
+  }
+];
+
+const EVI_LEVELS = [
+  {
+    label: 'Dense canopy',
+    range: '> 0.50',
+    text: 'Usually means the crop canopy is strong and active.'
+  },
+  {
+    label: 'Moderate canopy',
+    range: '0.25 - 0.50',
+    text: 'Crop cover looks present, but keep monitoring changes.'
+  },
+  {
+    label: 'Weak canopy',
+    range: '< 0.25',
+    text: 'Low vegetation density or a weak crop signal.'
+  }
+];
+
 const formatIndex = (value) => {
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
     return '—';
@@ -54,6 +90,34 @@ const getEviMeaning = (value) => {
   if (value >= 0.5) return 'Dense and active vegetation. Crop canopy looks strong.';
   if (value >= 0.25) return 'Moderate crop density. Continue monitoring changes.';
   return 'Low crop density or weak vegetation signal.';
+};
+
+const getNdviLevelLabel = (value) => {
+  if (value === null || value === undefined) return 'Not available';
+  if (value >= 0.6) return NDVI_LEVELS[0].label;
+  if (value >= 0.3) return NDVI_LEVELS[1].label;
+  return NDVI_LEVELS[2].label;
+};
+
+const getEviLevelLabel = (value) => {
+  if (value === null || value === undefined) return 'Not available';
+  if (value >= 0.5) return EVI_LEVELS[0].label;
+  if (value >= 0.25) return EVI_LEVELS[1].label;
+  return EVI_LEVELS[2].label;
+};
+
+const getNdviTone = (value) => {
+  if (value === null || value === undefined) return 'neutral';
+  if (value >= 0.6) return 'healthy';
+  if (value >= 0.3) return 'warning';
+  return 'critical';
+};
+
+const getEviTone = (value) => {
+  if (value === null || value === undefined) return 'neutral';
+  if (value >= 0.5) return 'healthy';
+  if (value >= 0.25) return 'warning';
+  return 'critical';
 };
 
 const MetricCard = ({ title, value, subtitle, icon, color }) => (
@@ -250,6 +314,54 @@ export default function AnalysisDetailsPage({
           <span>Analysis ID</span>
           <strong>{analysisResults.analysisId || '—'}</strong>
         </div>
+
+        <div style={indexGuideGridStyle}>
+          <div style={indexGuideCardStyle}>
+            <div style={indexGuideHeaderStyle}>
+              <div>
+                <span style={indexGuideLabelStyle}>NDVI meaning</span>
+                <strong style={indexGuideValueStyle}>{formatIndex(analysisResults.ndviValue)}</strong>
+              </div>
+              <span className={`status-pill ${getNdviTone(analysisResults.ndviValue)}`}>
+                {getNdviLevelLabel(analysisResults.ndviValue)}
+              </span>
+            </div>
+
+            <p style={indexGuideSummaryStyle}>{getNdviMeaning(analysisResults.ndviValue)}</p>
+
+            <div style={indexLevelsStyle}>
+              {NDVI_LEVELS.map((level) => (
+                <div key={level.range} style={indexLevelRowStyle}>
+                  <strong>{level.range}</strong>
+                  <span>{level.label}: {level.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={indexGuideCardStyle}>
+            <div style={indexGuideHeaderStyle}>
+              <div>
+                <span style={indexGuideLabelStyle}>EVI meaning</span>
+                <strong style={indexGuideValueStyle}>{formatIndex(analysisResults.eviValue)}</strong>
+              </div>
+              <span className={`status-pill ${getEviTone(analysisResults.eviValue)}`}>
+                {getEviLevelLabel(analysisResults.eviValue)}
+              </span>
+            </div>
+
+            <p style={indexGuideSummaryStyle}>{getEviMeaning(analysisResults.eviValue)}</p>
+
+            <div style={indexLevelsStyle}>
+              {EVI_LEVELS.map((level) => (
+                <div key={level.range} style={indexLevelRowStyle}>
+                  <strong>{level.range}</strong>
+                  <span>{level.label}: {level.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </section>
     </div>
   );
@@ -335,4 +447,60 @@ const technicalGridStyle = {
   gridTemplateColumns: 'minmax(140px, 220px) 1fr',
   gap: '12px',
   color: 'var(--text-secondary)'
+};
+
+const indexGuideGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gap: '16px',
+  marginTop: '22px'
+};
+
+const indexGuideCardStyle = {
+  padding: '18px',
+  borderRadius: '18px',
+  border: '1px solid rgba(148, 163, 184, 0.14)',
+  background: 'rgba(255,255,255,0.03)',
+  display: 'grid',
+  gap: '14px'
+};
+
+const indexGuideHeaderStyle = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: '12px'
+};
+
+const indexGuideLabelStyle = {
+  display: 'block',
+  color: 'var(--text-secondary)',
+  fontSize: '0.76rem',
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  marginBottom: '6px'
+};
+
+const indexGuideValueStyle = {
+  fontSize: '1.55rem',
+  lineHeight: 1
+};
+
+const indexGuideSummaryStyle = {
+  margin: 0,
+  color: 'var(--text-secondary)',
+  lineHeight: 1.6
+};
+
+const indexLevelsStyle = {
+  display: 'grid',
+  gap: '10px'
+};
+
+const indexLevelRowStyle = {
+  display: 'grid',
+  gap: '4px',
+  color: 'var(--text-secondary)',
+  fontSize: '0.85rem',
+  lineHeight: 1.55
 };

@@ -4,6 +4,7 @@ import {
   Play,
   Layers,
   Map as MapIcon,
+  BookOpen,
   Settings,
   X,
   Image as ImageIcon
@@ -14,6 +15,7 @@ import {
   revokeFieldAccess
 } from '../../api/client';
 import { getFieldPermissions } from '../../permissions/permissions';
+import { getSavedFieldId } from '../../utils/fieldIdentity';
 
 const normalizeGeoJson = (geoJson, metadata = {}) => {
   if (geoJson.type === 'FeatureCollection') {
@@ -62,6 +64,14 @@ const normalizeGeoJson = (geoJson, metadata = {}) => {
   };
 };
 
+const formatBboxValue = (bbox) => {
+  if (!Array.isArray(bbox) || bbox.length !== 4) {
+    return 'Unavailable';
+  }
+
+  return bbox.map((value) => Number(value).toFixed(5)).join(', ');
+};
+
 export default function WorkspaceSidebar({
   user,
   selectedField,
@@ -69,6 +79,8 @@ export default function WorkspaceSidebar({
   onRunAnalysis,
   isFetchingSatelliteData,
   onFetchSatelliteData,
+  satelliteFetchResult,
+  satelliteFetchError,
   geoJsonData,
   setGeoJsonData,
   geoJsonMeta,
@@ -83,7 +95,8 @@ export default function WorkspaceSidebar({
   setFieldLayerVisible,
   setSelectedField,
   onSaveField,
-  isSavingField
+  isSavingField,
+  onOpenGuidedTour
 }) {
   const geoJsonInputRef = useRef(null);
 
@@ -92,19 +105,21 @@ export default function WorkspaceSidebar({
   const canAnalyze = permissions.canAnalyze;
   const canShare = permissions.canShare;
   const canManageTeam = permissions.canManageTeam;
+  const isFarmer = user?.role === 'FARMER';
+  const isAgronomist = user?.role === 'AGRONOMIST';
 
-  const currentFieldId =
-    selectedField?.properties?.id ||
-    selectedField?.properties?.field_id ||
-    geoJsonUploadResponse?.data?.id;
+  const currentFieldId = getSavedFieldId(geoJsonUploadResponse);
 
   const [shareEmail, setShareEmail] = useState('');
   const [shareRole, setShareRole] = useState('VIEWER');
   const [team, setTeam] = useState([]);
   const [sharingMessage, setSharingMessage] = useState('');
   const [isSharing, setIsSharing] = useState(false);
+  const [satelliteDataset, setSatelliteDataset] = useState('sentinel2');
 
   const hasUnsavedGeometry = Boolean(geoJsonData && !geoJsonUploadResponse);
+  const hasSavedField = Boolean(currentFieldId);
+  const canRunAnalysis = Boolean(geoJsonData) && hasSavedField && canAnalyze;
 
   const loadTeam = async () => {
     if (!currentFieldId || !canManageTeam) return;
@@ -240,7 +255,7 @@ export default function WorkspaceSidebar({
         {canCreateField ? (
           <div style={fieldInputSectionStyle}>
             <label style={smallLabelStyle} htmlFor="field-name-input">
-              Field name
+              {isFarmer ? 'New field name' : 'Field name'}
             </label>
 
             <input
@@ -258,7 +273,7 @@ export default function WorkspaceSidebar({
               style={uploadButtonStyle}
             >
               <Upload size={18} />
-              Upload/Draw Field
+              {isFarmer ? 'Upload or Draw Field' : 'Upload/Draw Field'}
             </button>
 
             <button
@@ -267,6 +282,7 @@ export default function WorkspaceSidebar({
               disabled={!hasUnsavedGeometry || !fieldName.trim() || isSavingField}
               style={{
                 ...primaryActionButtonStyle,
+                ...(isFarmer ? farmerPrimaryActionButtonStyle : null),
                 opacity: !hasUnsavedGeometry || !fieldName.trim() || isSavingField ? 0.65 : 1,
                 cursor:
                   !hasUnsavedGeometry || !fieldName.trim() || isSavingField
@@ -274,16 +290,20 @@ export default function WorkspaceSidebar({
                     : 'pointer'
               }}
             >
-              {isSavingField ? 'Saving...' : 'Save Field'}
+              {isSavingField ? 'Saving...' : isFarmer ? 'Add Field' : 'Save Field'}
             </button>
 
             <div style={helperTextStyle}>
-              Upload a GeoJSON file or draw directly on the map, then save the field name.
+              {isFarmer
+                ? 'Upload a GeoJSON file or draw directly on the map, then add this field to your farm.'
+                : 'Upload a GeoJSON file or draw directly on the map, then save the field name.'}
             </div>
           </div>
         ) : !geoJsonData ? (
           <div style={lockedNoticeStyle}>
-            You do not have permission to create or upload field boundaries.
+            {isAgronomist
+              ? 'Agronomists work with shared client data, so field creation is disabled here.'
+              : 'You do not have permission to create or upload field boundaries.'}
           </div>
         ) : null}
 
@@ -307,7 +327,7 @@ export default function WorkspaceSidebar({
                 <span>{geoJsonMeta?.size ? `${geoJsonMeta.size} KB` : 'Manual drawing'}</span>
 
                 {geoJsonUploadResponse ? (
-                  <span style={successTextStyle}>● Validated</span>
+                  <span style={successTextStyle}>● Saved</span>
                 ) : geoJsonUploadError ? (
                   <span style={errorTextStyle}>⚠ Error</span>
                 ) : (
@@ -327,10 +347,13 @@ export default function WorkspaceSidebar({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <label style={smallLabelStyle}>Dataset Selector</label>
 
-          <select style={inputStyle}>
-            <option>Sentinel-2 (Optical)</option>
-            <option>Landsat 8-9</option>
-            <option>PlanetScope (High-Res)</option>
+          <select
+            style={inputStyle}
+            value={satelliteDataset}
+            onChange={(event) => setSatelliteDataset(event.target.value)}
+          >
+            <option value="sentinel2">Sentinel-2 (Optical)</option>
+            <option value="landsat">Landsat 8-9</option>
           </select>
         </div>
       </div>
@@ -342,12 +365,15 @@ export default function WorkspaceSidebar({
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <button
-            onClick={onFetchSatelliteData}
-            disabled={isFetchingSatelliteData || isAnalyzing}
+            onClick={() => onFetchSatelliteData?.(satelliteDataset)}
+            disabled={isFetchingSatelliteData || isAnalyzing || !geoJsonData}
             style={{
               ...secondaryActionButtonStyle,
-              cursor: isFetchingSatelliteData || isAnalyzing ? 'not-allowed' : 'pointer',
-              opacity: isFetchingSatelliteData || isAnalyzing ? 0.6 : 1
+              cursor:
+                isFetchingSatelliteData || isAnalyzing || !geoJsonData
+                  ? 'not-allowed'
+                  : 'pointer',
+              opacity: isFetchingSatelliteData || isAnalyzing || !geoJsonData ? 0.6 : 1
             }}
           >
             {isFetchingSatelliteData ? (
@@ -363,18 +389,64 @@ export default function WorkspaceSidebar({
             )}
           </button>
 
+          {(satelliteFetchResult || satelliteFetchError) && (
+            <div style={satelliteCardStyle}>
+              <div style={satelliteHeaderStyle}>
+                <div style={loadedTitleStyle}>
+                  <ImageIcon size={16} />
+                  Satellite fetch
+                </div>
+
+                <span
+                  style={
+                    satelliteFetchError
+                      ? errorTextStyle
+                      : satelliteStatusBadgeStyle
+                  }
+                >
+                  {satelliteFetchError || satelliteFetchResult?.status || 'Unknown'}
+                </span>
+              </div>
+
+              {satelliteFetchError ? (
+                <div style={lockedNoticeStyle}>{satelliteFetchError}</div>
+              ) : (
+                <div style={{ display: 'grid', gap: '8px', fontSize: '0.8rem' }}>
+                  <div style={dataRowStyle}>
+                    <span style={mutedSmallTextStyle}>Dataset</span>
+                    <strong>{satelliteFetchResult?.dataset || '—'}</strong>
+                  </div>
+                  <div style={dataRowStyle}>
+                    <span style={mutedSmallTextStyle}>Acquisition date</span>
+                    <strong>{satelliteFetchResult?.acquisition_date || '—'}</strong>
+                  </div>
+                  <div style={dataRowStyle}>
+                    <span style={mutedSmallTextStyle}>Resolution</span>
+                    <strong>{satelliteFetchResult?.resolution || '—'}</strong>
+                  </div>
+                  <div style={dataRowStyle}>
+                    <span style={mutedSmallTextStyle}>BBox</span>
+                    <strong style={bboxTextStyle}>
+                      {formatBboxValue(satelliteFetchResult?.bbox)}
+                    </strong>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <button
             onClick={onRunAnalysis}
-            disabled={isAnalyzing || isFetchingSatelliteData || !geoJsonData || !canAnalyze}
+            disabled={isAnalyzing || isFetchingSatelliteData || !canRunAnalysis}
             style={{
               ...runButtonStyle,
               backgroundColor: isAnalyzing ? 'rgba(59, 130, 246, 0.5)' : 'var(--accent-color)',
               boxShadow: isAnalyzing ? 'none' : '0 4px 14px 0 rgba(59, 130, 246, 0.39)',
               cursor:
-                isAnalyzing || isFetchingSatelliteData || !geoJsonData || !canAnalyze
+                isAnalyzing || isFetchingSatelliteData || !canRunAnalysis
                   ? 'not-allowed'
                   : 'pointer',
-              opacity: isAnalyzing || !geoJsonData || !canAnalyze ? 0.7 : 1
+              opacity: isAnalyzing || !canRunAnalysis ? 0.7 : 1
             }}
           >
             {isAnalyzing ? (
@@ -390,11 +462,48 @@ export default function WorkspaceSidebar({
             )}
           </button>
 
-          {!canAnalyze && geoJsonData && (
+          {!hasSavedField && geoJsonData && (
+            <div style={lockedNoticeStyle}>
+              Save this field first, then run analysis and open team comments.
+            </div>
+          )}
+
+          {!canAnalyze && hasSavedField && geoJsonData && (
             <div style={lockedNoticeStyle}>
               Your current field role allows viewing only. Analysis is available for OWNER and EDITOR.
             </div>
           )}
+        </div>
+      </div>
+
+      <Divider />
+
+      <div>
+        <h2 style={sectionTitleStyle}>Workspace Guide</h2>
+
+        <div style={guideCardStyle}>
+          <div style={guideCardHeaderStyle}>
+            <div style={guideIconStyle}>
+              <BookOpen size={16} />
+            </div>
+
+            <div style={guideCopyStyle}>
+              <strong style={{ fontSize: '0.9rem' }}>Need the walkthrough again?</strong>
+              <p style={guideDescriptionStyle}>
+                Reopen the guided 6-step workspace flow any time while you work on the map.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={() => onOpenGuidedTour?.()}
+            style={guideButtonStyle}
+          >
+            <BookOpen size={16} />
+            Open guide
+          </button>
         </div>
       </div>
 
@@ -403,7 +512,7 @@ export default function WorkspaceSidebar({
           <Divider />
 
           <div>
-            <h2 style={sectionTitleStyle}>Team Access</h2>
+            <h2 style={sectionTitleStyle}>{isFarmer ? 'Share Field' : 'Team Access'}</h2>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <input
@@ -430,11 +539,12 @@ export default function WorkspaceSidebar({
                 disabled={isSharing || !shareEmail.trim()}
                 style={{
                   ...primaryActionButtonStyle,
+                  ...(isFarmer ? farmerPrimaryActionButtonStyle : null),
                   opacity: isSharing || !shareEmail.trim() ? 0.65 : 1,
                   cursor: isSharing || !shareEmail.trim() ? 'not-allowed' : 'pointer'
                 }}
               >
-                {isSharing ? 'Sharing...' : 'Grant Access'}
+                {isSharing ? 'Sharing...' : isFarmer ? 'Share field' : 'Grant Access'}
               </button>
 
               {sharingMessage && <div style={lockedNoticeStyle}>{sharingMessage}</div>}
@@ -636,6 +746,44 @@ const helperTextStyle = {
   lineHeight: 1.5
 };
 
+const satelliteCardStyle = {
+  padding: '12px',
+  borderRadius: '12px',
+  border: '1px solid rgba(59, 130, 246, 0.22)',
+  background: 'rgba(59, 130, 246, 0.08)',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '10px'
+};
+
+const satelliteHeaderStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: '10px'
+};
+
+const satelliteStatusBadgeStyle = {
+  color: '#bfdbfe',
+  fontSize: '0.72rem',
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em'
+};
+
+const dataRowStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '10px'
+};
+
+const bboxTextStyle = {
+  textAlign: 'right',
+  fontSize: '0.75rem',
+  lineHeight: 1.4,
+  maxWidth: '140px'
+};
+
 const inputStyle = {
   width: '100%',
   padding: '10px',
@@ -685,6 +833,11 @@ const primaryActionButtonStyle = {
   fontWeight: 700
 };
 
+const farmerPrimaryActionButtonStyle = {
+  background: 'linear-gradient(135deg, #16a34a, #22c55e)',
+  boxShadow: '0 10px 22px rgba(34, 197, 94, 0.22)'
+};
+
 const lockedNoticeStyle = {
   padding: '12px',
   borderRadius: '8px',
@@ -693,6 +846,51 @@ const lockedNoticeStyle = {
   color: 'var(--text-secondary)',
   fontSize: '0.82rem',
   lineHeight: 1.5
+};
+
+const guideCardStyle = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '12px',
+  padding: '14px',
+  borderRadius: '14px',
+  border: '1px solid rgba(59, 130, 246, 0.18)',
+  background: 'rgba(59, 130, 246, 0.08)'
+};
+
+const guideCardHeaderStyle = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  gap: '12px'
+};
+
+const guideIconStyle = {
+  width: '34px',
+  height: '34px',
+  borderRadius: '10px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: '#dbeafe',
+  background: 'rgba(59, 130, 246, 0.18)',
+  border: '1px solid rgba(59, 130, 246, 0.22)',
+  flexShrink: 0
+};
+
+const guideCopyStyle = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '6px'
+};
+
+const guideDescriptionStyle = {
+  color: 'var(--text-secondary)',
+  fontSize: '0.78rem',
+  lineHeight: 1.55
+};
+
+const guideButtonStyle = {
+  width: '100%'
 };
 
 const teamRowStyle = {

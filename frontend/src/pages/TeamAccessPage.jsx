@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { Users, Share2, ShieldCheck, Trash2, RefreshCw, MapPin } from 'lucide-react';
 import {
   fetchAllFields,
@@ -21,6 +21,8 @@ export default function TeamAccessPage({ user, onNavigate }) {
     () => fields.find((field) => field.id === selectedFieldId),
     [fields, selectedFieldId]
   );
+  const isAgronomist = user?.role === 'AGRONOMIST';
+  const isFarmer = user?.role === 'FARMER';
 
   const canManageSelectedField = selectedField?.role === 'OWNER' || user?.role === 'ADMIN';
 
@@ -35,6 +37,9 @@ export default function TeamAccessPage({ user, onNavigate }) {
 
       if (fieldList.length > 0) {
         setSelectedFieldId((current) => current || fieldList[0].id);
+      } else {
+        setSelectedFieldId('');
+        setTeam([]);
       }
     } catch (error) {
       setMessage(error.response?.data?.detail || 'Failed to load fields.');
@@ -66,14 +71,32 @@ export default function TeamAccessPage({ user, onNavigate }) {
     }
   };
 
+  const handleInitialLoad = useEffectEvent(async () => {
+    await loadFields();
+  });
+
+  const handleSelectedFieldLoad = useEffectEvent(async (fieldId) => {
+    await loadTeam(fieldId);
+  });
+
   useEffect(() => {
-    loadFields();
+    const timeoutId = window.setTimeout(() => {
+      void handleInitialLoad();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   useEffect(() => {
     if (selectedFieldId) {
-      loadTeam(selectedFieldId);
+      const timeoutId = window.setTimeout(() => {
+        void handleSelectedFieldLoad(selectedFieldId);
+      }, 0);
+
+      return () => window.clearTimeout(timeoutId);
     }
+
+    return undefined;
   }, [selectedFieldId]);
 
   const handleShare = async () => {
@@ -116,10 +139,12 @@ export default function TeamAccessPage({ user, onNavigate }) {
     <div className="content-page">
       <section className="page-hero glass-panel">
         <div>
-          <div className="page-kicker">Team / Access</div>
-          <h1 className="page-title">Field Access Management</h1>
+          <div className="page-kicker">{isFarmer ? 'Field Sharing' : 'Team / Access'}</div>
+          <h1 className="page-title">{isAgronomist ? 'Collaboration Overview' : 'Field Access Management'}</h1>
           <p className="page-subtitle">
-            Manage who can view, analyze, or edit your fields.
+            {isAgronomist
+              ? 'Review shared ownership context and see which collaborators currently have access.'
+              : 'Manage who can view, analyze, or edit your fields.'}
           </p>
         </div>
 
@@ -188,7 +213,7 @@ export default function TeamAccessPage({ user, onNavigate }) {
           <section className="glass-panel" style={panelStyle}>
             <div style={sectionHeaderStyle}>
               <Share2 color="var(--accent-color)" />
-              <h2 style={{ margin: 0 }}>Share selected field</h2>
+              <h2 style={{ margin: 0 }}>{isFarmer ? 'Share selected field' : 'Selected field access'}</h2>
             </div>
 
             <p style={{ ...mutedTextStyle, marginBottom: '14px' }}>
@@ -198,7 +223,9 @@ export default function TeamAccessPage({ user, onNavigate }) {
              
             {!canManageSelectedField ? (
             <div style={{ ...noticeStyle, marginTop: '0' }}>
-                You can view this field, but only OWNER can manage team access.
+                {isAgronomist
+                  ? 'You can review who is on the field, but only the OWNER can grant or revoke access.'
+                  : 'You can view this field, but only OWNER can manage team access.'}
               </div>
             ) : (
               <div style={{ display: 'grid', gap: '12px' }}>
@@ -226,7 +253,7 @@ export default function TeamAccessPage({ user, onNavigate }) {
                   disabled={!email.trim()}
                   onClick={handleShare}
                 >
-                  Grant Access
+                  {isFarmer ? 'Share field' : 'Grant access'}
                 </button>
               </div>
             )}

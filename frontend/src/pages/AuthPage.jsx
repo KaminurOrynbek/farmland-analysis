@@ -16,7 +16,7 @@ const DEFAULT_REGISTER = {
 
 
 
-export default function AuthPage({ onBack, onLogin }) {
+export default function AuthPage({ onBack, onLogin, onRegistered }) {
   const [mode, setMode] = useState('login');
   const [loginForm, setLoginForm] = useState(DEFAULT_LOGIN);
   const [registerForm, setRegisterForm] = useState(DEFAULT_REGISTER);
@@ -54,6 +54,7 @@ export default function AuthPage({ onBack, onLogin }) {
     try {
       const createdUser = await registerUser(registerForm);
 
+      onRegistered?.(createdUser);
       setSuccess('Account created successfully. You can now sign in.');
       setMode('login');
       setLoginForm({

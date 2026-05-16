@@ -6,8 +6,32 @@ import uuid
 from backend.infrastructure.database.database import get_db
 from backend.routers.deps import get_current_active_user, FieldPermissionChecker
 from backend.infrastructure.database.models import User, FieldAccessRole, FieldComment
+from backend.services.audit_service import AuditService
 
 router = APIRouter()
+
+
+def _serialize_comment(comment: FieldComment) -> Dict[str, Any]:
+    author = getattr(comment, "author", None)
+
+    return {
+        "id": comment.id,
+        "field_id": comment.field_id,
+        "author_id": comment.author_id,
+        "author_name": author.full_name if author else None,
+        "author_email": author.email if author else None,
+        "author": (
+            {
+                "id": author.id,
+                "full_name": author.full_name,
+                "email": author.email
+            }
+            if author else None
+        ),
+        "comment": comment.comment,
+        "markers": comment.markers or [],
+        "created_at": comment.created_at.isoformat() if comment.created_at else None
+    }
 
 @router.post("/{field_id}/comments", dependencies=[Depends(FieldPermissionChecker(FieldAccessRole.EDITOR))])
 def add_field_comment(
@@ -27,7 +51,19 @@ def add_field_comment(
     db.add(new_comment)
     db.commit()
     db.refresh(new_comment)
-    return new_comment
+
+    AuditService(db).log_action(
+        user_id=current_user.id,
+        action="FIELD_COMMENT_CREATED",
+        entity_type="field_comment",
+        entity_id=new_comment.id,
+        metadata={
+            "field_id": str(field_id),
+            "markers_count": len(markers or [])
+        }
+    )
+
+    return _serialize_comment(new_comment)
 
 @router.get("/{field_id}/comments", dependencies=[Depends(FieldPermissionChecker(FieldAccessRole.VIEWER))])
 def get_field_comments(
@@ -41,4 +77,4 @@ def get_field_comments(
         .order_by(FieldComment.created_at.desc())
         .all()
     )
-    return comments
+    return [_serialize_comment(comment) for comment in comments]

@@ -1,4 +1,5 @@
 import React from 'react';
+import AgroVisionLogo from '../components/common/AgroVisionLogo';
 import {
   ArrowRight,
   BrainCircuit,
@@ -6,7 +7,6 @@ import {
   Database,
   Leaf,
   LineChart,
-  Mail,
   MapPin,
   Satellite,
   ShieldCheck,
@@ -135,9 +135,7 @@ export default function LandingPage({ onSignIn, onGetStarted }) {
       <div className="landing-shell">
         <nav className="landing-nav">
           <div className="landing-nav-brand">
-            <div className="landing-logo-box">
-              <Leaf size={20} color="var(--accent-color)" />
-            </div>
+            <AgroVisionLogo size={38} />
             <span className="landing-brand-name">AgroVision</span>
           </div>
 
@@ -318,7 +316,7 @@ export default function LandingPage({ onSignIn, onGetStarted }) {
 
           <div className="landing-contact-grid">
             <div className="landing-contact-card glass-panel" style={{ gridColumn: '1 / -1', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <Leaf size={32} color="var(--status-healthy)" style={{ marginBottom: '1rem' }} />
+              <AgroVisionLogo size={46} />
               <h3>Start Monitoring</h3>
               <p style={{ maxWidth: '600px', margin: '0 auto 1.5rem' }}>Create an account to start adding field boundaries, running satellite analyses, and tracking your field history.</p>
               <div className="landing-cta-row" style={{ justifyContent: 'center' }}>

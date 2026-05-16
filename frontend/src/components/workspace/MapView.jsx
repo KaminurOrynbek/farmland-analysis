@@ -7,6 +7,7 @@ import '@geoman-io/leaflet-geoman-free';
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import 'leaflet/dist/leaflet.css';
 import { getFieldPermissions } from '../../permissions/permissions';
+import { getFeatureIdentity } from '../../utils/fieldIdentity';
 
 // Fix for icon issues in Leaflet with React
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -179,7 +180,9 @@ export default function MapView({
   };
 
   const getGeoJsonStyle = (feature) => {
-    const isSelected = selectedField && selectedField.properties?.id === feature.properties?.id;
+    const isSelected =
+      Boolean(selectedField) &&
+      getFeatureIdentity(selectedField) === getFeatureIdentity(feature);
     const color = getRiskColor();
 
     return {

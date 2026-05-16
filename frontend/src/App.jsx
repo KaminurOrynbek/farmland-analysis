@@ -14,13 +14,17 @@ import {
   checkHealth,
   runAnalysis,
   saveField,
+  fetchSatelliteData,
   fetchAnalysisStatus,
   fetchAnalysisHistory,
   fetchCurrentUser,
+  subscribeToAnalysisUpdates,
   logoutUser
 } from './api/client';
 import './styles.css';
 import AppSidebar from './components/layout/MainSidebar';
+import { computeBboxFromGeoJson } from './utils/geo';
+import { getSavedFieldId } from './utils/fieldIdentity';
 
 const DEFAULT_ANALYSIS_RESULTS = {
   analysisId: null,
@@ -75,6 +79,21 @@ const buildAssessmentMessage = (assessment, fallbackMessage = '') => {
 
   return parts[0] || '';
 };
+
+const applyAnalysisStatusUpdate = (setAnalysisResults, analysisId, statusResponse) => {
+  setAnalysisResults((current) => ({
+    ...current,
+    analysisId,
+    status: statusResponse?.status || current.status,
+    message: statusResponse?.stage || 'Processing analysis...'
+  }));
+};
+
+const isAnalysisFinished = (statusResponse) => (
+  statusResponse?.status === 'DONE' ||
+  statusResponse?.status === 'FAILED' ||
+  statusResponse?.progress === 100
+);
 
 const normalizeAnalysisResult = (item) => {
   const assessment = item?.assessment || {};
@@ -157,6 +176,35 @@ const buildSelectionFromAnalysis = (analysisItem, field = null) => ({
   geometry: field?.geometry || null
 });
 
+const getCurrentFieldId = ({ geoJsonUploadResponse }) => (
+  getSavedFieldId(geoJsonUploadResponse)
+);
+
+const buildWorkspaceFieldKey = ({
+  geoJsonData,
+  selectedField,
+  geoJsonUploadResponse
+}) => {
+  const savedFieldId = getCurrentFieldId({ geoJsonUploadResponse });
+
+  if (savedFieldId) {
+    return `field:${savedFieldId}`;
+  }
+
+  const geometry =
+    selectedField?.geometry ||
+    geoJsonData?.features?.[0]?.geometry ||
+    null;
+
+  if (!geometry) {
+    return null;
+  }
+
+  return `geometry:${JSON.stringify(geometry)}`;
+};
+
+const WORKSPACE_GUIDE_PENDING_KEY = 'workspaceGuidePendingAfterRegistration';
+
 function App() {
   const [geoJsonUploadResponse, setGeoJsonUploadResponse] = useState(null);
   const [geoJsonUploadError, setGeoJsonUploadError] = useState(null);
@@ -165,6 +213,8 @@ function App() {
   const [isSavingField, setIsSavingField] = useState(false);
   const [pendingDrawnField, setPendingDrawnField] = useState(null);
   const [fieldNameDraft, setFieldNameDraft] = useState('');
+  const [satelliteFetchResult, setSatelliteFetchResult] = useState(null);
+  const [satelliteFetchError, setSatelliteFetchError] = useState(null);
 
   // Analysis Simulation State
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -183,6 +233,7 @@ function App() {
   const [sessionUser, setSessionUser] = useState(null);
   const [dataRefreshKey, setDataRefreshKey] = useState(0);
   const [isSessionReady, setIsSessionReady] = useState(false);
+  const [isGuidedTourOpen, setIsGuidedTourOpen] = useState(false);
 
   // Health check on load
   useEffect(() => {
@@ -206,10 +257,19 @@ function App() {
   };
 
   const handleLogin = (user) => {
+    const shouldOpenGuidedTour =
+      sessionStorage.getItem(WORKSPACE_GUIDE_PENDING_KEY) === 'true';
+
+    sessionStorage.removeItem(WORKSPACE_GUIDE_PENDING_KEY);
     localStorage.setItem('user', JSON.stringify(user));
     setSessionUser(user);
     setAppView('app');
-    setActivePage('Home');
+    setActivePage(shouldOpenGuidedTour ? 'Workspace' : 'Home');
+    setIsGuidedTourOpen(shouldOpenGuidedTour);
+  };
+
+  const handleRegisterSuccess = () => {
+    sessionStorage.setItem(WORKSPACE_GUIDE_PENDING_KEY, 'true');
   };
 
   const handleUpdateUser = (updatedUser) => {
@@ -220,9 +280,11 @@ function App() {
   const handleLogout = () => {
     logoutUser();
     sessionStorage.removeItem('authRedirect');
+    sessionStorage.removeItem(WORKSPACE_GUIDE_PENDING_KEY);
     setSessionUser(null);
     setAppView('landing');
     setActivePage('Home');
+    setIsGuidedTourOpen(false);
   };
 
   const resetAnalysisState = () => {
@@ -248,14 +310,27 @@ function App() {
       return;
     }
 
+    if (page !== 'Workspace') {
+      setIsGuidedTourOpen(false);
+    }
+
     setActivePage(page);
   };
 
+  const handleOpenGuidedTour = () => {
+    setActivePage('Workspace');
+    setIsGuidedTourOpen(true);
+  };
+
+  const handleCloseGuidedTour = () => {
+    setIsGuidedTourOpen(false);
+  };
+
   const handleRunAnalysis = async () => {
-    const fieldId = geoJsonUploadResponse?.data?.id;
+    const fieldId = getCurrentFieldId({ geoJsonUploadResponse });
 
     if (!fieldId) {
-      alert('Please upload or draw a field first.');
+      alert('Please save or open a field before running analysis.');
       return;
     }
 
@@ -274,30 +349,61 @@ function App() {
       }));
 
       let finalStatus = null;
+      let latestSocketStatus = null;
+      let lastConsumedSocketStatus = null;
 
-      for (let attempt = 0; attempt < 60; attempt += 1) {
-        const statusResponse = await fetchAnalysisStatus(analysisId);
-        finalStatus = statusResponse;
+      const unsubscribeFromAnalysisUpdates = subscribeToAnalysisUpdates(sessionUser?.id, {
+        onMessage: (statusUpdate) => {
+          if (String(statusUpdate?.analysis_id) !== String(analysisId)) {
+            return;
+          }
 
-        setAnalysisResults((current) => ({
-          ...current,
-          analysisId,
-          status: statusResponse.status,
-          message: statusResponse.stage || 'Processing analysis...'
-        }));
-
-        if (statusResponse.status === 'DONE' || statusResponse.progress === 100) {
-          break;
+          latestSocketStatus = statusUpdate;
+          applyAnalysisStatusUpdate(setAnalysisResults, analysisId, statusUpdate);
         }
+      });
 
-        if (statusResponse.status === 'FAILED') {
-          throw new Error(statusResponse.error || 'Analysis failed on the server.');
+      try {
+        for (let attempt = 0; attempt < 60; attempt += 1) {
+          if (latestSocketStatus && latestSocketStatus !== lastConsumedSocketStatus) {
+            finalStatus = latestSocketStatus;
+            lastConsumedSocketStatus = latestSocketStatus;
+
+            if (finalStatus.status === 'FAILED') {
+              throw new Error(finalStatus.error || 'Analysis failed on the server.');
+            }
+
+            if (isAnalysisFinished(finalStatus)) {
+              break;
+            }
+
+            await sleep(1500);
+            continue;
+          }
+
+          const statusResponse = await fetchAnalysisStatus(analysisId);
+          finalStatus = statusResponse;
+          applyAnalysisStatusUpdate(setAnalysisResults, analysisId, statusResponse);
+
+          if (statusResponse.status === 'FAILED') {
+            throw new Error(statusResponse.error || 'Analysis failed on the server.');
+          }
+
+          if (isAnalysisFinished(statusResponse)) {
+            break;
+          }
+
+          await sleep(3000);
         }
-
-        await sleep(3000);
+      } finally {
+        unsubscribeFromAnalysisUpdates();
       }
 
-      if (!finalStatus || (finalStatus.status !== 'DONE' && finalStatus.progress !== 100)) {
+      if (!finalStatus || finalStatus.status === 'FAILED') {
+        throw new Error(finalStatus?.error || 'Analysis failed on the server.');
+      }
+
+      if (!isAnalysisFinished(finalStatus)) {
         throw new Error('Analysis is still processing. Please check the report history later.');
       }
 
@@ -326,20 +432,45 @@ function App() {
   };
   
 
-  const handleFetchSatelliteData = async () => {
+  const handleFetchSatelliteData = async (dataset = 'sentinel2') => {
     if (!geoJsonData) {
       alert('Please upload field boundaries first.');
       return;
     }
-    
-    // The imagery fetching is integrated within the "runAnalysis" pipeline 
-    // in our clean architecture flow, but we can simulate the "success" indicator here
-    // to give the user immediate feedback that their area is eligible for GEE data.
+
+    const bbox = computeBboxFromGeoJson(geoJsonData);
+    const currentFieldKey = buildWorkspaceFieldKey({
+      geoJsonData,
+      selectedField,
+      geoJsonUploadResponse
+    });
+
+    if (!bbox || !currentFieldKey) {
+      alert('The current field geometry is missing valid coordinates.');
+      return;
+    }
+
     setIsFetchingSatelliteData(true);
-    setTimeout(() => {
+    setSatelliteFetchError(null);
+
+    try {
+      const metadata = await fetchSatelliteData({
+        dataset,
+        bbox
+      });
+
+      setSatelliteFetchResult({
+        fieldKey: currentFieldKey,
+        data: metadata
+      });
+    } catch (error) {
+      setSatelliteFetchError({
+        fieldKey: currentFieldKey,
+        message: error.response?.data?.detail || 'Failed to fetch satellite metadata.'
+      });
+    } finally {
       setIsFetchingSatelliteData(false);
-      alert("Satellite data fetching is integrated securely into the Run Analysis pipeline (server-side GEE download). Click 'Run Analysis' to process.");
-    }, 1500);
+    }
   };
 
   const saveFieldFeatureCollection = async (fieldName, featureCollection) => {
@@ -563,6 +694,24 @@ function App() {
     };
   }, []);
 
+  const currentFieldId = getCurrentFieldId({ geoJsonUploadResponse });
+
+  const currentWorkspaceFieldKey = buildWorkspaceFieldKey({
+    geoJsonData,
+    selectedField,
+    geoJsonUploadResponse
+  });
+
+  const currentSatelliteFetchResult =
+    satelliteFetchResult?.fieldKey === currentWorkspaceFieldKey
+      ? satelliteFetchResult.data
+      : null;
+
+  const currentSatelliteFetchError =
+    satelliteFetchError?.fieldKey === currentWorkspaceFieldKey
+      ? satelliteFetchError.message
+      : null;
+
   if (!isSessionReady) {
     return (
       <div className="auth-page">
@@ -590,6 +739,7 @@ function App() {
       <AuthPage
         onBack={() => setAppView('landing')}
         onLogin={handleLogin}
+        onRegistered={handleRegisterSuccess}
       />
     );
   }
@@ -605,6 +755,8 @@ function App() {
             onRunAnalysis={handleRunAnalysis}
             isFetchingSatelliteData={isFetchingSatelliteData}
             onFetchSatelliteData={handleFetchSatelliteData}
+            satelliteFetchResult={currentSatelliteFetchResult}
+            satelliteFetchError={currentSatelliteFetchError}
             geoJsonData={geoJsonData}
             setGeoJsonData={setGeoJsonData}
             geoJsonMeta={geoJsonMeta}
@@ -625,8 +777,12 @@ function App() {
             isDrawFieldNamingOpen={Boolean(pendingDrawnField)}
             onSaveDrawnField={handleSaveDrawnField}
             onCancelDrawnField={handleCancelDrawnField}
+            currentFieldId={currentFieldId}
             analysisResults={analysisResults}
             analysisStarted={analysisStarted}
+            isGuidedTourOpen={isGuidedTourOpen}
+            onOpenGuidedTour={handleOpenGuidedTour}
+            onCloseGuidedTour={handleCloseGuidedTour}
           />
         );
       case 'Analysis Report':

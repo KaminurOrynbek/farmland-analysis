@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import GuidedTour from '../components/common/GuidedTour';
+import FieldCommentsPanel from '../components/workspace/FieldCommentsPanel';
 import MapView from '../components/workspace/MapView';
 import WorkspaceSidebar from '../components/workspace/WorkspaceSidebar';
 
@@ -11,6 +12,8 @@ export default function WorkspacePage({
   onRunAnalysis,
   isFetchingSatelliteData,
   onFetchSatelliteData,
+  satelliteFetchResult,
+  satelliteFetchError,
   geoJsonData,
   setGeoJsonData,
   geoJsonMeta,
@@ -31,8 +34,12 @@ export default function WorkspacePage({
   isDrawFieldNamingOpen,
   onSaveDrawnField,
   onCancelDrawnField,
+  currentFieldId,
   analysisResults,
-  analysisStarted
+  analysisStarted,
+  isGuidedTourOpen,
+  onOpenGuidedTour,
+  onCloseGuidedTour
 }) {
   return (
     <div className="dashboard-content workspace-shell" style={{ position: 'relative' }}>
@@ -43,6 +50,8 @@ export default function WorkspacePage({
         onRunAnalysis={onRunAnalysis}
         isFetchingSatelliteData={isFetchingSatelliteData}
         onFetchSatelliteData={onFetchSatelliteData}
+        satelliteFetchResult={satelliteFetchResult}
+        satelliteFetchError={satelliteFetchError}
         geoJsonData={geoJsonData}
         setGeoJsonData={setGeoJsonData}
         geoJsonMeta={geoJsonMeta}
@@ -58,6 +67,7 @@ export default function WorkspacePage({
         setSelectedField={setSelectedField}
         onSaveField={onSaveField}
         isSavingField={isSavingField}
+        onOpenGuidedTour={onOpenGuidedTour}
       />
 
       <main className="map-container" style={{ position: 'relative' }}>
@@ -107,6 +117,13 @@ export default function WorkspacePage({
             </style>
           </div>
         )}
+
+        <FieldCommentsPanel
+          user={user}
+          fieldId={currentFieldId}
+          selectedField={selectedField}
+          hasGeometry={Boolean(geoJsonData)}
+        />
       </main>
 
       {isDrawFieldNamingOpen && (
@@ -117,7 +134,11 @@ export default function WorkspacePage({
         />
       )}
 
-      <GuidedTour activePage={activePage} analysisStarted={analysisStarted} />
+      <GuidedTour
+        activePage={activePage}
+        isOpen={isGuidedTourOpen}
+        onClose={onCloseGuidedTour}
+      />
     </div>
   );
 }

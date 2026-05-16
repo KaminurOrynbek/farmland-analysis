@@ -7,6 +7,36 @@ export const api = axios.create({
   baseURL: API_BASE_URL
 });
 
+const getAbsoluteApiBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    return new URL(API_BASE_URL, window.location.origin).toString();
+  }
+
+  return API_BASE_URL;
+};
+
+const buildAnalysisWebSocketUrl = (userId) => {
+  if (!userId) {
+    return null;
+  }
+
+  const apiUrl = new URL(getAbsoluteApiBaseUrl());
+  const protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+  const token = localStorage.getItem('token');
+
+  if (!token) {
+    return null;
+  }
+
+  const socketUrl = new URL(
+    `${apiUrl.pathname.replace(/\/$/, '')}/analysis/ws/${encodeURIComponent(userId)}`,
+    `${protocol}//${apiUrl.host}`
+  );
+
+  socketUrl.searchParams.set('token', token);
+  return socketUrl.toString();
+};
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
 
@@ -198,5 +228,74 @@ export const deleteAdminUser = async (userId) => {
 
 export const fetchAnalysisStatus = async (analysisId) => {
   const response = await api.get(`/analysis/status/${analysisId}`);
+  return response.data;
+};
+
+export const subscribeToAnalysisUpdates = (userId, handlers = {}) => {
+  if (typeof window === 'undefined' || typeof window.WebSocket === 'undefined') {
+    return () => {};
+  }
+
+  const socketUrl = buildAnalysisWebSocketUrl(userId);
+  if (!socketUrl) {
+    return () => {};
+  }
+
+  const socket = new window.WebSocket(socketUrl);
+
+  socket.addEventListener('open', () => {
+    handlers.onOpen?.();
+  });
+
+  socket.addEventListener('message', (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      handlers.onMessage?.(payload);
+    } catch (error) {
+      handlers.onError?.(error);
+    }
+  });
+
+  socket.addEventListener('error', (event) => {
+    handlers.onError?.(event);
+  });
+
+  socket.addEventListener('close', (event) => {
+    handlers.onClose?.(event);
+  });
+
+  return () => {
+    if (socket.readyState === window.WebSocket.OPEN || socket.readyState === window.WebSocket.CONNECTING) {
+      socket.close();
+    }
+  };
+};
+
+
+export const fetchFieldComments = async (fieldId) => {
+  const response = await api.get(`/fields/${fieldId}/comments`);
+  return response.data;
+};
+
+export const createFieldComment = async ({
+  fieldId,
+  content,
+  markers = []
+}) => {
+  const response = await api.post(`/fields/${fieldId}/comments`, markers, {
+    params: {
+      comment_text: content
+    }
+  });
+
+  return response.data;
+};
+
+export const fetchSatelliteData = async ({ dataset, bbox }) => {
+  const response = await api.post('/satellite/fetch-satellite-data', {
+    dataset,
+    bbox
+  });
+
   return response.data;
 };
