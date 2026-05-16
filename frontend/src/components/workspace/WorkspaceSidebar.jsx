@@ -97,7 +97,7 @@ export default function Sidebar({
             
             // Send geometry to PostgreSQL database via our API adapter
             const response = await saveField(file.name, geometryToSave, 0.0);
-            const field = response.data.data;
+            const field = response.data;
 
             const fieldMetadata = {
               id: field.id,
@@ -165,7 +165,7 @@ export default function Sidebar({
           style={{ display: 'none' }}
         />
 
-        {!geoJsonData ? (
+        {!geoJsonData && canCreateField ? (
           <button 
             onClick={() => geoJsonInputRef.current?.click()}
             style={{
@@ -186,6 +186,10 @@ export default function Sidebar({
             <Upload size={18} />
             Upload GeoJSON Boundaries
           </button>
+        ) : !geoJsonData && !canCreateField ? (
+          <div style={lockedNoticeStyle}>
+            You do not have permission to create or upload field boundaries.
+          </div>
         ) : (
           <div style={{
             background: 'rgba(34, 197, 94, 0.1)',
@@ -312,7 +316,7 @@ export default function Sidebar({
           {/* Run Analysis Button */}
           <button 
             onClick={onRunAnalysis}
-            disabled={isAnalyzing || isFetchingSatelliteData || !geoJsonData}
+            disabled={isAnalyzing || isFetchingSatelliteData || !geoJsonData || !canAnalyze}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -324,11 +328,14 @@ export default function Sidebar({
               border: 'none',
               color: 'white',
               borderRadius: '8px',
-              cursor: (isAnalyzing || isFetchingSatelliteData || !geoJsonData) ? 'not-allowed' : 'pointer',
               fontWeight: 600,
               boxShadow: isAnalyzing ? 'none' : '0 4px 14px 0 rgba(59, 130, 246, 0.39)',
               transition: 'all 0.2s',
-              opacity: (isAnalyzing || !geoJsonData) ? 0.7 : 1
+              cursor: (isAnalyzing || isFetchingSatelliteData || !geoJsonData || !canAnalyze)
+                ? 'not-allowed'
+                : 'pointer',
+
+              opacity: (isAnalyzing || !geoJsonData || !canAnalyze) ? 0.7 : 1
             }}
           >
             {isAnalyzing ? (
@@ -411,3 +418,14 @@ export default function Sidebar({
     </aside>
   );
 }
+
+
+const lockedNoticeStyle = {
+  padding: '12px',
+  borderRadius: '8px',
+  background: 'rgba(148, 163, 184, 0.08)',
+  border: '1px solid var(--border-color)',
+  color: 'var(--text-secondary)',
+  fontSize: '0.82rem',
+  lineHeight: 1.5
+};

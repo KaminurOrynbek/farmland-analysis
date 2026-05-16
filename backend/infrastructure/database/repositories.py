@@ -5,6 +5,8 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from backend.infrastructure.database.models import User, Field, Analysis, AnalysisStatus, AnalysisType, SatelliteImage, SpectralIndices, MLPrediction
 from backend.core.config import settings
+from uuid import UUID
+
 
 
 # Initialize Redis client for caching status
@@ -14,7 +16,7 @@ class FieldRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def create(self, user_id: str, name: str, geometry: dict, area_ha: float) -> Field:
+    def create(self, user_id: UUID, name: str, geometry: dict, area_ha: float) -> Field:
         from shapely.geometry import shape
         from geoalchemy2.shape import from_shape
         

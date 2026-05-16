@@ -1,7 +1,7 @@
 import React from 'react';
 import GuidedTour from '../components/common/GuidedTour';
 import MapView from '../components/workspace/MapView';
-import Sidebar from '../components/workspace/WorkspaceSidebar';
+import WorkspaceSidebar from '../components/workspace/WorkspaceSidebar';
 import { Loader2 } from 'lucide-react';
 
 export default function WorkspacePage({
@@ -30,7 +30,7 @@ export default function WorkspacePage({
 }) {
   return (
     <div className="dashboard-content workspace-shell" style={{ position: 'relative' }}>
-      <Sidebar
+      <WorkspaceSidebar
         user={user} 
         selectedField={selectedField}
         isAnalyzing={isAnalyzing}

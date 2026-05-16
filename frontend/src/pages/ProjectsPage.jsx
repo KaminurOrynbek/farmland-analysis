@@ -10,7 +10,7 @@ const formatDateTime = (value) => {
   return new Date(value).toLocaleString();
 };
 
-export default function ProjectsPage({ onNavigate, refreshKey }) {
+export default function ProjectsPage({ user, onNavigate, refreshKey }) {
   const [fields, setFields] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -96,38 +96,41 @@ export default function ProjectsPage({ onNavigate, refreshKey }) {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => onNavigate('Workspace')}
-          onMouseEnter={e => {
-            e.currentTarget.style.backgroundColor = 'var(--accent-hover)';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.backgroundColor = 'var(--accent-color)';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 18px',
-            backgroundColor: 'var(--accent-color)',
-            border: 'none',
-            borderRadius: '8px',
-            color: 'white',
-            fontWeight: 600,
-            fontSize: '0.875rem',
-            cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(59,130,246,0.35)',
-            transition: 'all 0.2s',
-            flexShrink: 0
-          }}
-        >
-          <Plus size={16} />
-          New Project
-        </button>
+        {canCreateProject && (
+          <button
+            type="button"
+            onClick={() => onNavigate('Workspace')}
+            onMouseEnter={e => {
+              e.currentTarget.style.backgroundColor = 'var(--accent-hover)';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.backgroundColor = 'var(--accent-color)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              backgroundColor: 'var(--accent-color)',
+              border: 'none',
+              borderRadius: '8px',
+              color: 'white',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(59,130,246,0.35)',
+              transition: 'all 0.2s',
+              flexShrink: 0
+            }}
+          >
+            <Plus size={16} />
+            New Project
+          </button>
+        )}
       </div>
+
 
       {loading ? (
         <div style={{ color: 'var(--text-secondary)', textAlign: 'center', paddingTop: '60px' }}>

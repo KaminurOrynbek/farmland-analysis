@@ -122,7 +122,7 @@ function App() {
 
   const handleRunAnalysis = async () => {
 
-    const fieldId = geoJsonUploadResponse?.data?.data?.id;
+    const fieldId = geoJsonUploadResponse?.data?.id;
 
     if (!fieldId) {
       alert('Please upload or draw a field first.');
@@ -185,7 +185,7 @@ function App() {
       const response = await saveField('Drawn Field', geometryToSave, 0.0);
 
       
-      const field = response.data.data;
+      const field = response.data;
 
       const metadata = {
         id: field.id,

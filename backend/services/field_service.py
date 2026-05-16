@@ -25,7 +25,7 @@ class FieldService:
         calculated_area_ha = metadata["total_area_ha"]
 
         field = self.repo.create(
-            user_id=str(user.id),
+            user_id=user.id,
             name=name,
             geometry=geometry,
             area_ha=calculated_area_ha
@@ -91,7 +91,7 @@ class FieldService:
             access = self.db.query(FieldAccess).filter(
                 FieldAccess.field_id == field_id, 
                 FieldAccess.user_id == owner.id,
-                FieldAccess.access_role == "OWNER"
+                FieldAccess.access_role == Role.OWNER
             ).first()
             if not access:
                 raise HTTPException(status_code=403, detail="Only owners can share fields")
@@ -109,12 +109,12 @@ class FieldService:
         ).first()
 
         if existing_access:
-            existing_access.access_role = role
+            existing_access.access_role = Role(role)
         else:
             new_access = FieldAccess(
                 field_id=field_id,
                 user_id=target_user.id,
-                access_role=role,
+                access_role=Role(role),
                 granted_by=owner.id
             )
             self.db.add(new_access)
@@ -156,7 +156,7 @@ class FieldService:
         if not access:
             raise HTTPException(status_code=404, detail="Access record not found")
         
-        if access.access_role == "OWNER":
+        if access.access_role == Role.OWNER:
              raise HTTPException(status_code=400, detail="Cannot revoke access from an OWNER. Delete the field instead.")
 
         self.db.delete(access)
