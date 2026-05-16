@@ -65,7 +65,7 @@ class AnalysisService:
         """
         Retrieves analysis history for the user.
         """
-        rows = self.repo.get_history(user_id=str(user.id), limit=limit)
+        rows = self.repo.get_history(user_id=user.id, limit=limit)
         
         result = []
         for analysis, field, indices, ml in rows:
@@ -85,5 +85,8 @@ class AnalysisService:
                 "ndvi_value": indices.ndvi_mean if indices else None,
                 "evi_value": indices.evi_mean if indices else None,
                 "stress_zones_count": indices.stress_zones_detected if indices else 0,
+                "stress_area_percentage": indices.stress_area_percentage if indices else 0,
+                "assessment": ml.agronomic_assessment if ml else None,
+
             })
         return result

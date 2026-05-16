@@ -146,7 +146,7 @@ export default function HomePage({
       <section className="page-hero glass-panel">
         <div>
           <div className="page-kicker">AgroVision Workspace</div>
-          <h1 className="page-title">Welcome back, {user?.name || 'Research Analyst'}</h1>
+          <h1 className="page-title">Welcome back, {user?.full_name || user?.name || 'Research Analyst'}</h1>
           <p className="page-subtitle">
             Start from Home, then move into the map workspace only when you are ready to define a field, fetch satellite data, or launch a new transfer-learning analysis run.
           </p>

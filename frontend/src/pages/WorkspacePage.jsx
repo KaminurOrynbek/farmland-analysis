@@ -1,8 +1,8 @@
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 import GuidedTour from '../components/common/GuidedTour';
 import MapView from '../components/workspace/MapView';
 import WorkspaceSidebar from '../components/workspace/WorkspaceSidebar';
-import { Loader2 } from 'lucide-react';
 
 export default function WorkspacePage({
   user,
@@ -31,7 +31,7 @@ export default function WorkspacePage({
   return (
     <div className="dashboard-content workspace-shell" style={{ position: 'relative' }}>
       <WorkspaceSidebar
-        user={user} 
+        user={user}
         selectedField={selectedField}
         isAnalyzing={isAnalyzing}
         onRunAnalysis={onRunAnalysis}
@@ -53,7 +53,7 @@ export default function WorkspacePage({
 
       <main className="map-container" style={{ position: 'relative' }}>
         <MapView
-          user={user} 
+          user={user}
           analysisStarted={analysisStarted}
           isAnalyzing={isAnalyzing}
           geoJsonData={geoJsonData}
@@ -63,27 +63,35 @@ export default function WorkspacePage({
           onPolygonDrawn={onPolygonDrawn}
           analysisResults={analysisResults}
         />
-        
+
         {isAnalyzing && (
-          <div style={{
-            position: 'absolute',
-            top: '24px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'var(--bg-panel)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '16px',
-            padding: '16px 24px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-            boxShadow: '0 12px 24px rgba(0,0,0,0.3)',
-            zIndex: 1000
-          }}>
-            <Loader2 size={24} color="var(--accent-color)" style={{ animation: 'spin 1s linear infinite' }} />
+          <div
+            style={{
+              position: 'absolute',
+              top: '24px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'var(--bg-panel)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '16px',
+              padding: '16px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              boxShadow: '0 12px 24px rgba(0,0,0,0.3)',
+              zIndex: 1000
+            }}
+          >
+            <Loader2
+              size={24}
+              color="var(--accent-color)"
+              style={{ animation: 'spin 1s linear infinite' }}
+            />
             <div>
               <h3 style={{ margin: 0, fontSize: '1rem' }}>Analyzing Field Data</h3>
-              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Processing satellite imagery and running AI models...</p>
+              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                Processing satellite imagery and running AI models...
+              </p>
             </div>
             <style>
               {`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}
@@ -92,10 +100,7 @@ export default function WorkspacePage({
         )}
       </main>
 
-      <GuidedTour
-        activePage={activePage}
-        analysisStarted={analysisStarted}
-      />
+      <GuidedTour activePage={activePage} analysisStarted={analysisStarted} />
     </div>
   );
 }

@@ -30,7 +30,21 @@ export default function AdminPanelPage() {
   };
 
   useEffect(() => {
-    loadUsers();
+    const timeoutId = window.setTimeout(async () => {
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const data = await fetchAdminUsers();
+        setUsers(data || []);
+      } catch (err) {
+        setError(err.response?.data?.detail || 'Failed to load users.');
+      } finally {
+        setIsLoading(false);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   return (

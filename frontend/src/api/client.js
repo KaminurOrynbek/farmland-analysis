@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
-  
+
 export const api = axios.create({
   baseURL: API_BASE_URL
 });
@@ -11,6 +11,7 @@ api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
 
   if (token) {
+    config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
   }
 
@@ -23,10 +24,14 @@ api.interceptors.response.use(
     const url = error.config?.url || '';
     const isAuthRequest = url.includes('/auth/login') || url.includes('/auth/register');
 
-    if (!isAuthRequest && (error.response?.status === 401 || error.response?.status === 403)) {
+    if (!isAuthRequest && error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.reload();
+
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('authRedirect', 'auth');
+        window.location.reload();
+      }
     }
 
     return Promise.reject(error);
@@ -188,5 +193,10 @@ export const createAdminUser = async ({ email, fullName, password, role }) => {
 
 export const deleteAdminUser = async (userId) => {
   const response = await api.delete(`/admin/users/${userId}`);
+  return response.data;
+};
+
+export const fetchAnalysisStatus = async (analysisId) => {
+  const response = await api.get(`/analysis/status/${analysisId}`);
   return response.data;
 };

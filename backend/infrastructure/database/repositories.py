@@ -73,45 +73,51 @@ class AnalysisRepository:
     def get_by_id(self, analysis_id: str) -> Analysis:
         return self.db.query(Analysis).filter(Analysis.id == analysis_id).first()
 
-    def update_progress(self, analysis_id: str, percent: int, stage: str, status: str = "Processing"):
+    def update_progress(self, analysis_id: str, percent: int, stage: str, status=None):
+        from backend.infrastructure.database.models import AnalysisStatus
+
         analysis = self.get_by_id(analysis_id)
+
         if analysis:
             analysis.progress_percent = percent
             analysis.current_stage = stage
-            if status:
+
+            if status is not None:
                 analysis.status = status
-            
-            # Update Event Log
+            elif percent >= 100:
+                analysis.status = AnalysisStatus.DONE
+            elif percent > 0:
+                analysis.status = AnalysisStatus.PROCESSING
+
             event = {
                 "timestamp": datetime.utcnow().isoformat(),
                 "stage": stage,
                 "progress": percent
             }
+
             if not analysis.event_log:
                 analysis.event_log = []
-            
-            # Re-assign to trigger SQLAlchemy change tracking
+
             new_log = list(analysis.event_log)
             new_log.append(event)
             analysis.event_log = new_log
-            
+
             self.db.commit()
-            
-            # Update Redis Cache (TTL: 1 hour)
+
             cache_data = {
                 "analysis_id": str(analysis_id),
-                "status": str(status),
+                "status": analysis.status.value if hasattr(analysis.status, "value") else str(analysis.status),
                 "progress": percent,
                 "stage": stage,
                 "event": event
             }
+
             redis_client.setex(
-                f"analysis_status:{analysis_id}", 
-                3600, 
+                f"analysis_status:{analysis_id}",
+                3600,
                 json.dumps(cache_data)
             )
-            
-            # Broadcast via Redis Pub/Sub for WebSockets
+
             redis_client.publish("analysis_updates", json.dumps(cache_data))
 
     def create_analysis(self, field_id: str, image_id: str = None) -> Analysis:
@@ -170,12 +176,19 @@ class AnalysisRepository:
         self.db.commit()
     
     def get_history(self, user_id: str, limit: int = 20):
+        from backend.infrastructure.database.models import FieldAccess
+
         return (
             self.db.query(Analysis, Field, SpectralIndices, MLPrediction)
             .join(Field, Analysis.field_id == Field.id)
+            .join(
+                FieldAccess,
+                (FieldAccess.field_id == Field.id)
+                & (FieldAccess.user_id == user_id)
+                & (FieldAccess.is_active == True)
+            )
             .outerjoin(SpectralIndices, SpectralIndices.analysis_id == Analysis.id)
             .outerjoin(MLPrediction, MLPrediction.analysis_id == Analysis.id)
-            .filter(Field.owner_id == user_id)
             .order_by(Analysis.created_at.desc())
             .limit(limit)
             .all()

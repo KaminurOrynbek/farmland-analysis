@@ -1,21 +1,22 @@
 import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, Polygon, Circle, Popup, useMap, ImageOverlay, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Circle, Popup, useMap, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 // FIX: Geoman expects L to be global when imported as a side-effect in some environments
 window.L = L;
 import '@geoman-io/leaflet-geoman-free';
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import 'leaflet/dist/leaflet.css';
+import { getFieldPermissions } from '../../permissions/permissions';
 
 // Fix for icon issues in Leaflet with React
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
-let DefaultIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
+const DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41]
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
@@ -53,36 +54,19 @@ const stressZones = [
   { id: 2, center: [51.145, 71.428], radius: 100, color: '#ef4444' }
 ];
 
-export default function MapView({ 
-  analysisStarted,
-  isAnalyzing,
-  geoJsonData,
-  selectedField,
-  setSelectedField,
-  fieldLayerVisible,
-  onPolygonDrawn,
-  analysisResults
+function GeomanDrawControl({ onDrawn }) {
+  const map = useMap();
 
-}) {
-  // Center of Kazakhstan farmland approximate coordinates (near Astana for demo)
-  const center = [51.150, 71.415]; 
+  useEffect(() => {
+    if (!map) return undefined;
 
-  function GeomanDrawControl({ onDrawn }) {
-    const map = useMap();
+    if (!map.pm) {
+      console.error('Critical: Geoman (map.pm) is still undefined. Drawing tools will not load.');
+      return undefined;
+    }
 
-    useEffect(() => {
-      if (!map) return;
-      
-      // If map.pm is still not there, Geoman didn't attach. 
-      // We can try to manually re-init if the plugin exposed it, but usually it's on Map prototype.
-      if (!map.pm) {
-        console.error("Critical: Geoman (map.pm) is still undefined. Drawing tools will not load.");
-        return;
-      }
-
-      try {
-        // Initialize Geoman Controls
-        map.pm.addControls({
+    try {
+      map.pm.addControls({
         position: 'topleft',
         drawCircle: false,
         drawCircleMarker: false,
@@ -94,69 +78,91 @@ export default function MapView({
         editMode: true,
         dragMode: false,
         cutPolygon: false,
-        removalMode: true,
-        });
-      } catch (err) {
-        console.error("Geoman control initialization failed", err);
-      }
-
-      // Listen for shape creation
-      map.on('pm:create', (e) => {
-        if (e.shape === 'Polygon' || e.shape === 'Rectangle') {
-          const geojson = e.layer.toGeoJSON();
-          if (typeof onDrawn === 'function') {
-            const featureCollection = {
-              type: "FeatureCollection",
-              features: [
-                {
-                  type: "Feature",
-                  properties: { name: "Manual Drawing" },
-                  geometry: geojson.geometry
-                }
-              ]
-            };
-            onDrawn(featureCollection);
-          }
-        }
+        removalMode: true
       });
+    } catch (err) {
+      console.error('Geoman control initialization failed', err);
+    }
 
-      // Cleanup
-      return () => {
-        if (map && map.pm) {
-          map.pm.removeControls();
-          map.off('pm:create');
-        }
-      };
-    }, [map, onDrawn]);
+    const handleCreate = (event) => {
+      if (event.shape === 'Polygon' || event.shape === 'Rectangle') {
+        const geojson = event.layer.toGeoJSON();
 
-    return null;
-  }
-
-  // Component to automatically fit map to new GeoJSON bounds
-  function GeoJSONFitter({ data }) {
-    const map = useMap();
-    useEffect(() => {
-      if (data) {
-        try {
-          const geoJsonLayer = L.geoJSON(data);
-          const bounds = geoJsonLayer.getBounds();
-          if (bounds.isValid()) {
-            map.fitBounds(bounds, { padding: [20, 20] });
-          }
-        } catch (e) {
-          console.error("Could not fit feature bounds", e);
+        if (typeof onDrawn === 'function') {
+          onDrawn({
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                properties: { name: 'Manual Drawing' },
+                geometry: geojson.geometry
+              }
+            ]
+          });
         }
       }
-    }, [data, map]);
-    return null;
-  }
+    };
+
+    map.on('pm:create', handleCreate);
+
+    return () => {
+      if (map.pm) {
+        map.pm.removeControls();
+      }
+
+      map.off('pm:create', handleCreate);
+    };
+  }, [map, onDrawn]);
+
+  return null;
+}
+
+function GeoJSONFitter({ data }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!data) return;
+
+    try {
+      const geoJsonLayer = L.geoJSON(data);
+      const bounds = geoJsonLayer.getBounds();
+
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [20, 20] });
+      }
+    } catch (error) {
+      console.error('Could not fit feature bounds', error);
+    }
+  }, [data, map]);
+
+  return null;
+}
+
+export default function MapView({
+  user,
+  analysisStarted,
+  isAnalyzing,
+  geoJsonData,
+  selectedField,
+  setSelectedField,
+  fieldLayerVisible,
+  onPolygonDrawn,
+  analysisResults
+}) {
+  // Center of Kazakhstan farmland approximate coordinates (near Astana for demo)
+  const center = [51.150, 71.415];
+
+  const permissions = getFieldPermissions(selectedField?.properties || selectedField, user);
+  const canUseDrawingTools =
+    !isAnalyzing &&
+    (permissions.canEditField || (!selectedField && permissions.canCreateField));
 
   // Handle styles and clicks for GeoJSON features
   const onEachFeature = (feature, layer) => {
     layer.on({
-      click: (e) => {
+      click: (event) => {
         setSelectedField(feature);
-        e.originalEvent.stopPropagation(); // prevent map click from immediately unselecting
+        event.originalEvent.stopPropagation(); // prevent map click from immediately unselecting
       }
     });
   };
@@ -186,11 +192,11 @@ export default function MapView({
 
   return (
     <div style={{ flex: 1, width: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-      <MapContainer 
-        center={center} 
-        zoom={13} 
-        style={{ 
-          flex: 1, 
+      <MapContainer
+        center={center}
+        zoom={13}
+        style={{
+          flex: 1,
           width: '100%',
           filter: isAnalyzing ? 'grayscale(0.5) blur(1px)' : 'none',
           transition: 'filter 0.5s ease'
@@ -207,11 +213,11 @@ export default function MapView({
         {geoJsonData && <GeoJSONFitter data={geoJsonData} />}
 
         {/* Drawing Tools using Geoman */}
-        <GeomanDrawControl onDrawn={onPolygonDrawn} />
+        {canUseDrawingTools && <GeomanDrawControl onDrawn={onPolygonDrawn} />}
 
         {/* Render Uploaded GeoJSON or Fallback Polygons */}
         {fieldLayerVisible && geoJsonData ? (
-          <GeoJSON 
+          <GeoJSON
             key={JSON.stringify(geoJsonData).length} // force re-render if data size changes
             data={geoJsonData}
             style={getGeoJsonStyle}
@@ -220,11 +226,11 @@ export default function MapView({
         ) : fieldLayerVisible ? (
           // Render mock field Polygons
           fieldPolygons.map(field => (
-            <Polygon 
+            <Polygon
               key={field.id}
-              positions={field.positions} 
-              pathOptions={{ 
-                color: analysisStarted ? field.color : 'var(--text-secondary)', 
+              positions={field.positions}
+              pathOptions={{
+                color: analysisStarted ? field.color : 'var(--text-secondary)',
                 fillColor: analysisStarted ? field.color : 'rgba(255,255,255,0.1)',
                 fillOpacity: analysisStarted ? 0.4 : 0.2,
                 weight: 2
@@ -239,8 +245,8 @@ export default function MapView({
             >
               <Popup>
                 <div>
-                  <strong>Field {field.id}</strong><br/>
-                  Crop: {field.crop}<br/>
+                  <strong>Field {field.id}</strong><br />
+                  Crop: {field.crop}<br />
                   Status: {analysisStarted ? field.health : 'Unanalyzed'}
                 </div>
               </Popup>

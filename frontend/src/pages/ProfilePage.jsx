@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Mail, UserRound, Save, X, Edit3 } from 'lucide-react';
 import { updateCurrentUser } from '../api/client';
 
@@ -13,13 +13,6 @@ export default function ProfilePage({ user, onUpdateUser }) {
     name: displayName,
     email: displayEmail
   });
-
-  useEffect(() => {
-    setFormData({
-      name: displayName,
-      email: displayEmail
-    });
-  }, [displayName, displayEmail]);
 
   const handleCancel = () => {
     setFormData({
@@ -48,6 +41,10 @@ export default function ProfilePage({ user, onUpdateUser }) {
       }
 
       setIsEditing(false);
+      setFormData({
+        name: updatedUser.full_name || updatedUser.name || '',
+        email: updatedUser.email || ''
+      });
     } catch (err) {
       alert(err.response?.data?.detail || 'Failed to update profile.');
     } finally {
@@ -136,7 +133,7 @@ export default function ProfilePage({ user, onUpdateUser }) {
 
           <div>
             <h2 style={{ fontSize: '1.15rem', marginBottom: '6px' }}>
-              {formData.name}
+              {isEditing ? formData.name : displayName}
             </h2>
             <span className="status-pill neutral" style={{ textTransform: 'capitalize' }}>
               {displayRole.toLowerCase()}
@@ -158,7 +155,7 @@ export default function ProfilePage({ user, onUpdateUser }) {
                 style={inputStyle}
               />
             ) : (
-              <div style={readonlyStyle}>{formData.name}</div>
+              <div style={readonlyStyle}>{displayName}</div>
             )}
           </div>
 
@@ -176,7 +173,7 @@ export default function ProfilePage({ user, onUpdateUser }) {
                 style={inputStyle}
               />
             ) : (
-              <div style={readonlyStyle}>{formData.email}</div>
+              <div style={readonlyStyle}>{displayEmail}</div>
             )}
           </div>
         </div>
@@ -195,7 +192,16 @@ export default function ProfilePage({ user, onUpdateUser }) {
               </button>
             </>
           ) : (
-            <button className="secondary-btn" onClick={() => setIsEditing(true)}>
+            <button
+              className="secondary-btn"
+              onClick={() => {
+                setFormData({
+                  name: displayName,
+                  email: displayEmail
+                });
+                setIsEditing(true);
+              }}
+            >
               <Edit3 size={16} />
               Edit profile
             </button>

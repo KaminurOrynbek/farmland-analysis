@@ -10,7 +10,14 @@ const formatDateTime = (value) => {
   return new Date(value).toLocaleString();
 };
 
-export default function ProjectsPage({ user, onNavigate, refreshKey }) {
+export default function ProjectsPage({
+  user,
+  onNavigate,
+  refreshKey,
+  onOpenField,
+  onOpenAnalysis,
+  onCreateProject
+}) {
   const [fields, setFields] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +28,8 @@ export default function ProjectsPage({ user, onNavigate, refreshKey }) {
     let isActive = true;
 
     const loadProjectsData = async () => {
+      setLoading(true);
+
       const [fieldsResponse, historyResponse] = await Promise.allSettled([
         fetchAllFields(),
         fetchAnalysisHistory()
@@ -99,7 +108,14 @@ export default function ProjectsPage({ user, onNavigate, refreshKey }) {
         {canCreateProject && (
           <button
             type="button"
-            onClick={() => onNavigate('Workspace')}
+            onClick={() => {
+              if (typeof onCreateProject === 'function') {
+                onCreateProject();
+                return;
+              }
+
+              onNavigate('Workspace');
+            }}
             onMouseEnter={e => {
               e.currentTarget.style.backgroundColor = 'var(--accent-hover)';
               e.currentTarget.style.transform = 'translateY(-1px)';
@@ -126,7 +142,7 @@ export default function ProjectsPage({ user, onNavigate, refreshKey }) {
             }}
           >
             <Plus size={16} />
-            New Project
+            Add New Project
           </button>
         )}
       </div>
@@ -197,7 +213,20 @@ export default function ProjectsPage({ user, onNavigate, refreshKey }) {
                 gap: '12px'
               }}>
                 {fields.map(field => (
-                  <div key={field.id} className="field-card-sm glass-panel" style={{ padding: '14px 16px', borderRadius: '10px' }}>
+                  <button
+                    key={field.id}
+                    type="button"
+                    onClick={() => onOpenField(field)}
+                    className="field-card-sm glass-panel"
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: '10px',
+                      textAlign: 'left',
+                      border: '1px solid var(--border-color)',
+                      cursor: 'pointer',
+                      color: 'var(--text-primary)'
+                    }}
+                  >
                     <p style={{
                       fontWeight: 600,
                       fontSize: '0.875rem',
@@ -220,8 +249,7 @@ export default function ProjectsPage({ user, onNavigate, refreshKey }) {
                     }}>
                       {field.id.slice(0, 8)}…
                     </p>
-                  </div>
-                ))}
+                  </button>))}
               </div>
             )}
           </section>
@@ -264,7 +292,11 @@ export default function ProjectsPage({ user, onNavigate, refreshKey }) {
                     {history.map(item => {
                       const matchedField = fieldMap[item.field_id];
                       return (
-                        <tr key={item.analysis_id}>
+                        <tr
+                          key={item.analysis_id}
+                          onClick={() => onOpenAnalysis(item, matchedField)}
+                          style={{ cursor: 'pointer' }}
+                        >
                           <td style={{ fontWeight: 500 }}>{item.field_name || '—'}</td>
                           <td>
                             {matchedField?.area_ha

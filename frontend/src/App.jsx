@@ -9,11 +9,21 @@ import ProfilePage from './pages/ProfilePage';
 import WorkspacePage from './pages/WorkspacePage';
 import AdminPanelPage from './pages/AdminPanelPage';
 
-import { checkHealth, runAnalysis, saveField } from './api/client';
+import {
+  checkHealth,
+  runAnalysis,
+  saveField,
+  fetchAnalysisStatus,
+  fetchAnalysisHistory,
+  fetchCurrentUser,
+  logoutUser
+} from './api/client';
 import './styles.css';
 import AppSidebar from './components/layout/MainSidebar';
 
 const DEFAULT_ANALYSIS_RESULTS = {
+  analysisId: null,
+  status: 'idle',
   vegetationHealth: '—',
   healthDelta: '',
   cropType: '—',
@@ -21,9 +31,13 @@ const DEFAULT_ANALYSIS_RESULTS = {
   analyzedArea: '—',
   fieldCount: 0,
   stressZonesCount: 0,
-  ndviValue: 0,
-  eviValue: 0,
+  stressAreaPercentage: 0,
+  ndviValue: null,
+  eviValue: null,
   riskLevel: '—',
+  overallStatus: '—',
+  assessment: null,
+  recommendations: [],
   message: ''
 };
 
@@ -48,6 +62,100 @@ const enrichFeatureCollection = (featureCollection, metadata) => {
   };
 };
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const buildAssessmentMessage = (assessment, fallbackMessage = '') => {
+  const parts = [
+    assessment?.summary,
+    assessment?.vegetation_description,
+    assessment?.stress_assessment,
+    fallbackMessage
+  ].filter(Boolean);
+
+  return parts[0] || '';
+};
+
+const normalizeAnalysisResult = (item) => {
+  const assessment = item?.assessment || {};
+  const recommendations = Array.isArray(assessment.recommendations)
+    ? assessment.recommendations
+    : [];
+
+  const riskLevel = item?.risk_level || 'Unknown';
+  const overallStatus = assessment.overall_status || mapRiskToStatus(riskLevel);
+
+  return {
+    analysisId: item?.analysis_id || null,
+    status: item?.status || 'DONE',
+    vegetationHealth:
+      item?.vegetation_health !== null && item?.vegetation_health !== undefined
+        ? `${Math.round(item.vegetation_health)}%`
+        : '—',
+    healthDelta: '',
+    cropType: item?.crop_type || 'Unknown crop',
+    confidence:
+      item?.confidence !== null && item?.confidence !== undefined
+        ? `${(item.confidence * 100).toFixed(1)}%`
+        : '—',
+    analyzedArea:
+      item?.area_ha !== null && item?.area_ha !== undefined
+        ? `${Number(item.area_ha).toFixed(2)} ha`
+        : 'Unknown',
+    fieldCount: 1,
+    stressZonesCount: item?.stress_zones_count || 0,
+    stressAreaPercentage: item?.stress_area_percentage || 0,
+    ndviValue:
+      item?.ndvi_value !== null && item?.ndvi_value !== undefined
+        ? Number(item.ndvi_value)
+        : null,
+    eviValue:
+      item?.evi_value !== null && item?.evi_value !== undefined
+        ? Number(item.evi_value)
+        : null,
+    riskLevel,
+    overallStatus,
+    assessment,
+    recommendations,
+    message: buildAssessmentMessage(assessment, item?.message || '')
+  };
+};
+
+const mapRiskToStatus = (riskLevel) => {
+  if (riskLevel === 'Low') return 'Healthy';
+  if (riskLevel === 'Medium') return 'Warning';
+  if (riskLevel === 'High') return 'Critical';
+  return 'Unknown';
+};
+
+const buildFeatureCollectionFromField = (field) => ({
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      properties: {
+        id: field.id,
+        field_id: field.id,
+        name: field.name,
+        area: field.area_ha || 0,
+        role: field.role
+      },
+      geometry: field.geometry
+    }
+  ]
+});
+
+const buildSelectionFromAnalysis = (analysisItem, field = null) => ({
+  type: 'Feature',
+  properties: {
+    id: field?.id || analysisItem?.field_id || null,
+    field_id: field?.id || analysisItem?.field_id || null,
+    name: field?.name || analysisItem?.field_name || 'Unnamed Field',
+    area: field?.area_ha || analysisItem?.area_ha || 0,
+    role: field?.role || null
+  },
+  geometry: field?.geometry || null
+});
+
 function App() {
   const [geoJsonUploadResponse, setGeoJsonUploadResponse] = useState(null);
   const [geoJsonUploadError, setGeoJsonUploadError] = useState(null);
@@ -70,6 +178,7 @@ function App() {
   const [activePage, setActivePage] = useState('Home');
   const [sessionUser, setSessionUser] = useState(null);
   const [dataRefreshKey, setDataRefreshKey] = useState(0);
+  const [isSessionReady, setIsSessionReady] = useState(false);
 
   // Health check on load
   useEffect(() => {
@@ -105,15 +214,31 @@ function App() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    logoutUser();
+    sessionStorage.removeItem('authRedirect');
     setSessionUser(null);
     setAppView('landing');
     setActivePage('Home');
   };
 
+  const resetAnalysisState = () => {
+    setAnalysisStarted(false);
+    setAnalysisResults(DEFAULT_ANALYSIS_RESULTS);
+    setLatestAnalysisAt(null);
+  };
+
+  const handleCreateProject = () => {
+    setGeoJsonData(null);
+    setGeoJsonMeta(null);
+    setGeoJsonUploadResponse(null);
+    setGeoJsonUploadError(null);
+    setSelectedField(null);
+    resetAnalysisState();
+    handleNavigate('Workspace');
+  };
+
   const handleNavigate = (page) => {
-      if (page === 'Admin' && sessionUser?.role !== 'ADMIN') {
+    if (page === 'Admin' && sessionUser?.role !== 'ADMIN') {
       return;
     }
 
@@ -121,7 +246,6 @@ function App() {
   };
 
   const handleRunAnalysis = async () => {
-
     const fieldId = geoJsonUploadResponse?.data?.id;
 
     if (!fieldId) {
@@ -130,28 +254,61 @@ function App() {
     }
 
     setIsAnalyzing(true);
-    try {
-   
+    setAnalysisStarted(true);
 
-            
-      // Use our Clean Architecture use case which orchestrates GEE, Rasterio, DB and ResNet
-      const data = await runAnalysis(fieldId, '2023-05-01', '2023-08-30');
-      
-      setAnalysisResults({
-        vegetationHealth: `${data.vegetation_health}%`,
-        healthDelta: data.risk_level === 'Low' ? '+1.2%' : '-0.5%',
-        cropType: data.crop_type,
-        confidence: `${(data.confidence * 100).toFixed(1)}%`,
-        analyzedArea: data.analyzed_area ? `${data.analyzed_area.toFixed(2)} ha` : 'Unknown',
-        fieldCount: 1,
-        stressZonesCount: data.stress_zones_count,
-        ndviValue: data.ndvi_value ? data.ndvi_value.toFixed(2) : 0,
-        eviValue: data.evi_value ? data.evi_value.toFixed(2) : '—',
-        riskLevel: data.risk_level,
-        message: data.message
-      });
-      setAnalysisStarted(true);
-      setLatestAnalysisAt(new Date().toISOString());
+    try {
+      const queuedJob = await runAnalysis(fieldId, '2023-05-01', '2023-08-30');
+      const analysisId = queuedJob.analysis_id;
+
+      setAnalysisResults((current) => ({
+        ...current,
+        analysisId,
+        status: 'PROCESSING',
+        message: 'Analysis has started. Satellite imagery, vegetation indices, and AI model are being processed.'
+      }));
+
+      let finalStatus = null;
+
+      for (let attempt = 0; attempt < 60; attempt += 1) {
+        const statusResponse = await fetchAnalysisStatus(analysisId);
+        finalStatus = statusResponse;
+
+        setAnalysisResults((current) => ({
+          ...current,
+          analysisId,
+          status: statusResponse.status,
+          message: statusResponse.stage || 'Processing analysis...'
+        }));
+
+        if (statusResponse.status === 'DONE' || statusResponse.progress === 100) {
+          break;
+        }
+
+        if (statusResponse.status === 'FAILED') {
+          throw new Error(statusResponse.error || 'Analysis failed on the server.');
+        }
+
+        await sleep(3000);
+      }
+
+      if (!finalStatus || (finalStatus.status !== 'DONE' && finalStatus.progress !== 100)) {
+        throw new Error('Analysis is still processing. Please check the report history later.');
+      }
+
+      const historyResponse = await fetchAnalysisHistory();
+      const completedAnalyses = (historyResponse.data || [])
+        .filter((item) => item.status === 'DONE' && item.analysis_id === analysisId);
+
+      const latestAnalysis = completedAnalyses[0];
+
+      if (!latestAnalysis) {
+        throw new Error('Analysis completed, but results were not found in history.');
+      }
+
+      const normalizedResult = normalizeAnalysisResult(latestAnalysis);
+
+      setAnalysisResults(normalizedResult);
+      setLatestAnalysisAt(latestAnalysis.analysis_date || new Date().toISOString());
       handleDataChanged();
       handleNavigate('Analysis Report');
     } catch (error) {
@@ -161,6 +318,7 @@ function App() {
       setIsAnalyzing(false);
     }
   };
+  
 
   const handleFetchSatelliteData = async () => {
     if (!geoJsonData) {
@@ -210,15 +368,136 @@ function App() {
     }
   };
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-
-    if (token && storedUser) {
-      setSessionUser(JSON.parse(storedUser));
-      setAppView('app');
+  const handleOpenField = (field) => {
+    if (!field?.geometry) {
+      alert('This field does not have valid geometry.');
+      return;
     }
+
+    resetAnalysisState();
+
+    const featureCollection = buildFeatureCollectionFromField(field);
+
+    setGeoJsonData(featureCollection);
+    setSelectedField(featureCollection.features[0]);
+    setGeoJsonMeta({
+      name: `${field.name || 'Saved Field'}.geojson`,
+      size: null
+    });
+    setGeoJsonUploadResponse({
+      status: 'success',
+      data: field
+    });
+    setGeoJsonUploadError(null);
+
+    handleNavigate('Workspace');
+  };
+
+  const handleOpenAnalysis = (analysisItem, field) => {
+    const normalized = normalizeAnalysisResult(analysisItem);
+
+    setAnalysisStarted(true);
+    setAnalysisResults(normalized);
+    setLatestAnalysisAt(analysisItem.analysis_date || new Date().toISOString());
+    setSelectedField(buildSelectionFromAnalysis(analysisItem, field));
+
+    if (field?.geometry) {
+      const featureCollection = buildFeatureCollectionFromField(field);
+      setGeoJsonData(featureCollection);
+      setGeoJsonMeta({
+        name: `${field.name || 'Saved Field'}.geojson`,
+        size: null
+      });
+      setGeoJsonUploadResponse({
+        status: 'success',
+        data: field
+      });
+      setGeoJsonUploadError(null);
+    } else {
+      setGeoJsonData(null);
+      setGeoJsonMeta(null);
+      setGeoJsonUploadResponse(null);
+      setGeoJsonUploadError(null);
+    }
+
+    handleNavigate('Analysis Report');
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const initializeSession = async () => {
+      const token = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+      const authRedirect = sessionStorage.getItem('authRedirect');
+
+      sessionStorage.removeItem('authRedirect');
+
+      if (!token) {
+        if (isMounted) {
+          setSessionUser(null);
+          setAppView(authRedirect === 'auth' ? 'auth' : 'landing');
+          setIsSessionReady(true);
+        }
+        return;
+      }
+
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          if (isMounted) {
+            setSessionUser(parsedUser);
+            setAppView('app');
+          }
+        } catch (error) {
+          console.warn('Stored user payload could not be parsed.', error);
+        }
+      }
+
+      try {
+        const freshUser = await fetchCurrentUser();
+
+        if (!isMounted) {
+          return;
+        }
+
+        localStorage.setItem('user', JSON.stringify(freshUser));
+        setSessionUser(freshUser);
+        setAppView('app');
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+
+        if (!storedUser) {
+          setSessionUser(null);
+          setAppView(authRedirect === 'auth' ? 'auth' : 'landing');
+        }
+      } finally {
+        if (isMounted) {
+          setIsSessionReady(true);
+        }
+      }
+    };
+
+    initializeSession();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
+
+  if (!isSessionReady) {
+    return (
+      <div className="auth-page">
+        <div className="auth-shell">
+          <div className="glass-panel" style={{ padding: '32px', textAlign: 'center' }}>
+            Restoring your session...
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (appView === 'landing') {
     return (
@@ -283,6 +562,9 @@ function App() {
             user={sessionUser}
             onNavigate={handleNavigate}
             refreshKey={dataRefreshKey}
+            onOpenField={handleOpenField}
+            onOpenAnalysis={handleOpenAnalysis}
+            onCreateProject={handleCreateProject}
           />
         );
       case 'Settings':
