@@ -162,6 +162,9 @@ function App() {
   const [geoJsonUploadError, setGeoJsonUploadError] = useState(null);
   const [backendHealthy, setBackendHealthy] = useState(false);
   const [isFetchingSatelliteData, setIsFetchingSatelliteData] = useState(false);
+  const [isSavingField, setIsSavingField] = useState(false);
+  const [pendingDrawnField, setPendingDrawnField] = useState(null);
+  const [fieldNameDraft, setFieldNameDraft] = useState('');
 
   // Analysis Simulation State
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -234,6 +237,8 @@ function App() {
     setGeoJsonUploadResponse(null);
     setGeoJsonUploadError(null);
     setSelectedField(null);
+    setPendingDrawnField(null);
+    setFieldNameDraft('');
     resetAnalysisState();
     handleNavigate('Workspace');
   };
@@ -337,36 +342,101 @@ function App() {
     }, 1500);
   };
 
-  const handlePolygonDrawn = async (geoJsonFeatureCollection) => {
-    try {
-      const geometryToSave = geoJsonFeatureCollection.features[0].geometry;
-      // Send geometry to PostgreSQL database via API
-      const response = await saveField('Drawn Field', geometryToSave, 0.0);
+  const saveFieldFeatureCollection = async (fieldName, featureCollection) => {
+    const trimmedFieldName = fieldName.trim();
+    const geometryToSave = featureCollection?.features?.[0]?.geometry;
 
-      
+    if (!trimmedFieldName) {
+      alert('Please enter a field name before saving.');
+      return false;
+    }
+
+    if (!geometryToSave) {
+      alert('Please upload or draw a field first.');
+      return false;
+    }
+
+    setIsSavingField(true);
+
+    try {
+      const response = await saveField(trimmedFieldName, geometryToSave, 0.0);
       const field = response.data;
 
       const metadata = {
         id: field.id,
         field_id: field.id,
-        name: field.name || 'Drawn Field',
+        name: field.name || trimmedFieldName,
         area: field.area_ha || 0,
         role: field.role
       };
-      const enrichedFeatureCollection = enrichFeatureCollection(geoJsonFeatureCollection, metadata);
-      
-      // Update state identically to a file upload so the UI responds
+      const enrichedFeatureCollection = enrichFeatureCollection(featureCollection, metadata);
+
       setGeoJsonUploadResponse(response);
       setSelectedField(enrichedFeatureCollection.features[0]);
       setGeoJsonData(enrichedFeatureCollection);
-      setGeoJsonMeta({ name: 'Drawn Field.geojson', size: null });
+      setGeoJsonMeta((current) => ({
+        name: field.name || trimmedFieldName,
+        size: current?.size ?? null
+      }));
       setGeoJsonUploadError(null);
+      setPendingDrawnField(null);
+      setFieldNameDraft(field.name || trimmedFieldName);
       handleDataChanged();
-      alert('Drawn field saved to the database. You can now click Run Analysis.');
+      return true;
     } catch (error) {
-      console.error('Drawn field save error:', error);
-      alert(`Failed to save drawn field: ${error.message}`);
+      console.error('Field save error:', error);
+      setGeoJsonUploadError(error.response?.data?.detail || 'Backend database validation failed.');
+      alert(`Failed to save field: ${error.response?.data?.detail || error.message}`);
+      return false;
+    } finally {
+      setIsSavingField(false);
     }
+  };
+
+  const handlePolygonDrawn = (geoJsonFeatureCollection) => {
+    const previousState = {
+      geoJsonData,
+      geoJsonMeta,
+      geoJsonUploadResponse,
+      geoJsonUploadError,
+      selectedField,
+      fieldNameDraft
+    };
+
+    setPendingDrawnField({
+      featureCollection: geoJsonFeatureCollection,
+      previousState
+    });
+    setGeoJsonData(geoJsonFeatureCollection);
+    setSelectedField(geoJsonFeatureCollection.features[0] || null);
+    setGeoJsonMeta({ name: 'Manual drawing', size: null });
+    setGeoJsonUploadResponse(null);
+    setGeoJsonUploadError(null);
+    setFieldNameDraft('');
+  };
+
+  const handleSaveUploadedField = async (fieldName) => saveFieldFeatureCollection(fieldName, geoJsonData);
+
+  const handleSaveDrawnField = async (fieldName) => {
+    if (!pendingDrawnField?.featureCollection) {
+      return false;
+    }
+
+    return saveFieldFeatureCollection(fieldName, pendingDrawnField.featureCollection);
+  };
+
+  const handleCancelDrawnField = () => {
+    if (!pendingDrawnField?.previousState) {
+      return;
+    }
+
+    setGeoJsonData(pendingDrawnField.previousState.geoJsonData);
+    setGeoJsonMeta(pendingDrawnField.previousState.geoJsonMeta);
+    setGeoJsonUploadResponse(pendingDrawnField.previousState.geoJsonUploadResponse);
+    setGeoJsonUploadError(pendingDrawnField.previousState.geoJsonUploadError);
+    setSelectedField(pendingDrawnField.previousState.selectedField);
+    setFieldNameDraft(pendingDrawnField.previousState.fieldNameDraft);
+    setPendingDrawnField(null);
   };
 
   const handleOpenField = (field) => {
@@ -376,15 +446,17 @@ function App() {
     }
 
     resetAnalysisState();
+    setPendingDrawnField(null);
 
     const featureCollection = buildFeatureCollectionFromField(field);
 
     setGeoJsonData(featureCollection);
     setSelectedField(featureCollection.features[0]);
     setGeoJsonMeta({
-      name: `${field.name || 'Saved Field'}.geojson`,
+      name: field.name || 'Saved Field',
       size: null
     });
+    setFieldNameDraft(field.name || 'Saved Field');
     setGeoJsonUploadResponse({
       status: 'success',
       data: field
@@ -401,14 +473,16 @@ function App() {
     setAnalysisResults(normalized);
     setLatestAnalysisAt(analysisItem.analysis_date || new Date().toISOString());
     setSelectedField(buildSelectionFromAnalysis(analysisItem, field));
+    setPendingDrawnField(null);
 
     if (field?.geometry) {
       const featureCollection = buildFeatureCollectionFromField(field);
       setGeoJsonData(featureCollection);
       setGeoJsonMeta({
-        name: `${field.name || 'Saved Field'}.geojson`,
+        name: field.name || 'Saved Field',
         size: null
       });
+      setFieldNameDraft(field.name || 'Saved Field');
       setGeoJsonUploadResponse({
         status: 'success',
         data: field
@@ -419,6 +493,7 @@ function App() {
       setGeoJsonMeta(null);
       setGeoJsonUploadResponse(null);
       setGeoJsonUploadError(null);
+      setFieldNameDraft('');
     }
 
     handleNavigate('Analysis Report');
@@ -538,14 +613,20 @@ function App() {
             setGeoJsonUploadResponse={setGeoJsonUploadResponse}
             geoJsonUploadError={geoJsonUploadError}
             setGeoJsonUploadError={setGeoJsonUploadError}
+            fieldName={fieldNameDraft}
+            setFieldName={setFieldNameDraft}
             fieldLayerVisible={fieldLayerVisible}
             setFieldLayerVisible={setFieldLayerVisible}
             selectedField={selectedField}
             setSelectedField={setSelectedField}
             onPolygonDrawn={handlePolygonDrawn}
+            onSaveField={handleSaveUploadedField}
+            isSavingField={isSavingField}
+            isDrawFieldNamingOpen={Boolean(pendingDrawnField)}
+            onSaveDrawnField={handleSaveDrawnField}
+            onCancelDrawnField={handleCancelDrawnField}
             analysisResults={analysisResults}
             analysisStarted={analysisStarted}
-            onFieldSaved={handleDataChanged}
           />
         );
       case 'Analysis Report':

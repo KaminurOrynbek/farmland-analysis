@@ -9,7 +9,6 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import {
-  saveField,
   shareField,
   fetchFieldTeam,
   revokeFieldAccess
@@ -78,10 +77,13 @@ export default function WorkspaceSidebar({
   setGeoJsonUploadResponse,
   geoJsonUploadError,
   setGeoJsonUploadError,
+  fieldName,
+  setFieldName,
   fieldLayerVisible,
   setFieldLayerVisible,
   setSelectedField,
-  onFieldSaved
+  onSaveField,
+  isSavingField
 }) {
   const geoJsonInputRef = useRef(null);
 
@@ -101,6 +103,8 @@ export default function WorkspaceSidebar({
   const [team, setTeam] = useState([]);
   const [sharingMessage, setSharingMessage] = useState('');
   const [isSharing, setIsSharing] = useState(false);
+
+  const hasUnsavedGeometry = Boolean(geoJsonData && !geoJsonUploadResponse);
 
   const loadTeam = async () => {
     if (!currentFieldId || !canManageTeam) return;
@@ -166,7 +170,7 @@ export default function WorkspaceSidebar({
     }
   };
 
-  const handleGeoJsonUpload = async (e) => {
+  const handleGeoJsonUpload = (e) => {
     const file = e.target.files[0];
 
     if (!file || (!file.name.endsWith('.geojson') && !file.name.endsWith('.json'))) {
@@ -175,41 +179,23 @@ export default function WorkspaceSidebar({
 
     const reader = new FileReader();
 
-    reader.onload = async (event) => {
+    reader.onload = (event) => {
       try {
         const parsedJson = JSON.parse(event.target.result);
         const normalizedData = normalizeGeoJson(parsedJson);
+        const nextSelectedField = normalizedData.features[0] || null;
 
         setGeoJsonData(normalizedData);
         setGeoJsonMeta({
           name: file.name,
           size: (file.size / 1024).toFixed(1)
         });
+        setGeoJsonUploadResponse(null);
         setGeoJsonUploadError(null);
-
-        try {
-          const geometryToSave = normalizedData.features[0]?.geometry;
-          const response = await saveField(file.name, geometryToSave, 0.0);
-          const field = response.data;
-
-          const fieldMetadata = {
-            id: field.id,
-            field_id: field.id,
-            name: field.name || file.name,
-            area: field.area_ha || 0,
-            role: field.role
-          };
-
-          const enrichedData = normalizeGeoJson(parsedJson, fieldMetadata);
-
-          setGeoJsonData(enrichedData);
-          setGeoJsonUploadResponse(response);
-          setSelectedField(enrichedData.features[0]);
-          onFieldSaved?.();
-        } catch (error) {
-          setGeoJsonUploadError('Backend database validation failed.');
-          console.error('GeoJSON DB save failed', error);
-        }
+        setSelectedField(nextSelectedField);
+        setFieldName(file.name.replace(/\.(geojson|json)$/i, '').trim());
+        setTeam([]);
+        setSharingMessage('');
       } catch (error) {
         console.error('Error parsing GeoJSON', error);
         alert('Invalid GeoJSON file. Must be standard GeoJSON format.');
@@ -227,10 +213,15 @@ export default function WorkspaceSidebar({
     setSelectedField(null);
     setTeam([]);
     setSharingMessage('');
+    setFieldName('');
 
     if (geoJsonInputRef.current) {
       geoJsonInputRef.current.value = '';
     }
+  };
+
+  const handleSaveField = async () => {
+    await onSaveField?.(fieldName);
   };
 
   return (
@@ -246,16 +237,57 @@ export default function WorkspaceSidebar({
           style={{ display: 'none' }}
         />
 
-        {!geoJsonData && canCreateField ? (
-          <button onClick={() => geoJsonInputRef.current?.click()} style={uploadButtonStyle}>
-            <Upload size={18} />
-            Upload GeoJSON Boundaries
-          </button>
-        ) : !geoJsonData && !canCreateField ? (
+        {canCreateField ? (
+          <div style={fieldInputSectionStyle}>
+            <label style={smallLabelStyle} htmlFor="field-name-input">
+              Field name
+            </label>
+
+            <input
+              id="field-name-input"
+              type="text"
+              value={fieldName}
+              onChange={(event) => setFieldName(event.target.value)}
+              placeholder="North Wheat Field"
+              style={inputStyle}
+            />
+
+            <button
+              type="button"
+              onClick={() => geoJsonInputRef.current?.click()}
+              style={uploadButtonStyle}
+            >
+              <Upload size={18} />
+              Upload/Draw Field
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSaveField}
+              disabled={!hasUnsavedGeometry || !fieldName.trim() || isSavingField}
+              style={{
+                ...primaryActionButtonStyle,
+                opacity: !hasUnsavedGeometry || !fieldName.trim() || isSavingField ? 0.65 : 1,
+                cursor:
+                  !hasUnsavedGeometry || !fieldName.trim() || isSavingField
+                    ? 'not-allowed'
+                    : 'pointer'
+              }}
+            >
+              {isSavingField ? 'Saving...' : 'Save Field'}
+            </button>
+
+            <div style={helperTextStyle}>
+              Upload a GeoJSON file or draw directly on the map, then save the field name.
+            </div>
+          </div>
+        ) : !geoJsonData ? (
           <div style={lockedNoticeStyle}>
             You do not have permission to create or upload field boundaries.
           </div>
-        ) : (
+        ) : null}
+
+        {geoJsonData && (
           <div style={loadedFieldStyle}>
             <div style={rowBetweenStyle}>
               <div style={loadedTitleStyle}>
@@ -279,7 +311,7 @@ export default function WorkspaceSidebar({
                 ) : geoJsonUploadError ? (
                   <span style={errorTextStyle}>⚠ Error</span>
                 ) : (
-                  <span style={mutedSmallTextStyle}>Validating...</span>
+                  <span style={mutedSmallTextStyle}>Ready to save</span>
                 )}
               </div>
             </div>
@@ -517,6 +549,12 @@ const sectionTitleStyle = {
   marginBottom: '16px'
 };
 
+const fieldInputSectionStyle = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '10px'
+};
+
 const uploadButtonStyle = {
   display: 'flex',
   alignItems: 'center',
@@ -590,6 +628,12 @@ const mutedSmallTextStyle = {
 const smallLabelStyle = {
   fontSize: '0.85rem',
   color: 'var(--text-secondary)'
+};
+
+const helperTextStyle = {
+  color: 'var(--text-secondary)',
+  fontSize: '0.76rem',
+  lineHeight: 1.5
 };
 
 const inputStyle = {

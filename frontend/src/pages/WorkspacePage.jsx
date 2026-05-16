@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import GuidedTour from '../components/common/GuidedTour';
 import MapView from '../components/workspace/MapView';
@@ -19,14 +19,20 @@ export default function WorkspacePage({
   setGeoJsonUploadResponse,
   geoJsonUploadError,
   setGeoJsonUploadError,
+  fieldName,
+  setFieldName,
   fieldLayerVisible,
   setFieldLayerVisible,
   selectedField,
   setSelectedField,
   onPolygonDrawn,
+  onSaveField,
+  isSavingField,
+  isDrawFieldNamingOpen,
+  onSaveDrawnField,
+  onCancelDrawnField,
   analysisResults,
-  analysisStarted,
-  onFieldSaved
+  analysisStarted
 }) {
   return (
     <div className="dashboard-content workspace-shell" style={{ position: 'relative' }}>
@@ -45,10 +51,13 @@ export default function WorkspacePage({
         setGeoJsonUploadResponse={setGeoJsonUploadResponse}
         geoJsonUploadError={geoJsonUploadError}
         setGeoJsonUploadError={setGeoJsonUploadError}
+        fieldName={fieldName}
+        setFieldName={setFieldName}
         fieldLayerVisible={fieldLayerVisible}
         setFieldLayerVisible={setFieldLayerVisible}
         setSelectedField={setSelectedField}
-        onFieldSaved={onFieldSaved}
+        onSaveField={onSaveField}
+        isSavingField={isSavingField}
       />
 
       <main className="map-container" style={{ position: 'relative' }}>
@@ -100,7 +109,118 @@ export default function WorkspacePage({
         )}
       </main>
 
+      {isDrawFieldNamingOpen && (
+        <DrawnFieldNameModal
+          isSavingField={isSavingField}
+          onSave={onSaveDrawnField}
+          onCancel={onCancelDrawnField}
+        />
+      )}
+
       <GuidedTour activePage={activePage} analysisStarted={analysisStarted} />
     </div>
   );
 }
+
+function DrawnFieldNameModal({ isSavingField, onSave, onCancel }) {
+  const [fieldName, setFieldName] = useState('');
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    const wasSaved = await onSave(fieldName);
+    if (!wasSaved) {
+      inputRef.current?.focus();
+    }
+  };
+
+  return (
+    <div style={modalOverlayStyle}>
+      <form className="glass-panel" style={modalStyle} onSubmit={handleSubmit}>
+        <h2 style={{ marginBottom: '8px' }}>Name this field</h2>
+        <p style={modalCopyStyle}>Save the drawn boundary with a field name before analysis.</p>
+
+        <label style={labelStyle} htmlFor="drawn-field-name">
+          Field name
+        </label>
+        <input
+          id="drawn-field-name"
+          ref={inputRef}
+          style={inputStyle}
+          value={fieldName}
+          onChange={(event) => setFieldName(event.target.value)}
+          placeholder="North Wheat Field"
+          required
+        />
+
+        <div style={modalActionsStyle}>
+          <button type="button" className="secondary-btn" onClick={onCancel} disabled={isSavingField}>
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            className="primary-btn"
+            disabled={isSavingField || !fieldName.trim()}
+          >
+            {isSavingField ? 'Saving...' : 'Save Field'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+const modalOverlayStyle = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(2, 6, 23, 0.72)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 9999,
+  padding: '24px'
+};
+
+const modalStyle = {
+  width: '100%',
+  maxWidth: '420px',
+  padding: '24px',
+  borderRadius: '20px'
+};
+
+const modalCopyStyle = {
+  color: 'var(--text-secondary)',
+  lineHeight: 1.6
+};
+
+const labelStyle = {
+  display: 'block',
+  marginTop: '16px',
+  marginBottom: '8px',
+  color: 'var(--text-secondary)',
+  fontWeight: 700,
+  fontSize: '0.78rem'
+};
+
+const inputStyle = {
+  width: '100%',
+  padding: '11px 12px',
+  borderRadius: '12px',
+  background: 'rgba(15, 23, 42, 0.45)',
+  border: '1px solid var(--border-color)',
+  color: 'var(--text-primary)',
+  outline: 'none'
+};
+
+const modalActionsStyle = {
+  display: 'flex',
+  justifyContent: 'flex-end',
+  gap: '10px',
+  marginTop: '20px'
+};

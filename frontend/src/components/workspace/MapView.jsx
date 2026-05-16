@@ -87,6 +87,7 @@ function GeomanDrawControl({ onDrawn }) {
     const handleCreate = (event) => {
       if (event.shape === 'Polygon' || event.shape === 'Rectangle') {
         const geojson = event.layer.toGeoJSON();
+        map.removeLayer(event.layer);
 
         if (typeof onDrawn === 'function') {
           onDrawn({
