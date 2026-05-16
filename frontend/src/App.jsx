@@ -8,6 +8,7 @@ import HomePage from './pages/HomePage';
 import ProfilePage from './pages/ProfilePage';
 import WorkspacePage from './pages/WorkspacePage';
 import AdminPanelPage from './pages/AdminPanelPage';
+import TeamAccessPage from './pages/TeamAccessPage';
 
 import {
   checkHealth,
@@ -499,6 +500,7 @@ function App() {
     );
   }
 
+ 
   if (appView === 'landing') {
     return (
       <LandingPage
@@ -581,18 +583,10 @@ function App() {
         );
       case 'Team / Access':
         return (
-          <div className="content-page" style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
-            <h1 className="page-title" style={{ marginBottom: '32px' }}>Team & Access Management</h1>
-            <div className="glass-panel" style={{ padding: '32px', borderRadius: '24px', color: 'var(--text-secondary)' }}>
-              <p style={{ fontSize: '1.1rem', marginBottom: '16px', color: 'var(--text-primary)' }}>Share fields and collaborate.</p>
-              <ul style={{ lineHeight: '2' }}>
-                <li>Invite agronomist</li>
-                <li>Give Viewer / Editor access</li>
-                <li>See who has access to this field</li>
-              </ul>
-              <p style={{ marginTop: '24px', fontStyle: 'italic' }}>This feature will be available in the next release.</p>
-            </div>
-          </div>
+          <TeamAccessPage
+            user={sessionUser}
+            onNavigate={handleNavigate}
+          />
         );
       case 'Admin':
         return (
