@@ -15,14 +15,14 @@ def _serialize_comment(comment: FieldComment) -> Dict[str, Any]:
     author = getattr(comment, "author", None)
 
     return {
-        "id": comment.id,
-        "field_id": comment.field_id,
-        "author_id": comment.author_id,
+        "id": str(comment.id),
+        "field_id": str(comment.field_id),
+        "author_id": str(comment.author_id),
         "author_name": author.full_name if author else None,
         "author_email": author.email if author else None,
         "author": (
             {
-                "id": author.id,
+                "id": str(author.id),
                 "full_name": author.full_name,
                 "email": author.email
             }
