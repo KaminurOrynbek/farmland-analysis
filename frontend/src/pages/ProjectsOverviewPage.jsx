@@ -5,7 +5,6 @@ import PaginationControls from '../components/common/PaginationControls';
 import { formatAreaMeasure } from '../utils/analysisFormatters';
 import {
   buildFieldWorkspaceSummaries,
-  formatWorkspaceDateTime,
   getRiskTone,
   sortAnalysesByNewest
 } from '../utils/fieldAnalysisUtils';
@@ -40,6 +39,15 @@ const SORT_OPTIONS = [
 ];
 
 const PAGE_SIZE = 10;
+const FIELD_TABLE_COLUMNS = [
+  { key: 'field', label: 'Field', align: 'left' },
+  { key: 'status', label: 'Status', align: 'left' },
+  { key: 'area', label: 'Area', align: 'left' },
+  { key: 'lastAnalysis', label: 'Last Analysis', align: 'left' },
+  { key: 'runs', label: 'Runs', align: 'left' },
+  { key: 'owner', label: 'Owner', align: 'left' },
+  { key: 'actions', label: 'Actions', align: 'right' }
+];
 
 const RISK_ORDER = {
   High: 3,
@@ -60,6 +68,13 @@ const getFieldName = (field) => field?.name || 'Unnamed field';
 
 const getLatestRiskLabel = (summary) => summary.latestRisk || 'Not analyzed';
 
+const getRiskAccentColor = (riskLabel) => {
+  if (riskLabel === 'Low') return 'var(--status-healthy)';
+  if (riskLabel === 'Medium') return 'var(--status-warning)';
+  if (riskLabel === 'High') return 'var(--status-critical)';
+  return 'var(--border-color)';
+};
+
 const getLatestAnalysisDate = (summary) => (
   summary.latestOverallAnalysis?.analysis_date ||
   summary.latestAnalysisAt ||
@@ -71,6 +86,23 @@ const getLatestCropType = (summary) => (
   summary.latestAnalysis?.crop_type ||
   null
 );
+
+const formatAnalysisDate = (value) => {
+  if (!value) {
+    return 'Date unavailable';
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Date unavailable';
+  }
+
+  return parsed.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+};
 
 const isFieldOwnedByUser = (field, user) => {
   if (field?.owner_id && user?.id) {
@@ -149,6 +181,12 @@ const compareBySort = (left, right, sortBy) => {
   return getFieldName(left.field).localeCompare(getFieldName(right.field));
 };
 
+const shouldShowAccessRoleBadge = (accessRole) => (
+  accessRole !== 'OWNER' && accessRole !== 'ADMIN'
+);
+
+const formatRunCountLabel = (count) => `${count} ${count === 1 ? 'run' : 'runs'}`;
+
 function TabButton({ item, count, isActive, onClick }) {
   return (
     <button
@@ -174,63 +212,134 @@ function FilterField({ label, children }) {
   );
 }
 
-function FieldCard({ item, onOpenWorkspace, onViewResult }) {
+function TableHeader() {
+  return (
+    <div
+      className="fields-directory-table-header"
+      style={{
+        ...tableGridStyle,
+        ...tableHeaderRowStyle,
+      }}
+    >
+      {FIELD_TABLE_COLUMNS.map((column) => (
+        <span
+          key={column.key}
+          style={{
+            ...tableHeaderLabelStyle,
+            textAlign: column.align
+          }}
+        >
+          {column.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function TableCell({ label, className = '', children, align = 'left' }) {
+  return (
+    <div
+      className={`fields-directory-cell ${className}`.trim()}
+      style={{
+        ...tableCellStyle,
+        alignItems: align === 'right' ? 'flex-end' : 'flex-start',
+        textAlign: align
+      }}
+    >
+      <span className="fields-directory-mobile-label" style={mobileLabelStyle}>
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+function FieldRow({ item, onOpenWorkspace, onViewResult }) {
   const hasLatestAnalysis = Boolean(item.latestOverallAnalysis);
+  const analysisCount = item.analyses?.length || 0;
+  const latestAnalysisDateLabel = hasLatestAnalysis
+    ? formatAnalysisDate(item.latestAnalysisDate)
+    : 'No analysis yet';
+  const latestAnalysisTypeLabel = item.latestCropType || 'Detected cover unavailable';
 
   return (
-    <article style={fieldRowStyle}>
-      <div style={fieldPrimaryColumnStyle}>
-        <div style={fieldHeaderStyle}>
+    <article
+      className="fields-directory-table-row"
+      style={{
+        ...tableGridStyle,
+        ...fieldRowStyle,
+        borderLeft: `3px solid ${getRiskAccentColor(item.latestRiskLabel)}`
+      }}
+    >
+      <TableCell label="Field" className="fields-directory-field-cell">
+        <div style={fieldIdentityStackStyle}>
           <strong style={fieldTitleStyle}>{getFieldName(item.field)}</strong>
-          <span className={`status-pill ${getRiskTone(item.latestRiskLabel)}`}>
-            {item.latestRiskLabel}
+          {shouldShowAccessRoleBadge(item.accessRole) ? (
+            <span style={accessRoleBadgeStyle}>{item.accessRoleLabel}</span>
+          ) : null}
+        </div>
+      </TableCell>
+
+      <TableCell label="Status">
+        <span className={`status-pill ${getRiskTone(item.latestRiskLabel)}`}>
+          {item.latestRiskLabel}
+        </span>
+      </TableCell>
+
+      <TableCell label="Area">
+        <strong style={cellValueStyle}>{formatAreaMeasure(item.field.area_ha)}</strong>
+      </TableCell>
+
+      <TableCell label="Last Analysis" className="fields-directory-latest-cell">
+        <div style={analysisStackStyle}>
+          <span
+            style={{
+              ...cellValueStyle,
+              color: hasLatestAnalysis ? 'var(--text-primary)' : 'var(--text-secondary)'
+            }}
+          >
+            {latestAnalysisDateLabel}
           </span>
+          {hasLatestAnalysis ? (
+            <span style={analysisSublineStyle}>{latestAnalysisTypeLabel}</span>
+          ) : null}
         </div>
+      </TableCell>
 
-        <p className="workspace-helper-text" style={fieldOwnerStyle}>
-          {item.ownerDisplay ? `Owner: ${item.ownerDisplay}` : 'Owner information unavailable'}
-        </p>
-      </div>
+      <TableCell label="Runs">
+        <strong style={cellValueStyle}>{formatRunCountLabel(analysisCount)}</strong>
+      </TableCell>
 
-      <div style={fieldMetaRowStyle}>
-        <div style={fieldMetaItemStyle}>
-          <span style={fieldMetaLabelStyle}>Area</span>
-          <strong>{formatAreaMeasure(item.field.area_ha)}</strong>
+      <TableCell label="Owner">
+        <span style={cellValueStyle}>
+          {item.ownerDisplay || 'Owner information unavailable'}
+        </span>
+      </TableCell>
+
+      <TableCell label="Actions" className="fields-directory-actions-cell" align="right">
+        <div style={fieldActionsWrapStyle}>
+          <button
+            type="button"
+            className="secondary-btn fields-directory-action-btn fields-directory-action-btn--workspace"
+            onClick={onOpenWorkspace}
+            style={compactButtonStyle}
+          >
+            Open Workspace
+          </button>
+          <button
+            type="button"
+            className={hasLatestAnalysis
+              ? 'primary-btn fields-directory-action-btn fields-directory-action-btn--result'
+              : 'secondary-btn fields-directory-action-btn fields-directory-action-btn--disabled'}
+            onClick={onViewResult}
+            disabled={!hasLatestAnalysis}
+            title={hasLatestAnalysis ? undefined : 'Run an analysis first to view results.'}
+            style={compactButtonStyle}
+          >
+            {hasLatestAnalysis ? 'View Result' : 'No Result'}
+          </button>
         </div>
-
-        <div style={fieldMetaItemStyle}>
-          <span style={fieldMetaLabelStyle}>Access role</span>
-          <strong>{item.accessRoleLabel}</strong>
-        </div>
-
-        <div style={fieldMetaItemStyle}>
-          <span style={fieldMetaLabelStyle}>Latest analysis</span>
-          <strong>{formatWorkspaceDateTime(item.latestAnalysisDate, 'No analysis yet')}</strong>
-        </div>
-
-        <div style={fieldMetaItemStyle}>
-          <span style={fieldMetaLabelStyle}>Crop type</span>
-          <strong>{item.latestCropType || '—'}</strong>
-        </div>
-      </div>
-
-      <div style={fieldActionsColumnStyle}>
-        <button
-          type="button"
-          className="secondary-btn"
-          onClick={onOpenWorkspace}
-        >
-          Open Workspace
-        </button>
-        <button
-          type="button"
-          className="primary-btn"
-          onClick={onViewResult}
-          disabled={!hasLatestAnalysis}
-        >
-          {hasLatestAnalysis ? 'View Result' : 'No result yet'}
-        </button>
-      </div>
+      </TableCell>
     </article>
   );
 }
@@ -393,6 +502,8 @@ export default function ProjectsPage({
 
   return (
     <div className="content-page">
+      <style>{fieldDirectoryResponsiveCss}</style>
+
       <section className="page-hero glass-panel">
         <div>
           <div className="page-kicker">Field Directory</div>
@@ -516,8 +627,10 @@ export default function ProjectsPage({
         ) : (
           <>
             <div style={fieldListStyle}>
+              <TableHeader />
+
               {paginatedFieldItems.map((item) => (
-                <FieldCard
+                <FieldRow
                   key={item.field.id}
                   item={item}
                   onOpenWorkspace={() => handleOpenWorkspace(item)}
@@ -539,6 +652,94 @@ export default function ProjectsPage({
     </div>
   );
 }
+
+const fieldDirectoryResponsiveCss = `
+  .fields-directory-table-row {
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+  }
+
+  .fields-directory-table-row:hover {
+    background: rgba(255, 255, 255, 0.035);
+    border-color: rgba(148, 163, 184, 0.26);
+    transform: translateY(-1px);
+  }
+
+  .fields-directory-mobile-label {
+    display: none;
+  }
+
+  .fields-directory-action-btn {
+    min-width: 102px;
+    justify-content: center;
+    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+  }
+
+  .fields-directory-action-btn--workspace {
+    background: rgba(15, 23, 42, 0.62);
+    border-color: rgba(96, 165, 250, 0.42);
+    color: #dbeafe;
+    box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.12);
+  }
+
+  .fields-directory-action-btn--workspace:hover:not(:disabled) {
+    background: rgba(30, 41, 59, 0.9);
+    border-color: rgba(96, 165, 250, 0.9);
+    box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
+  }
+
+  .fields-directory-action-btn--result {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.96), rgba(59, 130, 246, 0.96));
+    border-color: rgba(96, 165, 250, 0.95);
+    color: #eff6ff;
+    box-shadow: 0 10px 22px rgba(37, 99, 235, 0.2);
+  }
+
+  .fields-directory-action-btn--result:hover:not(:disabled) {
+    background: linear-gradient(135deg, rgba(29, 78, 216, 1), rgba(37, 99, 235, 1));
+    border-color: rgba(147, 197, 253, 1);
+    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.24);
+  }
+
+  .fields-directory-action-btn--disabled,
+  .fields-directory-action-btn:disabled {
+    background: rgba(148, 163, 184, 0.12);
+    border-color: rgba(148, 163, 184, 0.16);
+    color: rgba(148, 163, 184, 0.72);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 1180px) {
+    .fields-directory-table-header {
+      display: none;
+    }
+
+    .fields-directory-table-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      align-items: start;
+    }
+
+    .fields-directory-field-cell,
+    .fields-directory-latest-cell,
+    .fields-directory-actions-cell {
+      grid-column: 1 / -1;
+    }
+
+    .fields-directory-actions-cell {
+      justify-self: start;
+    }
+
+    .fields-directory-mobile-label {
+      display: inline-flex;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .fields-directory-table-row {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+  }
+`;
 
 const toolbarPanelStyle = {
   padding: '18px',
@@ -619,63 +820,106 @@ const listPanelStyle = {
 
 const fieldListStyle = {
   display: 'grid',
-  gap: '12px'
+  gap: '10px'
+};
+
+const tableGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(220px, 1.8fr) 120px 120px minmax(190px, 1.4fr) 80px minmax(160px, 1fr) 220px',
+  alignItems: 'center',
+  gap: '16px'
+};
+
+const tableHeaderRowStyle = {
+  padding: '0 18px 4px',
+  color: 'var(--text-secondary)'
+};
+
+const tableHeaderLabelStyle = {
+  display: 'block',
+  width: '100%',
+  fontSize: '0.74rem',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em'
 };
 
 const fieldRowStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1.8fr) auto',
-  gap: '16px',
-  alignItems: 'center',
-  padding: '16px 18px',
+  padding: '12px 18px',
   borderRadius: '16px',
-  border: '1px solid var(--border-color)',
+  border: '1px solid rgba(148, 163, 184, 0.16)',
   background: 'rgba(255,255,255,0.02)'
 };
 
-const fieldPrimaryColumnStyle = {
-  minWidth: 0
+const tableCellStyle = {
+  minWidth: 0,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '4px',
+  justifyContent: 'center'
 };
 
-const fieldHeaderStyle = {
+const mobileLabelStyle = {
+  fontSize: '0.72rem',
+  fontWeight: 800,
+  color: 'var(--text-secondary)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em'
+};
+
+const fieldIdentityStackStyle = {
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: '12px'
+  gap: '10px',
+  flexWrap: 'wrap'
 };
 
 const fieldTitleStyle = {
-  fontSize: '1rem',
+  fontSize: '1.02rem',
   display: 'block',
   minWidth: 0
 };
 
-const fieldOwnerStyle = {
-  margin: '6px 0 0'
-};
-
-const fieldMetaRowStyle = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '12px'
-};
-
-const fieldMetaItemStyle = {
-  display: 'grid',
-  gap: '4px',
-  minWidth: '120px'
-};
-
-const fieldMetaLabelStyle = {
-  fontSize: '0.72rem',
-  fontWeight: 700,
+const accessRoleBadgeStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '3px 8px',
+  borderRadius: '999px',
+  background: 'rgba(148, 163, 184, 0.14)',
+  border: '1px solid rgba(148, 163, 184, 0.16)',
   color: 'var(--text-secondary)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em'
+  fontSize: '0.72rem',
+  fontWeight: 700
 };
 
-const fieldActionsColumnStyle = {
+const cellValueStyle = {
+  fontSize: '0.9rem',
+  lineHeight: 1.25
+};
+
+const analysisStackStyle = {
   display: 'grid',
-  gap: '10px',
-  justifyItems: 'end'
+  gap: '2px'
+};
+
+const analysisSublineStyle = {
+  fontSize: '0.82rem',
+  lineHeight: 1.2,
+  color: 'var(--text-secondary)'
+};
+
+const fieldActionsWrapStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  flexWrap: 'nowrap',
+  width: '100%',
+  justifyContent: 'flex-end'
+};
+
+const compactButtonStyle = {
+  padding: '7px 11px',
+  fontSize: '0.82rem',
+  lineHeight: 1.1,
+  whiteSpace: 'nowrap'
 };
