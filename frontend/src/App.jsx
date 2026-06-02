@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Navbar from './components/layout/AppHeader';
 import ProjectsPage from './pages/ProjectsOverviewPage';
 import LandingPage from './pages/LandingPage';
+import AnalysisDetailsPage from './pages/FieldReportPage.jsx';
 import AuthPage from './pages/AuthPage';
 import HomePage from './pages/DashboardPage';
 import ProfilePage from './pages/ProfilePage';
