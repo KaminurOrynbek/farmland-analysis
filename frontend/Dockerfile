@@ -5,8 +5,6 @@ WORKDIR /app
 COPY frontend/package*.json ./
 
 RUN npm cache clean --force
-RUN npm install --legacy-peer-deps --include=optional
-RUN npm install @rolldown/binding-linux-arm64-gnu --save-optional || true
 
 COPY frontend/ .
 
