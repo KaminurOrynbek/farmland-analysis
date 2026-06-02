@@ -61,13 +61,22 @@ function NavButton({ item, activePage, onNavigate, onLogout, isLogout = false })
 export default function AppSidebar({ activePage, onNavigate, onLogout, user }) {
   const isAdmin = user?.role === 'ADMIN';
 
-  const mainNav = useMemo(() => ([
-    { id: 'Dashboard', label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
-    { id: 'Workspace', label: 'Workspace', icon: <MapIcon size={16} /> },
-    { id: 'Analysis Report', label: 'Analysis Report', icon: <LineChart size={16} /> },
-    { id: 'My Farm', label: 'My Farm', icon: <FolderOpen size={16} /> },
-    { id: 'Field Sharing', label: 'Field Sharing', icon: <Users size={16} /> }
-  ]), []);
+  const mainNav = useMemo(() => {
+    const items = [];
+
+    if (isAdmin) {
+      items.push({ id: 'Dashboard', label: 'Dashboard', icon: <LayoutDashboard size={16} /> });
+    }
+
+    items.push(
+      { id: 'My Farm', label: 'Fields', icon: <FolderOpen size={16} /> },
+      { id: 'Workspace', label: 'Workspace', icon: <MapIcon size={16} /> },
+      { id: 'Analysis Report', label: 'Analysis results', icon: <LineChart size={16} /> },
+      { id: 'Field Sharing', label: 'Field Sharing', icon: <Users size={16} /> }
+    );
+
+    return items;
+  }, [isAdmin]);
 
   return (
     <aside
@@ -93,7 +102,7 @@ export default function AppSidebar({ activePage, onNavigate, onLogout, user }) {
           gap: '9px',
           cursor: 'pointer'
         }}
-        onClick={() => onNavigate('Dashboard')}
+        onClick={() => onNavigate(isAdmin ? 'Dashboard' : 'My Farm')}
       >
         <AgroVisionLogo size={32} showText />
       </div>

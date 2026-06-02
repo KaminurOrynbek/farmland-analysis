@@ -16,6 +16,7 @@ const getInitials = (name = 'AgroVision User') => (
 export default function Navbar({ activePage, onNavigate, user }) {
   const displayName = getDisplayName(user);
   const initials = getInitials(displayName);
+  const pageLabel = activePage === 'My Farm' ? 'Fields' : activePage;
 
   return (
     <nav
@@ -31,7 +32,7 @@ export default function Navbar({ activePage, onNavigate, user }) {
     >
       <div className="app-navbar-right" style={{ alignItems: 'center' }}>
         <strong style={{ color: 'var(--text-primary)', fontSize: '0.95rem' }}>
-          {activePage}
+          {pageLabel}
         </strong>
       </div>
 

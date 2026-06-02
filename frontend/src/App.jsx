@@ -209,6 +209,8 @@ const buildWorkspaceFieldKey = ({
 };
 
 const WORKSPACE_GUIDE_PENDING_KEY = 'workspaceGuidePendingAfterRegistration';
+const isAdminUser = (user) => user?.role === 'ADMIN';
+
 const normalizePageId = (page) => {
   if (page === 'Home') return 'Dashboard';
   if (page === 'Projects') return 'My Farm';
@@ -217,6 +219,24 @@ const normalizePageId = (page) => {
   if (page === 'Profile') return 'Settings';
   if (page === 'Admin') return 'Admin Panel';
   return page;
+};
+
+const getDefaultPrivatePage = (user) => (
+  isAdminUser(user) ? 'Dashboard' : 'My Farm'
+);
+
+const getAccessiblePage = (page, user) => {
+  const normalizedPage = normalizePageId(page);
+
+  if (normalizedPage === 'Dashboard' && !isAdminUser(user)) {
+    return 'My Farm';
+  }
+
+  if (normalizedPage === 'Admin Panel' && !isAdminUser(user)) {
+    return getDefaultPrivatePage(user);
+  }
+
+  return normalizedPage;
 };
 
 function App() {
@@ -279,7 +299,7 @@ function App() {
     localStorage.setItem('user', JSON.stringify(user));
     setSessionUser(user);
     setAppView('app');
-    setActivePage(shouldOpenGuidedTour ? 'Workspace' : 'Dashboard');
+    setActivePage(shouldOpenGuidedTour ? 'Workspace' : getDefaultPrivatePage(user));
     setIsGuidedTourOpen(false);
   };
 
@@ -323,15 +343,17 @@ function App() {
   const handleNavigate = (page) => {
     const normalizedPage = normalizePageId(page);
 
-    if (normalizedPage === 'Admin Panel' && sessionUser?.role !== 'ADMIN') {
+    if (normalizedPage === 'Admin Panel' && !isAdminUser(sessionUser)) {
       return;
     }
 
-    if (normalizedPage !== 'Workspace') {
+    const nextPage = getAccessiblePage(normalizedPage, sessionUser);
+
+    if (nextPage !== 'Workspace') {
       setIsGuidedTourOpen(false);
     }
 
-    setActivePage(normalizedPage);
+    setActivePage(nextPage);
   };
 
   const handleOpenGuidedTour = () => {
@@ -727,6 +749,16 @@ function App() {
     };
   }, []);
 
+  const effectiveActivePage = isSessionReady
+    ? getAccessiblePage(activePage, sessionUser)
+    : activePage;
+
+  useEffect(() => {
+    if (isSessionReady && activePage !== effectiveActivePage) {
+      setActivePage(effectiveActivePage);
+    }
+  }, [activePage, effectiveActivePage, isSessionReady]);
+
   const currentFieldId = getCurrentFieldId({ geoJsonUploadResponse });
 
   const currentWorkspaceFieldKey = buildWorkspaceFieldKey({
@@ -778,12 +810,12 @@ function App() {
   }
 
   const renderPrivatePage = () => {
-    switch (activePage) {
+    switch (effectiveActivePage) {
       case 'Workspace':
         return (
           <WorkspacePage
             user={sessionUser}
-            activePage={activePage}
+            activePage={effectiveActivePage}
             refreshKey={dataRefreshKey}
             backendHealthy={backendHealthy}
             isAnalyzing={isAnalyzing}
@@ -899,7 +931,7 @@ function App() {
           />
         );
       default:
-        return (
+        return isAdminUser(sessionUser) ? (
           <HomePage
             user={sessionUser}
             backendHealthy={backendHealthy}
@@ -908,6 +940,18 @@ function App() {
             analysisResults={analysisResults}
             latestAnalysisAt={latestAnalysisAt}
           />
+        ) : (
+          <ProjectsPage
+            user={sessionUser}
+            backendHealthy={backendHealthy}
+            selectedSeason={selectedSeason}
+            onChangeSeason={setSelectedSeason}
+            onNavigate={handleNavigate}
+            refreshKey={dataRefreshKey}
+            onOpenField={handleOpenField}
+            onOpenAnalysis={handleOpenAnalysis}
+            onCreateProject={handleCreateProject}
+          />
         );
     }
   };
@@ -915,14 +959,14 @@ function App() {
   return (
     <div className="dashboard-container dashboard-shell" style={{ flexDirection: 'row' }}>
       <AppSidebar
-        activePage={activePage}
+        activePage={effectiveActivePage}
         onNavigate={handleNavigate}
         onLogout={handleLogout}
         user={sessionUser}
       />
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
         <Navbar
-          activePage={activePage}
+          activePage={effectiveActivePage}
           onNavigate={handleNavigate}
           onOpenGuidedTour={handleOpenGuidedTour}
           onLogout={handleLogout}

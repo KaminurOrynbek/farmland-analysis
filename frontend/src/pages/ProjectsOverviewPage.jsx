@@ -113,7 +113,7 @@ export default function ProjectsPage({
       <section className="page-hero glass-panel">
         <div>
           <div className="page-kicker">Farm overview</div>
-          <h1 className="page-title">My Farm</h1>
+          <h1 className="page-title">Fields</h1>
           <p className="page-subtitle">
             A simple list of your accessible fields with quick actions to open the workspace or view the latest report.
           </p>
