@@ -201,7 +201,7 @@ export default function MapView({
   };
 
   return (
-    <div style={{ flex: 1, width: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+    <div className="workspace-map-shell" style={{ flex: 1, width: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
       <MapContainer
         center={center}
         zoom={13}

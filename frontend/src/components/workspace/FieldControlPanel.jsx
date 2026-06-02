@@ -156,7 +156,7 @@ export default function WorkspaceSidebar({
   };
 
   return (
-    <aside className="workspace-sidebar-panel glass-panel" data-guide="workspace-sidebar">
+    <aside className="workspace-sidebar-panel workspace-control-panel glass-panel" data-guide="workspace-sidebar">
       {workspaceNotice ? (
         <div className="workspace-notice-banner">
           {workspaceNotice}

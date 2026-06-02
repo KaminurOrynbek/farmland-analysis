@@ -161,7 +161,7 @@ export default function AnalysisDetailsPage({
 
         setHistory(sortAnalysesByNewest(response.data || []));
         setNotice('');
-      } catch (error) {
+      } catch {
         if (!isActive) {
           return;
         }

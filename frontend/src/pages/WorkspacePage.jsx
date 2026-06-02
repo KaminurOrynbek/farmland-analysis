@@ -45,7 +45,6 @@ const getRunAnalysisReason = ({
 
 export default function WorkspacePage({
   user,
-  activePage,
   refreshKey,
   backendHealthy,
   isAnalyzing,
@@ -78,24 +77,16 @@ export default function WorkspacePage({
   analysisResults,
   analysisStarted,
   latestAnalysisAt,
-  selectedSeason,
-  onChangeSeason,
-  onOpenField,
   onOpenReport,
-  isGuidedTourOpen,
-  onCloseGuidedTour
 }) {
   const [fields, setFields] = useState([]);
   const [history, setHistory] = useState([]);
-  const [isContextLoading, setIsContextLoading] = useState(true);
   const [contextNotice, setContextNotice] = useState('');
 
   useEffect(() => {
     let isActive = true;
 
     const loadWorkspaceContext = async () => {
-      setIsContextLoading(true);
-
       const [fieldsResponse, historyResponse] = await Promise.allSettled([
         fetchAllFields(),
         fetchAnalysisHistory()
@@ -130,8 +121,6 @@ export default function WorkspacePage({
       } else {
         setContextNotice('');
       }
-
-      setIsContextLoading(false);
     };
 
     void loadWorkspaceContext();
@@ -188,19 +177,12 @@ export default function WorkspacePage({
   );
 
   return (
-    <div className="content-page">
+    <div className="content-page workspace-page">
       {contextNotice ? (
         <div className="workspace-notice-banner">{contextNotice}</div>
       ) : null}
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(260px, 300px) minmax(0, 1fr) minmax(280px, 340px)',
-          gap: '20px',
-          alignItems: 'start'
-        }}
-      >
+      <div className="workspace-layout-grid">
         <WorkspaceSidebar
           user={user}
           workspaceNotice=""
@@ -227,7 +209,7 @@ export default function WorkspacePage({
           isSavingField={isSavingField}
         />
 
-        <div style={{ display: 'grid', gap: '14px', minWidth: 0 }}>
+        <div className="workspace-stage-column">
           {isAnalyzing ? (
             <div className="glass-panel" style={analysisNoticeStyle}>
               <Loader2
@@ -266,7 +248,7 @@ export default function WorkspacePage({
           </main>
         </div>
 
-        <div style={{ display: 'grid', gap: '16px' }}>
+        <div className="workspace-support-column">
           <WorkspaceSelectionCard
             fieldRecord={currentFieldRecord}
             riskLevel={fieldRiskLevel}
@@ -307,7 +289,6 @@ const analysisNoticeStyle = {
 
 const mapPanelStyle = {
   position: 'relative',
-  minHeight: '620px',
   overflow: 'hidden'
 };
 

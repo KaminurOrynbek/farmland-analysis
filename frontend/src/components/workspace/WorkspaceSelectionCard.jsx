@@ -38,7 +38,7 @@ export default function WorkspaceSelectionCard({
   const statusLabel = riskLevel || 'Not analyzed';
 
   return (
-    <aside className="workspace-side-panel workspace-compact-panel glass-panel">
+    <aside className="workspace-side-panel workspace-compact-panel workspace-summary-card glass-panel">
       <section className="workspace-panel-section">
         <div className="workspace-section-heading">
           <div className="workspace-section-icon">

@@ -124,7 +124,7 @@ export default function FieldCommentsPanel({
   }
 
   return (
-    <section className="glass-panel" style={panelStyle}>
+    <section className="glass-panel workspace-comments-panel" style={panelStyle}>
       <div style={headerStyle}>
         <div>
           <div className="page-kicker" style={{ marginBottom: '8px' }}>Field comments</div>
@@ -142,14 +142,14 @@ export default function FieldCommentsPanel({
           Save this field first to load and post comments for the team.
         </div>
       ) : (
-        <>
+        <div className="workspace-comments-body">
           {error ? (
             <div className="workspace-note-card" style={{ color: 'var(--status-warning)' }}>
               {error}
             </div>
           ) : null}
 
-          <div style={commentListStyle}>
+          <div className="workspace-comments-list" style={commentListStyle}>
             {loading ? (
               <div className="empty-state compact">Loading comments...</div>
             ) : sortedComments.length === 0 ? (
@@ -182,7 +182,7 @@ export default function FieldCommentsPanel({
             )}
           </div>
 
-          <form onSubmit={handleSubmit} style={composerStyle}>
+          <form className="workspace-comments-composer" onSubmit={handleSubmit} style={composerStyle}>
             <div style={composerHeaderStyle}>
               <strong>{canComment ? 'Add comment' : 'Comments are read only'}</strong>
               <span style={canComment ? metaBadgeStyle : readOnlyBadgeStyle}>
@@ -223,7 +223,7 @@ export default function FieldCommentsPanel({
               {saving ? 'Posting...' : 'Post Comment'}
             </button>
           </form>
-        </>
+        </div>
       )}
     </section>
   );
@@ -245,9 +245,7 @@ const headerStyle = {
 
 const commentListStyle = {
   display: 'grid',
-  gap: '10px',
-  maxHeight: '320px',
-  overflowY: 'auto'
+  gap: '10px'
 };
 
 const commentCardStyle = {
