@@ -139,7 +139,7 @@ export default function TeamAccessPage({ user, onNavigate }) {
     <div className="content-page">
       <section className="page-hero glass-panel">
         <div>
-          <div className="page-kicker">{isFarmer ? 'Field Sharing' : 'Team / Access'}</div>
+          <div className="page-kicker">{isFarmer ? 'Field Sharing' : 'Field Access'}</div>
           <h1 className="page-title">{isAgronomist ? 'Collaboration Overview' : 'Field Access Management'}</h1>
           <p className="page-subtitle">
             {isAgronomist

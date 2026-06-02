@@ -621,7 +621,7 @@ export default function HomePage({
             title: 'Review collaborators',
             text: 'See who owns each field and confirm the right experts have access.',
             icon: <Users size={18} color="#8b5cf6" />,
-            onClick: () => onNavigate('Team / Access')
+            onClick: () => onNavigate('Field Access')
           }
         ]
       : [
@@ -636,13 +636,13 @@ export default function HomePage({
             title: 'Share field access',
             text: 'Invite an agronomist by email and choose whether they can view or edit.',
             icon: <Share2 size={18} color="var(--accent-color)" />,
-            onClick: () => onNavigate('Team / Access')
+            onClick: () => onNavigate('Field Access')
           },
           {
             title: 'Review latest report',
             text: 'Open the most recent analysis to check stress, NDVI, and recommended actions.',
             icon: <LineChart size={18} color="#8b5cf6" />,
-            onClick: () => onNavigate('Analysis Report')
+            onClick: () => onNavigate('Reports')
           }
         ];
 

@@ -13,7 +13,7 @@ const getInitials = (name = 'AgroVision User') => (
     .join('') || 'AG'
 );
 
-export default function Navbar({ onNavigate, user }) {
+export default function Navbar({ activePage, onNavigate, user }) {
   const displayName = getDisplayName(user);
   const initials = getInitials(displayName);
 
@@ -24,14 +24,20 @@ export default function Navbar({ onNavigate, user }) {
         minHeight: '58px',
         borderBottom: '1px solid var(--border-color)',
         display: 'flex',
-        justifyContent: 'flex-end',
+        justifyContent: 'space-between',
         padding: '0 18px',
         background: 'var(--bg-panel)'
       }}
     >
+      <div className="app-navbar-right" style={{ alignItems: 'center' }}>
+        <strong style={{ color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+          {activePage}
+        </strong>
+      </div>
+
       <button
         className="app-user-chip"
-        onClick={() => onNavigate('Profile')}
+        onClick={() => onNavigate('Settings')}
         style={{
           cursor: 'pointer',
           background: 'transparent',

@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import Navbar from './components/layout/TopNavbar';
-import ProjectsPage from './pages/ProjectsPage';
+import Navbar from './components/layout/AppHeader';
+import ProjectsPage from './pages/ProjectsOverviewPage';
 import LandingPage from './pages/LandingPage';
-import AnalysisDetailsPage from './pages/AnalysisDetailsPage';
+import AnalysisDetailsPage from './pages/FieldReportPage';
 import AuthPage from './pages/AuthPage';
-import HomePage from './pages/HomePage';
+import HomePage from './pages/DashboardPage';
 import ProfilePage from './pages/ProfilePage';
 import WorkspacePage from './pages/WorkspacePage';
 import AdminPanelPage from './pages/AdminPanelPage';
-import TeamAccessPage from './pages/TeamAccessPage';
+import TeamAccessPage from './pages/FieldAccessPage';
 
 import {
   checkHealth,
@@ -22,8 +22,8 @@ import {
   logoutUser
 } from './api/client';
 import './styles.css';
-import AppSidebar from './components/layout/MainSidebar';
-import { computeBboxFromGeoJson } from './utils/geo';
+import AppSidebar from './components/layout/AppSidebar';
+import { computeBboxFromGeoJson } from './utils/geoUtils.js';
 import { getSavedFieldId } from './utils/fieldIdentity';
 
 const DEFAULT_ANALYSIS_RESULTS = {
@@ -34,13 +34,14 @@ const DEFAULT_ANALYSIS_RESULTS = {
   cropType: '—',
   confidence: '—',
   analyzedArea: '—',
+  analyzedAreaHectares: null,
   fieldCount: 0,
   stressZonesCount: 0,
   stressAreaPercentage: 0,
   ndviValue: null,
   eviValue: null,
   riskLevel: '—',
-  overallStatus: '—',
+  overallStatus: 'Unknown',
   assessment: null,
   recommendations: [],
   message: ''
@@ -121,6 +122,10 @@ const normalizeAnalysisResult = (item) => {
       item?.area_ha !== null && item?.area_ha !== undefined
         ? `${Number(item.area_ha).toFixed(2)} ha`
         : 'Unknown',
+    analyzedAreaHectares:
+      item?.area_ha !== null && item?.area_ha !== undefined
+        ? Number(item.area_ha)
+        : null,
     fieldCount: 1,
     stressZonesCount: item?.stress_zones_count || 0,
     stressAreaPercentage: item?.stress_area_percentage || 0,
@@ -204,6 +209,15 @@ const buildWorkspaceFieldKey = ({
 };
 
 const WORKSPACE_GUIDE_PENDING_KEY = 'workspaceGuidePendingAfterRegistration';
+const normalizePageId = (page) => {
+  if (page === 'Home') return 'Dashboard';
+  if (page === 'Projects') return 'My Farm';
+  if (page === 'Reports') return 'Analysis Report';
+  if (page === 'Team / Access' || page === 'Field Access') return 'Field Sharing';
+  if (page === 'Profile') return 'Settings';
+  if (page === 'Admin') return 'Admin Panel';
+  return page;
+};
 
 function App() {
   const [geoJsonUploadResponse, setGeoJsonUploadResponse] = useState(null);
@@ -229,11 +243,12 @@ function App() {
   const [fieldLayerVisible, setFieldLayerVisible] = useState(true);
 
   const [appView, setAppView] = useState('landing');
-  const [activePage, setActivePage] = useState('Home');
+  const [activePage, setActivePage] = useState('Dashboard');
   const [sessionUser, setSessionUser] = useState(null);
   const [dataRefreshKey, setDataRefreshKey] = useState(0);
   const [isSessionReady, setIsSessionReady] = useState(false);
   const [isGuidedTourOpen, setIsGuidedTourOpen] = useState(false);
+  const [selectedSeason, setSelectedSeason] = useState('2026');
 
   // Health check on load
   useEffect(() => {
@@ -264,8 +279,8 @@ function App() {
     localStorage.setItem('user', JSON.stringify(user));
     setSessionUser(user);
     setAppView('app');
-    setActivePage(shouldOpenGuidedTour ? 'Workspace' : 'Home');
-    setIsGuidedTourOpen(shouldOpenGuidedTour);
+    setActivePage(shouldOpenGuidedTour ? 'Workspace' : 'Dashboard');
+    setIsGuidedTourOpen(false);
   };
 
   const handleRegisterSuccess = () => {
@@ -283,7 +298,7 @@ function App() {
     sessionStorage.removeItem(WORKSPACE_GUIDE_PENDING_KEY);
     setSessionUser(null);
     setAppView('landing');
-    setActivePage('Home');
+    setActivePage('Dashboard');
     setIsGuidedTourOpen(false);
   };
 
@@ -306,15 +321,17 @@ function App() {
   };
 
   const handleNavigate = (page) => {
-    if (page === 'Admin' && sessionUser?.role !== 'ADMIN') {
+    const normalizedPage = normalizePageId(page);
+
+    if (normalizedPage === 'Admin Panel' && sessionUser?.role !== 'ADMIN') {
       return;
     }
 
-    if (page !== 'Workspace') {
+    if (normalizedPage !== 'Workspace') {
       setIsGuidedTourOpen(false);
     }
 
-    setActivePage(page);
+    setActivePage(normalizedPage);
   };
 
   const handleOpenGuidedTour = () => {
@@ -422,7 +439,6 @@ function App() {
       setAnalysisResults(normalizedResult);
       setLatestAnalysisAt(latestAnalysis.analysis_date || new Date().toISOString());
       handleDataChanged();
-      handleNavigate('Analysis Report');
     } catch (error) {
       console.error('Analysis failed:', error);
       alert(`Analysis failed: ${error.message}`);
@@ -570,13 +586,14 @@ function App() {
     setPendingDrawnField(null);
   };
 
-  const handleOpenField = (field) => {
+  const handleOpenField = (field, latestAnalysis = null, options = {}) => {
+    const { navigate = true } = options;
+
     if (!field?.geometry) {
       alert('This field does not have valid geometry.');
       return;
     }
 
-    resetAnalysisState();
     setPendingDrawnField(null);
 
     const featureCollection = buildFeatureCollectionFromField(field);
@@ -594,7 +611,18 @@ function App() {
     });
     setGeoJsonUploadError(null);
 
-    handleNavigate('Workspace');
+    if (latestAnalysis?.analysis_id) {
+      const normalized = normalizeAnalysisResult(latestAnalysis);
+      setAnalysisStarted(true);
+      setAnalysisResults(normalized);
+      setLatestAnalysisAt(latestAnalysis.analysis_date || new Date().toISOString());
+    } else {
+      resetAnalysisState();
+    }
+
+    if (navigate) {
+      handleNavigate('Workspace');
+    }
   };
 
   const handleOpenAnalysis = (analysisItem, field) => {
@@ -628,6 +656,11 @@ function App() {
     }
 
     handleNavigate('Analysis Report');
+  };
+
+  const handleRunNewAnalysisFromReport = async () => {
+    handleNavigate('Workspace');
+    await handleRunAnalysis();
   };
 
   useEffect(() => {
@@ -751,6 +784,8 @@ function App() {
           <WorkspacePage
             user={sessionUser}
             activePage={activePage}
+            refreshKey={dataRefreshKey}
+            backendHealthy={backendHealthy}
             isAnalyzing={isAnalyzing}
             onRunAnalysis={handleRunAnalysis}
             isFetchingSatelliteData={isFetchingSatelliteData}
@@ -780,25 +815,43 @@ function App() {
             currentFieldId={currentFieldId}
             analysisResults={analysisResults}
             analysisStarted={analysisStarted}
+            latestAnalysisAt={latestAnalysisAt}
+            selectedSeason={selectedSeason}
+            onChangeSeason={setSelectedSeason}
+            onOpenField={handleOpenField}
+            onOpenAnalysis={handleOpenAnalysis}
+            onOpenReport={() => handleNavigate('Analysis Report')}
             isGuidedTourOpen={isGuidedTourOpen}
-            onOpenGuidedTour={handleOpenGuidedTour}
             onCloseGuidedTour={handleCloseGuidedTour}
           />
         );
       case 'Analysis Report':
         return (
           <AnalysisDetailsPage
+            user={sessionUser}
+            backendHealthy={backendHealthy}
             analysisResults={analysisResults}
             selectedField={selectedField}
+            setSelectedField={setSelectedField}
+            geoJsonData={geoJsonData}
+            fieldLayerVisible={fieldLayerVisible}
             analysisStarted={analysisStarted}
             latestAnalysisAt={latestAnalysisAt}
+            selectedSeason={selectedSeason}
+            onChangeSeason={setSelectedSeason}
             onNavigate={handleNavigate}
+            onRunNewAnalysis={handleRunNewAnalysisFromReport}
+            onOpenAnalysis={handleOpenAnalysis}
+            refreshKey={dataRefreshKey}
           />
         );
-      case 'Projects':
+      case 'My Farm':
         return (
           <ProjectsPage
             user={sessionUser}
+            backendHealthy={backendHealthy}
+            selectedSeason={selectedSeason}
+            onChangeSeason={setSelectedSeason}
             onNavigate={handleNavigate}
             refreshKey={dataRefreshKey}
             onOpenField={handleOpenField}
@@ -814,18 +867,18 @@ function App() {
             onNavigate={handleNavigate}
             onLogout={handleLogout}
             onUpdateUser={handleUpdateUser}
-            onOpenAdmin={sessionUser?.role === 'ADMIN' ? () => handleNavigate('Admin') : null}
+            onOpenAdmin={sessionUser?.role === 'ADMIN' ? () => handleNavigate('Admin Panel') : null}
             backendHealthy={backendHealthy}
           />
         );
-      case 'Team / Access':
+      case 'Field Sharing':
         return (
           <TeamAccessPage
             user={sessionUser}
             onNavigate={handleNavigate}
           />
         );
-      case 'Admin':
+      case 'Admin Panel':
         return (
           <AdminPanelPage
             refreshKey={dataRefreshKey}
@@ -833,7 +886,18 @@ function App() {
             backendHealthy={backendHealthy}
           />
         );
+      case 'Dashboard':
       case 'Home':
+        return (
+          <HomePage
+            user={sessionUser}
+            backendHealthy={backendHealthy}
+            onNavigate={handleNavigate}
+            refreshKey={dataRefreshKey}
+            analysisResults={analysisResults}
+            latestAnalysisAt={latestAnalysisAt}
+          />
+        );
       default:
         return (
           <HomePage
@@ -860,6 +924,7 @@ function App() {
         <Navbar
           activePage={activePage}
           onNavigate={handleNavigate}
+          onOpenGuidedTour={handleOpenGuidedTour}
           onLogout={handleLogout}
           user={sessionUser}
         />

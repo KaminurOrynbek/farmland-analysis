@@ -1,13 +1,53 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import GuidedTour from '../components/common/GuidedTour';
+import { fetchAllFields, fetchAnalysisHistory } from '../api/client';
+import { getFieldPermissions } from '../permissions/permissions';
 import FieldCommentsPanel from '../components/workspace/FieldCommentsPanel';
-import MapView from '../components/workspace/MapView';
-import WorkspaceSidebar from '../components/workspace/WorkspaceSidebar';
+import MapView from '../components/workspace/FieldMap';
+import WorkspaceSidebar from '../components/workspace/FieldControlPanel';
+import WorkspaceSelectionCard from '../components/workspace/WorkspaceSelectionCard';
+import {
+  buildFieldWorkspaceSummaries,
+  createFieldFallbackRecord,
+  getFieldSelectionName,
+  sortAnalysesByNewest
+} from '../utils/fieldAnalysisUtils';
+
+const getRunAnalysisReason = ({
+  hasGeometry,
+  hasSavedField,
+  canAnalyze,
+  isFetchingSatelliteData,
+  isAnalyzing
+}) => {
+  if (!hasGeometry) {
+    return 'Select, upload, or draw a field boundary first.';
+  }
+
+  if (!hasSavedField) {
+    return 'Save the field before running analysis.';
+  }
+
+  if (!canAnalyze) {
+    return 'Your current field role is view-only. OWNER or EDITOR access is required.';
+  }
+
+  if (isFetchingSatelliteData) {
+    return 'Wait for the satellite metadata request to finish.';
+  }
+
+  if (isAnalyzing) {
+    return 'Analysis is already in progress for this session.';
+  }
+
+  return '';
+};
 
 export default function WorkspacePage({
   user,
   activePage,
+  refreshKey,
+  backendHealthy,
   isAnalyzing,
   onRunAnalysis,
   isFetchingSatelliteData,
@@ -37,94 +77,215 @@ export default function WorkspacePage({
   currentFieldId,
   analysisResults,
   analysisStarted,
+  latestAnalysisAt,
+  selectedSeason,
+  onChangeSeason,
+  onOpenField,
+  onOpenReport,
   isGuidedTourOpen,
-  onOpenGuidedTour,
   onCloseGuidedTour
 }) {
+  const [fields, setFields] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [isContextLoading, setIsContextLoading] = useState(true);
+  const [contextNotice, setContextNotice] = useState('');
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadWorkspaceContext = async () => {
+      setIsContextLoading(true);
+
+      const [fieldsResponse, historyResponse] = await Promise.allSettled([
+        fetchAllFields(),
+        fetchAnalysisHistory()
+      ]);
+
+      if (!isActive) {
+        return;
+      }
+
+      if (fieldsResponse.status === 'fulfilled') {
+        setFields(fieldsResponse.value.data || []);
+      } else {
+        setFields([]);
+      }
+
+      if (historyResponse.status === 'fulfilled') {
+        setHistory(sortAnalysesByNewest(historyResponse.value.data || []));
+      } else {
+        setHistory([]);
+      }
+
+      const hasFailure =
+        fieldsResponse.status === 'rejected' ||
+        historyResponse.status === 'rejected';
+
+      if (hasFailure) {
+        setContextNotice(
+          backendHealthy
+            ? 'Some field history could not be refreshed. Showing the latest available context.'
+            : 'Backend is not connected. Demo values and local field context are shown where possible.'
+        );
+      } else {
+        setContextNotice('');
+      }
+
+      setIsContextLoading(false);
+    };
+
+    void loadWorkspaceContext();
+
+    return () => {
+      isActive = false;
+    };
+  }, [backendHealthy, refreshKey]);
+
+  const fallbackFieldRecord = useMemo(
+    () => createFieldFallbackRecord(selectedField, currentFieldId),
+    [currentFieldId, selectedField]
+  );
+
+  const effectiveFields = useMemo(() => {
+    if (fields.length > 0) {
+      return fields;
+    }
+
+    return fallbackFieldRecord ? [fallbackFieldRecord] : [];
+  }, [fallbackFieldRecord, fields]);
+
+  const fieldSummaries = useMemo(
+    () => buildFieldWorkspaceSummaries(effectiveFields, history),
+    [effectiveFields, history]
+  );
+
+  const selectedFieldSummary = useMemo(() => {
+    if (currentFieldId) {
+      return fieldSummaries.find((item) => String(item.field.id) === String(currentFieldId)) || null;
+    }
+
+    const currentFieldName = getFieldSelectionName(selectedField);
+    return fieldSummaries.find((item) => item.field.name === currentFieldName) || null;
+  }, [currentFieldId, fieldSummaries, selectedField]);
+
+  const currentFieldRecord = selectedFieldSummary?.field || fallbackFieldRecord || null;
+  const currentFieldAnalyses = selectedFieldSummary?.analyses || [];
+  const fieldRiskLevel =
+    analysisStarted && analysisResults?.riskLevel && analysisResults.riskLevel !== '—'
+      ? analysisResults.riskLevel
+      : selectedFieldSummary?.latestOverallAnalysis?.risk_level || null;
+  const permissions = getFieldPermissions(selectedField?.properties || selectedField, user);
+  const runAnalysisReason = getRunAnalysisReason({
+    hasGeometry: Boolean(geoJsonData),
+    hasSavedField: Boolean(currentFieldId),
+    canAnalyze: permissions.canAnalyze,
+    isFetchingSatelliteData,
+    isAnalyzing
+  });
+  const canViewReport = Boolean(
+    (analysisStarted && analysisResults?.analysisId) ||
+    currentFieldAnalyses.length
+  );
+
   return (
-    <div className="dashboard-content workspace-shell" style={{ position: 'relative' }}>
-      <WorkspaceSidebar
-        user={user}
-        selectedField={selectedField}
-        isAnalyzing={isAnalyzing}
-        onRunAnalysis={onRunAnalysis}
-        isFetchingSatelliteData={isFetchingSatelliteData}
-        onFetchSatelliteData={onFetchSatelliteData}
-        satelliteFetchResult={satelliteFetchResult}
-        satelliteFetchError={satelliteFetchError}
-        geoJsonData={geoJsonData}
-        setGeoJsonData={setGeoJsonData}
-        geoJsonMeta={geoJsonMeta}
-        setGeoJsonMeta={setGeoJsonMeta}
-        geoJsonUploadResponse={geoJsonUploadResponse}
-        setGeoJsonUploadResponse={setGeoJsonUploadResponse}
-        geoJsonUploadError={geoJsonUploadError}
-        setGeoJsonUploadError={setGeoJsonUploadError}
-        fieldName={fieldName}
-        setFieldName={setFieldName}
-        fieldLayerVisible={fieldLayerVisible}
-        setFieldLayerVisible={setFieldLayerVisible}
-        setSelectedField={setSelectedField}
-        onSaveField={onSaveField}
-        isSavingField={isSavingField}
-        onOpenGuidedTour={onOpenGuidedTour}
-      />
+    <div className="content-page">
+      {contextNotice ? (
+        <div className="workspace-notice-banner">{contextNotice}</div>
+      ) : null}
 
-      <main className="map-container" style={{ position: 'relative' }}>
-        <MapView
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(260px, 300px) minmax(0, 1fr) minmax(280px, 340px)',
+          gap: '20px',
+          alignItems: 'start'
+        }}
+      >
+        <WorkspaceSidebar
           user={user}
-          analysisStarted={analysisStarted}
+          workspaceNotice=""
+          selectedField={selectedField}
+          isFetchingSatelliteData={isFetchingSatelliteData}
           isAnalyzing={isAnalyzing}
+          onFetchSatelliteData={onFetchSatelliteData}
+          satelliteFetchResult={satelliteFetchResult}
+          satelliteFetchError={satelliteFetchError}
           geoJsonData={geoJsonData}
-          selectedField={selectedField}
-          setSelectedField={setSelectedField}
+          setGeoJsonData={setGeoJsonData}
+          geoJsonMeta={geoJsonMeta}
+          setGeoJsonMeta={setGeoJsonMeta}
+          geoJsonUploadResponse={geoJsonUploadResponse}
+          setGeoJsonUploadResponse={setGeoJsonUploadResponse}
+          geoJsonUploadError={geoJsonUploadError}
+          setGeoJsonUploadError={setGeoJsonUploadError}
+          fieldName={fieldName}
+          setFieldName={setFieldName}
           fieldLayerVisible={fieldLayerVisible}
-          onPolygonDrawn={onPolygonDrawn}
-          analysisResults={analysisResults}
+          setFieldLayerVisible={setFieldLayerVisible}
+          setSelectedField={setSelectedField}
+          onSaveField={onSaveField}
+          isSavingField={isSavingField}
         />
 
-        {isAnalyzing && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '24px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              background: 'var(--bg-panel)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '16px',
-              padding: '16px 24px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16px',
-              boxShadow: '0 12px 24px rgba(0,0,0,0.3)',
-              zIndex: 1000
-            }}
-          >
-            <Loader2
-              size={24}
-              color="var(--accent-color)"
-              style={{ animation: 'spin 1s linear infinite' }}
-            />
-            <div>
-              <h3 style={{ margin: 0, fontSize: '1rem' }}>Analyzing Field Data</h3>
-              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                Processing satellite imagery and running AI models...
-              </p>
+        <div style={{ display: 'grid', gap: '14px', minWidth: 0 }}>
+          {isAnalyzing ? (
+            <div className="glass-panel" style={analysisNoticeStyle}>
+              <Loader2
+                size={18}
+                color="var(--accent-color)"
+                style={{ animation: 'spin 1s linear infinite' }}
+              />
+              <div>
+                <strong style={{ display: 'block', marginBottom: '4px' }}>Analyzing field data</strong>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.84rem' }}>
+                  Processing satellite imagery, vegetation indices, and the transfer learning model.
+                </span>
+              </div>
+              <style>
+                {`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}
+              </style>
             </div>
-            <style>
-              {`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}
-            </style>
-          </div>
-        )}
+          ) : null}
 
-        <FieldCommentsPanel
-          user={user}
-          fieldId={currentFieldId}
-          selectedField={selectedField}
-          hasGeometry={Boolean(geoJsonData)}
-        />
-      </main>
+          <main className="map-container workspace-map-stage" style={mapPanelStyle}>
+            <MapView
+              user={user}
+              backendHealthy={backendHealthy}
+              analysisStarted={analysisStarted}
+              isAnalyzing={isAnalyzing}
+              geoJsonData={geoJsonData}
+              selectedField={selectedField}
+              setSelectedField={setSelectedField}
+              fieldLayerVisible={fieldLayerVisible}
+              onPolygonDrawn={onPolygonDrawn}
+              analysisResults={analysisResults}
+              fieldRiskLevel={fieldRiskLevel}
+              fieldName={currentFieldRecord?.name || getFieldSelectionName(selectedField)}
+              hasStoredAnalysis={Boolean(currentFieldAnalyses.length || analysisStarted)}
+            />
+          </main>
+        </div>
+
+        <div style={{ display: 'grid', gap: '16px' }}>
+          <WorkspaceSelectionCard
+            fieldRecord={currentFieldRecord}
+            riskLevel={fieldRiskLevel}
+            latestAnalysisAt={latestAnalysisAt || selectedFieldSummary?.latestAnalysisAt || null}
+            canRunAnalysis={!runAnalysisReason}
+            runAnalysisReason={runAnalysisReason}
+            canViewReport={canViewReport}
+            onRunAnalysis={onRunAnalysis}
+            onOpenReport={onOpenReport}
+          />
+
+          <FieldCommentsPanel
+            user={user}
+            fieldId={currentFieldId}
+            selectedField={selectedField}
+            hasGeometry={Boolean(geoJsonData)}
+          />
+        </div>
+      </div>
 
       {isDrawFieldNamingOpen && (
         <DrawnFieldNameModal
@@ -133,15 +294,22 @@ export default function WorkspacePage({
           onCancel={onCancelDrawnField}
         />
       )}
-
-      <GuidedTour
-        activePage={activePage}
-        isOpen={isGuidedTourOpen}
-        onClose={onCloseGuidedTour}
-      />
     </div>
   );
 }
+
+const analysisNoticeStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '12px',
+  padding: '14px 16px'
+};
+
+const mapPanelStyle = {
+  position: 'relative',
+  minHeight: '620px',
+  overflow: 'hidden'
+};
 
 function DrawnFieldNameModal({ isSavingField, onSave, onCancel }) {
   const [fieldName, setFieldName] = useState('');

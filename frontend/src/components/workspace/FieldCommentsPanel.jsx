@@ -1,111 +1,28 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronRight, Clock3, Lock, MapPinned, MessageSquare, Send, X } from 'lucide-react';
+import { Lock, MapPinned, MessageSquare, Send } from 'lucide-react';
 import { createFieldComment, fetchFieldComments } from '../../api/client';
 import { getFieldPermissions } from '../../permissions/permissions';
 
-const formatDateTime = (value, options) => {
+const formatDateTime = (value) => {
   if (!value) {
     return 'Unknown time';
   }
 
   const parsedDate = new Date(value);
-
   if (Number.isNaN(parsedDate.getTime())) {
     return 'Unknown time';
   }
 
-  return parsedDate.toLocaleString(undefined, options);
+  return parsedDate.toLocaleString();
 };
 
-const formatFullDateTime = (value) => (
-  formatDateTime(value, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit'
-  })
+const getCommentAuthor = (comment) => (
+  comment?.author?.full_name ||
+  comment?.author_name ||
+  comment?.author?.email ||
+  comment?.author_email ||
+  'Field collaborator'
 );
-
-const formatTime = (value) => (
-  formatDateTime(value, {
-    hour: 'numeric',
-    minute: '2-digit'
-  })
-);
-
-const formatGroupLabel = (value) => {
-  if (!value) {
-    return 'Recent';
-  }
-
-  const parsedDate = new Date(value);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return 'Recent';
-  }
-
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const commentDay = new Date(
-    parsedDate.getFullYear(),
-    parsedDate.getMonth(),
-    parsedDate.getDate()
-  );
-  const differenceInDays = Math.round((today - commentDay) / 86400000);
-
-  if (differenceInDays === 0) {
-    return 'Today';
-  }
-
-  if (differenceInDays === 1) {
-    return 'Yesterday';
-  }
-
-  return parsedDate.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    ...(parsedDate.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {})
-  });
-};
-
-const getCommentAuthor = (comment) => {
-  if (comment?.author?.full_name) {
-    return comment.author.full_name;
-  }
-
-  if (comment?.author?.email) {
-    return comment.author.email;
-  }
-
-  if (comment?.author_name) {
-    return comment.author_name;
-  }
-
-  if (comment?.author_email) {
-    return comment.author_email;
-  }
-
-  if (comment?.author_id) {
-    return `User ${String(comment.author_id).slice(0, 8)}`;
-  }
-
-  return 'Field collaborator';
-};
-
-const getAuthorInitials = (comment) => {
-  const author = getCommentAuthor(comment);
-  const parts = author.split(/\s+/).filter(Boolean);
-
-  if (parts.length === 0) {
-    return 'FC';
-  }
-
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() || '')
-    .join('');
-};
 
 const getCommentText = (comment) => (
   comment?.comment || comment?.comment_text || 'No comment text provided.'
@@ -126,17 +43,11 @@ export default function FieldCommentsPanel({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
 
   const permissions = getFieldPermissions(selectedField?.properties || selectedField, user);
   const canComment = permissions.canComment;
-  const isAgronomist = user?.role === 'AGRONOMIST';
-
   const fieldName = useMemo(
-    () =>
-      selectedField?.properties?.name ||
-      selectedField?.name ||
-      'Selected field',
+    () => selectedField?.properties?.name || selectedField?.name || 'Selected field',
     [selectedField]
   );
 
@@ -146,44 +57,9 @@ export default function FieldCommentsPanel({
     ))
   ), [comments]);
 
-  const commentGroups = useMemo(() => {
-    const groups = [];
-    const groupedComments = new Map();
-
-    sortedComments.forEach((comment, index) => {
-      const label = formatGroupLabel(comment.created_at);
-      const existingGroup = groupedComments.get(label);
-      const enrichedComment = {
-        ...comment,
-        _commentKey: comment.id || `${comment.created_at || 'recent'}-${index}`
-      };
-
-      if (existingGroup) {
-        existingGroup.items.push(enrichedComment);
-        return;
-      }
-
-      const nextGroup = {
-        label,
-        items: [enrichedComment]
-      };
-
-      groupedComments.set(label, nextGroup);
-      groups.push(nextGroup);
-    });
-
-    return groups;
-  }, [sortedComments]);
-
-  const latestComment = sortedComments[0] || null;
-  const totalMarkers = useMemo(
-    () => sortedComments.reduce((total, comment) => total + getMarkersCount(comment), 0),
-    [sortedComments]
-  );
-  const hasComments = sortedComments.length > 0;
-
   const loadComments = useCallback(async (nextFieldId = fieldId) => {
     if (!nextFieldId) {
+      setComments([]);
       return;
     }
 
@@ -202,15 +78,6 @@ export default function FieldCommentsPanel({
   }, [fieldId]);
 
   useEffect(() => {
-    if (!fieldId) {
-      const timeoutId = window.setTimeout(() => {
-        setComments([]);
-        setError('');
-      }, 0);
-
-      return () => window.clearTimeout(timeoutId);
-    }
-
     const timeoutId = window.setTimeout(() => {
       void loadComments(fieldId);
     }, 0);
@@ -257,639 +124,196 @@ export default function FieldCommentsPanel({
   }
 
   return (
-    <div style={dockStyle}>
-      <button
-        type="button"
-        onClick={() => setIsOpen((current) => !current)}
-        style={toggleButtonStyle}
-        aria-label={isOpen ? 'Collapse field comments' : 'Open field comments'}
-      >
-        <span style={toggleButtonIconWrapStyle}>
-          <MessageSquare size={18} />
+    <section className="glass-panel" style={panelStyle}>
+      <div style={headerStyle}>
+        <div>
+          <div className="page-kicker" style={{ marginBottom: '8px' }}>Field comments</div>
+          <h2 style={{ margin: 0, fontSize: '1.05rem' }}>{fieldName}</h2>
+        </div>
+
+        <span className="status-pill neutral">
+          <MessageSquare size={14} />
+          {sortedComments.length}
         </span>
-        <span style={toggleButtonCopyStyle}>
-          <strong style={{ fontSize: '0.84rem' }}>{isAgronomist ? 'Notes' : 'Comments'}</strong>
-          <span style={toggleButtonMetaStyle}>
-            {loading ? 'Syncing...' : `${sortedComments.length} note${sortedComments.length === 1 ? '' : 's'}`}
-          </span>
-        </span>
-        <span style={toggleCountStyle}>{sortedComments.length}</span>
-        <ChevronRight
-          size={16}
-          style={{
-            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 0.2s ease'
-          }}
-        />
-      </button>
+      </div>
 
-      {isOpen && (
-        <aside className="glass-panel" style={panelStyle}>
-          <div style={headerStyle}>
-            <div>
-              <div className="section-kicker">{isAgronomist ? 'Expert Notes' : 'Field Comments'}</div>
-              <h2 style={{ marginTop: '10px', fontSize: '1.08rem' }}>{fieldName}</h2>
+      {!fieldId ? (
+        <div className="workspace-note-card">
+          Save this field first to load and post comments for the team.
+        </div>
+      ) : (
+        <>
+          {error ? (
+            <div className="workspace-note-card" style={{ color: 'var(--status-warning)' }}>
+              {error}
             </div>
+          ) : null}
 
-            <div style={headerActionsStyle}>
-              <span className="status-pill neutral">
-                <MessageSquare size={14} />
-                {sortedComments.length}
-              </span>
-
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                style={closeButtonStyle}
-                aria-label="Close field comments"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          </div>
-
-          {!fieldId ? (
-            <div style={noticeStyle}>
-              Save this field first to load and post comments for your team.
-            </div>
-          ) : (
-            <>
-              <div style={panelContentStyle}>
-                <div style={summaryStripStyle}>
-                  <span style={summaryPillStyle}>
-                    <MessageSquare size={12} />
-                    {loading && !hasComments
-                      ? 'Loading notes...'
-                      : `${sortedComments.length} note${sortedComments.length === 1 ? '' : 's'}`}
-                  </span>
-
-                  <span style={summaryPillStyle}>
-                    <MapPinned size={12} />
-                    {totalMarkers} marker{totalMarkers === 1 ? '' : 's'}
-                  </span>
-
-                  <span style={canComment ? summaryPillActiveStyle : summaryPillStyle}>
-                    {canComment ? <MessageSquare size={12} /> : <Lock size={12} />}
-                    {canComment ? 'Can comment' : 'Read only'}
-                  </span>
-
-                  {latestComment && (
-                    <span style={summaryPillStyle}>
-                      <Clock3 size={12} />
-                      Updated {formatFullDateTime(latestComment.created_at)}
-                    </span>
-                  )}
-                </div>
-
-                {error && <div style={noticeStyle}>{error}</div>}
-
-                <section style={discussionSectionStyle}>
-                  {loading && !hasComments ? (
-                    <div style={emptyStyle}>Loading comments...</div>
-                  ) : !hasComments ? (
-                    <div style={emptyStateCardStyle}>
-                      <strong style={emptyStateTitleStyle}>
-                        {isAgronomist ? 'No expert notes yet' : 'No comments yet'}
-                      </strong>
-                      <p style={emptyStateCopyStyle}>
-                        {isAgronomist
-                          ? 'Start the review with a short agronomic conclusion or a clear next action for the farmer.'
-                          : 'Start the discussion with one short field update, issue, or recommendation.'}
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      <div style={discussionHeaderStyle}>
-                        <div>
-                          <h3 style={discussionTitleStyle}>Discussion</h3>
-                          <p style={discussionCopyStyle}>
-                            {isAgronomist
-                              ? 'Recent expert conclusions stay at the top so the latest recommendation is easy to review.'
-                              : 'Recent field notes stay at the top so new updates are easier to scan.'}
-                          </p>
-                        </div>
-
-                        <span style={discussionStatusStyle}>
-                          <Clock3 size={13} />
-                          {loading ? 'Syncing' : `${sortedComments.length} total`}
-                        </span>
-                      </div>
-
-                      <div style={commentsViewportStyle}>
-                        <div style={commentsListStyle}>
-                          {commentGroups.map((group) => (
-                            <section key={group.label} style={commentGroupStyle}>
-                              <div style={commentGroupLabelStyle}>{group.label}</div>
-
-                              <div style={commentGroupItemsStyle}>
-                                {group.items.map((comment) => {
-                                  const markersCount = getMarkersCount(comment);
-
-                                  return (
-                                    <article key={comment._commentKey} style={commentCardStyle}>
-                                      <div style={commentTopRowStyle}>
-                                        <div style={commentIdentityStyle}>
-                                          <div style={avatarStyle}>{getAuthorInitials(comment)}</div>
-
-                                          <div style={commentMetaColumnStyle}>
-                                            <strong style={authorNameStyle}>{getCommentAuthor(comment)}</strong>
-                                            <span style={metaTextStyle}>{formatTime(comment.created_at)}</span>
-                                          </div>
-                                        </div>
-
-                                        <span
-                                          style={{
-                                            ...markerBadgeStyle,
-                                            background:
-                                              markersCount > 0
-                                                ? 'rgba(59, 130, 246, 0.14)'
-                                                : 'rgba(148, 163, 184, 0.08)',
-                                            color: markersCount > 0 ? '#bfdbfe' : 'var(--text-secondary)'
-                                          }}
-                                        >
-                                          <MapPinned size={12} />
-                                          {markersCount > 0
-                                            ? `${markersCount} marker${markersCount === 1 ? '' : 's'}`
-                                            : 'No markers'}
-                                        </span>
-                                      </div>
-
-                                      <p style={commentBodyStyle}>{getCommentText(comment)}</p>
-                                    </article>
-                                  );
-                                })}
-                              </div>
-                            </section>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </section>
+          <div style={commentListStyle}>
+            {loading ? (
+              <div className="empty-state compact">Loading comments...</div>
+            ) : sortedComments.length === 0 ? (
+              <div className="workspace-note-card">
+                No comments yet. Use this area for short field observations and recommendations.
               </div>
+            ) : (
+              sortedComments.map((comment) => (
+                <article
+                  key={comment.id || `${comment.created_at}-${comment.author_id}`}
+                  style={commentCardStyle}
+                >
+                  <div style={commentHeaderStyle}>
+                    <div>
+                      <strong style={{ display: 'block', marginBottom: '4px' }}>
+                        {getCommentAuthor(comment)}
+                      </strong>
+                      <span style={metaTextStyle}>{formatDateTime(comment.created_at)}</span>
+                    </div>
 
-              <form onSubmit={handleSubmit} style={composerStyle}>
-                <div style={composerHeaderStyle}>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: '0.94rem' }}>{isAgronomist ? 'Write report' : 'Add comment'}</h3>
-                    {canComment && (
-                      <p style={composerHelperStyle}>
-                        {isAgronomist
-                          ? 'Leave one clear recommendation or conclusion.'
-                          : 'Leave one clear field update or next step.'}
-                      </p>
-                    )}
+                    <span style={metaBadgeStyle}>
+                      <MapPinned size={12} />
+                      {getMarkersCount(comment)}
+                    </span>
                   </div>
 
-                  <span style={canComment ? composerBadgeStyle : readOnlyBadgeStyle}>
-                    {canComment ? (
-                      <>
-                        <MessageSquare size={13} />
-                        Can comment
-                      </>
-                    ) : (
-                      <>
-                        <Lock size={13} />
-                        Read only
-                      </>
-                    )}
-                  </span>
-                </div>
+                  <p style={commentTextStyle}>{getCommentText(comment)}</p>
+                </article>
+              ))
+            )}
+          </div>
 
-                <textarea
-                  value={draftComment}
-                  onChange={(event) => setDraftComment(event.target.value)}
-                  placeholder={
-                    canComment
-                      ? isAgronomist
-                        ? 'Example: Add nitrogen fertiliser on the north-west stress zone before the next irrigation cycle.'
-                        : 'Write a short observation, issue, or recommendation.'
-                      : 'Viewer access can read comment history but cannot add new comments.'
-                  }
-                  style={textareaStyle}
-                  rows={4}
-                  disabled={!canComment || !fieldId || saving}
-                />
+          <form onSubmit={handleSubmit} style={composerStyle}>
+            <div style={composerHeaderStyle}>
+              <strong>{canComment ? 'Add comment' : 'Comments are read only'}</strong>
+              <span style={canComment ? metaBadgeStyle : readOnlyBadgeStyle}>
+                {canComment ? (
+                  <>
+                    <MessageSquare size={12} />
+                    Can comment
+                  </>
+                ) : (
+                  <>
+                    <Lock size={12} />
+                    Read only
+                  </>
+                )}
+              </span>
+            </div>
 
-                <div style={composerFooterStyle}>
-                  <span style={metaTextStyle}>
-                    {canComment
-                      ? draftComment.trim()
-                        ? `${draftComment.trim().length} characters`
-                        : 'Ready to post'
-                      : 'Marker attachments will be added in a future update.'}
-                  </span>
+            <textarea
+              value={draftComment}
+              onChange={(event) => setDraftComment(event.target.value)}
+              placeholder={
+                canComment
+                  ? 'Write a short field update or recommendation.'
+                  : 'Viewer access can read comments but cannot post new ones.'
+              }
+              rows={4}
+              style={textareaStyle}
+              disabled={!canComment || !fieldId || saving}
+            />
 
-                  <button
-                    type="submit"
-                    className="primary-btn"
-                    disabled={!canComment || !fieldId || !draftComment.trim() || saving}
-                    style={submitButtonStyle}
-                  >
-                    <Send size={15} />
-                    {saving ? 'Posting...' : isAgronomist ? 'Save Report Note' : 'Post Comment'}
-                  </button>
-                </div>
-              </form>
-            </>
-          )}
-        </aside>
+            <button
+              type="submit"
+              className="primary-btn"
+              disabled={!canComment || !fieldId || !draftComment.trim() || saving}
+              style={{ justifyContent: 'center' }}
+            >
+              <Send size={15} />
+              {saving ? 'Posting...' : 'Post Comment'}
+            </button>
+          </form>
+        </>
       )}
-    </div>
+    </section>
   );
 }
 
-const dockStyle = {
-  position: 'absolute',
-  top: '24px',
-  right: '24px',
-  zIndex: 900,
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'flex-end',
-  gap: '12px'
-};
-
-const toggleButtonStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '12px',
-  minWidth: '228px',
-  padding: '12px 14px',
-  borderRadius: '18px',
-  border: '1px solid rgba(148, 163, 184, 0.18)',
-  background: 'rgba(15, 23, 42, 0.82)',
-  color: 'var(--text-primary)',
-  boxShadow: '0 14px 32px rgba(2, 6, 23, 0.32)',
-  cursor: 'pointer',
-  backdropFilter: 'blur(22px)'
-};
-
-const toggleButtonIconWrapStyle = {
-  width: '40px',
-  height: '40px',
-  borderRadius: '14px',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: 'rgba(59, 130, 246, 0.16)',
-  color: '#bfdbfe',
-  flexShrink: 0
-};
-
-const toggleButtonCopyStyle = {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'flex-start',
-  gap: '4px',
-  flex: 1,
-  minWidth: 0
-};
-
-const toggleButtonMetaStyle = {
-  color: 'var(--text-secondary)',
-  fontSize: '0.74rem'
-};
-
-const toggleCountStyle = {
-  minWidth: '28px',
-  height: '28px',
-  borderRadius: '999px',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: 'rgba(59, 130, 246, 0.18)',
-  color: '#dbeafe',
-  fontSize: '0.78rem',
-  fontWeight: 700,
-  flexShrink: 0
-};
-
 const panelStyle = {
-  width: 'min(430px, calc(100vw - 72px))',
-  maxHeight: 'calc(100vh - 150px)',
-  padding: '20px',
-  borderRadius: '24px',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '16px',
-  overflowY: 'auto',
-  overflowX: 'hidden'
-};
-
-const panelContentStyle = {
-  display: 'flex',
-  flexDirection: 'column',
+  padding: '18px',
+  borderRadius: '18px',
+  display: 'grid',
   gap: '14px'
 };
 
-const discussionSectionStyle = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '12px'
-};
-
-const commentsViewportStyle = {
-  maxHeight: '260px',
-  overflowY: 'auto',
-  overflowX: 'hidden',
-  paddingRight: '4px'
-};
-
-const commentsListStyle = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '16px'
-};
-
-
 const headerStyle = {
   display: 'flex',
-  alignItems: 'flex-start',
   justifyContent: 'space-between',
-  gap: '16px'
+  gap: '12px',
+  alignItems: 'flex-start'
 };
 
-const headerActionsStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '10px'
+const commentListStyle = {
+  display: 'grid',
+  gap: '10px',
+  maxHeight: '320px',
+  overflowY: 'auto'
 };
-
-const closeButtonStyle = {
-  width: '38px',
-  height: '38px',
-  borderRadius: '12px',
-  border: '1px solid rgba(148, 163, 184, 0.14)',
-  background: 'rgba(148, 163, 184, 0.08)',
-  color: 'var(--text-secondary)',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  cursor: 'pointer'
-};
-
-const noticeStyle = {
-  padding: '12px 14px',
-  borderRadius: '14px',
-  border: '1px solid rgba(148, 163, 184, 0.18)',
-  background: 'rgba(148, 163, 184, 0.08)',
-  color: 'var(--text-secondary)',
-  lineHeight: 1.55
-};
-
-const summaryStripStyle = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '10px'
-};
-
-const summaryPillStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '6px',
-  padding: '8px 10px',
-  borderRadius: '999px',
-  border: '1px solid rgba(148, 163, 184, 0.14)',
-  background: 'rgba(15, 23, 42, 0.28)',
-  color: 'var(--text-secondary)',
-  fontSize: '0.75rem',
-  lineHeight: 1.4
-};
-
-const summaryPillActiveStyle = {
-  ...summaryPillStyle,
-  color: '#bfdbfe',
-  border: '1px solid rgba(59, 130, 246, 0.22)',
-  background: 'rgba(59, 130, 246, 0.12)'
-};
-
-const emptyStyle = {
-  padding: '16px',
-  borderRadius: '16px',
-  border: '1px dashed rgba(148, 163, 184, 0.22)',
-  color: 'var(--text-secondary)',
-  textAlign: 'center',
-  lineHeight: 1.55
-};
-
-const emptyStateCardStyle = {
-  padding: '18px',
-  borderRadius: '18px',
-  border: '1px dashed rgba(148, 163, 184, 0.22)',
-  background: 'rgba(15, 23, 42, 0.18)',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px'
-};
-
-const emptyStateTitleStyle = {
-  fontSize: '0.92rem'
-};
-
-const emptyStateCopyStyle = {
-  color: 'var(--text-secondary)',
-  fontSize: '0.84rem',
-  lineHeight: 1.6
-};
-
-
-const discussionHeaderStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '12px'
-};
-
-const discussionTitleStyle = {
-  margin: 0,
-  fontSize: '0.98rem'
-};
-
-const discussionCopyStyle = {
-  marginTop: '6px',
-  color: 'var(--text-secondary)',
-  fontSize: '0.78rem',
-  lineHeight: 1.55
-};
-
-const discussionStatusStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '6px',
-  padding: '8px 10px',
-  borderRadius: '999px',
-  background: 'rgba(148, 163, 184, 0.08)',
-  border: '1px solid rgba(148, 163, 184, 0.14)',
-  color: 'var(--text-secondary)',
-  fontSize: '0.74rem',
-  whiteSpace: 'nowrap'
-};
-
-
-const commentGroupStyle = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '10px'
-};
-
-const commentGroupLabelStyle = {
-  color: '#bfdbfe',
-  fontSize: '0.72rem',
-  fontWeight: 700,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase'
-};
-
-const commentGroupItemsStyle = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '10px'
-};
-
 
 const commentCardStyle = {
-  width: '100%',
-  padding: '14px',
-  borderRadius: '18px',
-  border: '1px solid rgba(96, 165, 250, 0.28)',
-  background: 'rgba(15, 23, 42, 0.72)',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '10px',
-  boxSizing: 'border-box'
+  padding: '12px',
+  borderRadius: '14px',
+  border: '1px solid var(--border-color)',
+  background: 'rgba(255,255,255,0.02)'
 };
 
-const commentTopRowStyle = {
+const commentHeaderStyle = {
   display: 'flex',
   justifyContent: 'space-between',
-  gap: '12px',
-  alignItems: 'flex-start'
-};
-
-const commentIdentityStyle = {
-  display: 'flex',
-  alignItems: 'flex-start',
   gap: '10px',
-  minWidth: 0
+  marginBottom: '8px'
 };
 
-const avatarStyle = {
-  width: '36px',
-  height: '36px',
-  borderRadius: '12px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: 'rgba(59, 130, 246, 0.16)',
-  border: '1px solid rgba(59, 130, 246, 0.24)',
-  color: '#dbeafe',
-  fontWeight: 700,
-  fontSize: '0.78rem',
-  flexShrink: 0
-};
-
-const commentMetaColumnStyle = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '4px',
-  minWidth: 0
-};
-
-const authorNameStyle = {
-  fontSize: '0.86rem',
-  lineHeight: 1.35
-};
-
-const commentBodyStyle = {
+const commentTextStyle = {
   margin: 0,
   color: 'var(--text-primary)',
-  lineHeight: 1.6,
-  fontSize: '0.88rem',
-  whiteSpace: 'pre-wrap',
-  wordBreak: 'break-word'
+  lineHeight: 1.55,
+  fontSize: '0.9rem'
 };
 
-const markerBadgeStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '6px',
-  padding: '6px 10px',
-  borderRadius: '999px',
-  fontSize: '0.72rem',
-  fontWeight: 600,
-  whiteSpace: 'nowrap',
-  flexShrink: 0
-};
-
-const composerStyle = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '12px',
-  paddingTop: '12px',
-  borderTop: '1px solid rgba(148, 163, 184, 0.12)'
-};
-
-const composerHeaderStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  gap: '12px',
-  alignItems: 'flex-start'
-};
-
-const composerHelperStyle = {
-  marginTop: '6px',
+const metaTextStyle = {
   color: 'var(--text-secondary)',
-  fontSize: '0.76rem',
-  lineHeight: 1.5
+  fontSize: '0.78rem'
 };
 
-const composerBadgeStyle = {
+const metaBadgeStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: '6px',
-  padding: '8px 10px',
+  padding: '5px 8px',
   borderRadius: '999px',
-  background: 'rgba(59, 130, 246, 0.14)',
-  border: '1px solid rgba(59, 130, 246, 0.22)',
-  color: '#bfdbfe',
+  background: 'rgba(148, 163, 184, 0.12)',
+  color: 'var(--text-secondary)',
   fontSize: '0.74rem',
   whiteSpace: 'nowrap'
 };
 
 const readOnlyBadgeStyle = {
-  ...composerBadgeStyle,
-  background: 'rgba(148, 163, 184, 0.08)',
-  border: '1px solid rgba(148, 163, 184, 0.18)',
-  color: 'var(--text-secondary)'
+  ...metaBadgeStyle,
+  color: '#fbbf24'
+};
+
+const composerStyle = {
+  display: 'grid',
+  gap: '10px',
+  borderTop: '1px solid var(--border-color)',
+  paddingTop: '14px'
+};
+
+const composerHeaderStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: '10px',
+  alignItems: 'center'
 };
 
 const textareaStyle = {
   width: '100%',
-  resize: 'vertical',
-  minHeight: '96px',
   padding: '12px',
-  borderRadius: '14px',
-  background: 'rgba(15, 23, 42, 0.45)',
+  borderRadius: '12px',
+  background: 'rgba(15, 23, 42, 0.42)',
   border: '1px solid var(--border-color)',
   color: 'var(--text-primary)',
-  outline: 'none',
-  lineHeight: 1.6
-};
-
-const composerFooterStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  gap: '12px',
-  alignItems: 'center'
-};
-
-const metaTextStyle = {
-  color: 'var(--text-secondary)',
-  fontSize: '0.74rem'
-};
-
-const submitButtonStyle = {
-  padding: '10px 14px',
-  minWidth: '142px'
+  resize: 'vertical',
+  outline: 'none'
 };
