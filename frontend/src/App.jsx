@@ -753,12 +753,6 @@ function App() {
     ? getAccessiblePage(activePage, sessionUser)
     : activePage;
 
-  useEffect(() => {
-    if (isSessionReady && activePage !== effectiveActivePage) {
-      setActivePage(effectiveActivePage);
-    }
-  }, [activePage, effectiveActivePage, isSessionReady]);
-
   const currentFieldId = getCurrentFieldId({ geoJsonUploadResponse });
 
   const currentWorkspaceFieldKey = buildWorkspaceFieldKey({
