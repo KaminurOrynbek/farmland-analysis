@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { fetchAllFields, fetchAnalysisHistory } from '../api/client';
 import { getFieldPermissions } from '../permissions/permissions';
-import FieldCommentsPanel from '../components/workspace/FieldCommentsPanel';
 import MapView from '../components/workspace/FieldMap';
 import WorkspaceSidebar from '../components/workspace/FieldControlPanel';
+import WorkspaceGuide from '../components/workspace/WorkspaceGuide';
 import WorkspaceSelectionCard from '../components/workspace/WorkspaceSelectionCard';
 import {
   buildFieldWorkspaceSummaries,
@@ -78,6 +78,8 @@ export default function WorkspacePage({
   analysisStarted,
   latestAnalysisAt,
   onOpenReport,
+  isGuidedTourOpen,
+  onCloseGuidedTour
 }) {
   const [fields, setFields] = useState([]);
   const [history, setHistory] = useState([]);
@@ -183,31 +185,35 @@ export default function WorkspacePage({
       ) : null}
 
       <div className="workspace-layout-grid">
-        <WorkspaceSidebar
-          user={user}
-          workspaceNotice=""
-          selectedField={selectedField}
-          isFetchingSatelliteData={isFetchingSatelliteData}
-          isAnalyzing={isAnalyzing}
-          onFetchSatelliteData={onFetchSatelliteData}
-          satelliteFetchResult={satelliteFetchResult}
-          satelliteFetchError={satelliteFetchError}
-          geoJsonData={geoJsonData}
-          setGeoJsonData={setGeoJsonData}
-          geoJsonMeta={geoJsonMeta}
-          setGeoJsonMeta={setGeoJsonMeta}
-          geoJsonUploadResponse={geoJsonUploadResponse}
-          setGeoJsonUploadResponse={setGeoJsonUploadResponse}
-          geoJsonUploadError={geoJsonUploadError}
-          setGeoJsonUploadError={setGeoJsonUploadError}
-          fieldName={fieldName}
-          setFieldName={setFieldName}
-          fieldLayerVisible={fieldLayerVisible}
-          setFieldLayerVisible={setFieldLayerVisible}
-          setSelectedField={setSelectedField}
-          onSaveField={onSaveField}
-          isSavingField={isSavingField}
-        />
+        <div className="workspace-sidebar-column">
+          <WorkspaceSidebar
+            user={user}
+            selectedField={selectedField}
+            isFetchingSatelliteData={isFetchingSatelliteData}
+            isAnalyzing={isAnalyzing}
+            onFetchSatelliteData={onFetchSatelliteData}
+            satelliteFetchResult={satelliteFetchResult}
+            satelliteFetchError={satelliteFetchError}
+            geoJsonData={geoJsonData}
+            setGeoJsonData={setGeoJsonData}
+            geoJsonMeta={geoJsonMeta}
+            setGeoJsonMeta={setGeoJsonMeta}
+            geoJsonUploadResponse={geoJsonUploadResponse}
+            setGeoJsonUploadResponse={setGeoJsonUploadResponse}
+            geoJsonUploadError={geoJsonUploadError}
+            setGeoJsonUploadError={setGeoJsonUploadError}
+            fieldName={fieldName}
+            setFieldName={setFieldName}
+            fieldLayerVisible={fieldLayerVisible}
+            setFieldLayerVisible={setFieldLayerVisible}
+            setSelectedField={setSelectedField}
+            onSaveField={onSaveField}
+            isSavingField={isSavingField}
+            onRunAnalysis={onRunAnalysis}
+            canRunAnalysis={!runAnalysisReason}
+            runAnalysisReason={runAnalysisReason}
+          />
+        </div>
 
         <div className="workspace-stage-column">
           {isAnalyzing ? (
@@ -229,7 +235,7 @@ export default function WorkspacePage({
             </div>
           ) : null}
 
-          <main className="map-container workspace-map-stage" style={mapPanelStyle}>
+          <main className="map-container workspace-map-stage" style={mapPanelStyle} tabIndex={-1}>
             <MapView
               user={user}
               backendHealthy={backendHealthy}
@@ -244,30 +250,30 @@ export default function WorkspacePage({
               fieldRiskLevel={fieldRiskLevel}
               fieldName={currentFieldRecord?.name || getFieldSelectionName(selectedField)}
               hasStoredAnalysis={Boolean(currentFieldAnalyses.length || analysisStarted)}
+              showInfoCard={false}
+            />
+
+            <WorkspaceSelectionCard
+              user={user}
+              fieldId={currentFieldId}
+              selectedField={selectedField}
+              hasGeometry={Boolean(geoJsonData)}
+              fieldRecord={currentFieldRecord}
+              riskLevel={fieldRiskLevel}
+              latestAnalysisAt={latestAnalysisAt || selectedFieldSummary?.latestAnalysisAt || null}
+              analysisHistory={currentFieldAnalyses}
+              canViewReport={canViewReport}
+              onOpenReport={onOpenReport}
             />
           </main>
         </div>
-
-        <div className="workspace-support-column">
-          <WorkspaceSelectionCard
-            fieldRecord={currentFieldRecord}
-            riskLevel={fieldRiskLevel}
-            latestAnalysisAt={latestAnalysisAt || selectedFieldSummary?.latestAnalysisAt || null}
-            canRunAnalysis={!runAnalysisReason}
-            runAnalysisReason={runAnalysisReason}
-            canViewReport={canViewReport}
-            onRunAnalysis={onRunAnalysis}
-            onOpenReport={onOpenReport}
-          />
-
-          <FieldCommentsPanel
-            user={user}
-            fieldId={currentFieldId}
-            selectedField={selectedField}
-            hasGeometry={Boolean(geoJsonData)}
-          />
-        </div>
       </div>
+
+      <WorkspaceGuide
+        activePage="Workspace"
+        isOpen={Boolean(isGuidedTourOpen)}
+        onClose={onCloseGuidedTour}
+      />
 
       {isDrawFieldNamingOpen && (
         <DrawnFieldNameModal

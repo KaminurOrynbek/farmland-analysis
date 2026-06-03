@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import {
   Image as ImageIcon,
+  Pencil,
   Upload,
   X
 } from 'lucide-react';
@@ -65,7 +66,6 @@ function SidebarSection({ title, children, guideId = null }) {
 
 export default function WorkspaceSidebar({
   user,
-  workspaceNotice,
   selectedField,
   isFetchingSatelliteData,
   isAnalyzing,
@@ -86,7 +86,10 @@ export default function WorkspaceSidebar({
   setFieldLayerVisible,
   setSelectedField,
   onSaveField,
-  isSavingField
+  isSavingField,
+  onRunAnalysis,
+  canRunAnalysis,
+  runAnalysisReason
 }) {
   const geoJsonInputRef = useRef(null);
   const permissions = getFieldPermissions(selectedField?.properties || selectedField, user);
@@ -155,14 +158,13 @@ export default function WorkspaceSidebar({
     await onSaveField?.(fieldName);
   };
 
+  const handleFocusMapDrawing = () => {
+    const mapStage = document.querySelector('.workspace-map-stage');
+    mapStage?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
   return (
     <aside className="workspace-sidebar-panel workspace-control-panel glass-panel" data-guide="workspace-sidebar">
-      {workspaceNotice ? (
-        <div className="workspace-notice-banner">
-          {workspaceNotice}
-        </div>
-      ) : null}
-
       <input
         type="file"
         accept=".geojson,.json"
@@ -171,27 +173,57 @@ export default function WorkspaceSidebar({
         style={{ display: 'none' }}
       />
 
-      <SidebarSection title="GeoJSON" guideId="field-upload-section">
-        <button
-          type="button"
-          className="secondary-btn"
-          onClick={() => geoJsonInputRef.current?.click()}
-          data-guide="upload-geojson"
-          disabled={!canCreateField}
-        >
-          <Upload size={16} />
-          Upload GeoJSON
-        </button>
+      <SidebarSection title="Field Boundary" guideId="field-upload-section">
+        <p className="workspace-helper-text" style={{ margin: 0 }}>
+          Upload a boundary file or draw one directly on the map.
+        </p>
+
+        <div className="workspace-boundary-methods">
+          <button
+            type="button"
+            className="workspace-boundary-method"
+            onClick={() => geoJsonInputRef.current?.click()}
+            data-guide="upload-geojson"
+            disabled={!canCreateField}
+          >
+            <span className="workspace-boundary-method-icon">
+              <Upload size={16} />
+            </span>
+            <span>
+              <strong>Upload GeoJSON</strong>
+              <small>Use an existing .geojson or .json field boundary.</small>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className="workspace-boundary-method"
+            onClick={handleFocusMapDrawing}
+            disabled={!canCreateField || isAnalyzing}
+            data-guide="draw-on-map"
+          >
+            <span className="workspace-boundary-method-icon">
+              <Pencil size={16} />
+            </span>
+            <span>
+              <strong>Draw on map</strong>
+              <small>Use the map tools to sketch a new field.</small>
+            </span>
+          </button>
+        </div>
 
         {geoJsonData ? (
-          <div className="workspace-note-card">
-            <div className="workspace-inline-title">
+          <div className="workspace-boundary-current">
+            <div>
               <strong>{geoJsonMeta?.name || 'Current boundary'}</strong>
-              <button type="button" onClick={handleRemoveGeoJson} className="workspace-icon-btn">
-                <X size={14} />
-              </button>
+              <p className="workspace-helper-text">
+                {hasSavedField ? 'Saved field' : 'Ready to save'}
+              </p>
             </div>
-            <p className="workspace-helper-text">{hasSavedField ? 'Saved field' : 'Ready to save'}</p>
+
+            <button type="button" onClick={handleRemoveGeoJson} className="workspace-icon-btn">
+              <X size={14} />
+            </button>
           </div>
         ) : null}
 
@@ -262,6 +294,25 @@ export default function WorkspaceSidebar({
         {satelliteFetchError ? (
           <p className="workspace-helper-text" style={{ margin: 0 }}>
             Satellite metadata is unavailable right now.
+          </p>
+        ) : null}
+      </SidebarSection>
+
+      <SidebarSection title="Run analysis" guideId="run-analysis-section">
+        <button
+          type="button"
+          className="primary-btn"
+          onClick={() => onRunAnalysis?.()}
+          disabled={!canRunAnalysis}
+          title={runAnalysisReason || undefined}
+          data-guide="run-analysis"
+        >
+          {isAnalyzing ? 'Analyzing...' : 'Run analysis'}
+        </button>
+
+        {runAnalysisReason ? (
+          <p className="workspace-helper-text" style={{ margin: 0 }}>
+            {runAnalysisReason}
           </p>
         ) : null}
       </SidebarSection>

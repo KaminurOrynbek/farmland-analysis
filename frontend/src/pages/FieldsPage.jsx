@@ -344,7 +344,7 @@ function FieldRow({ item, onOpenWorkspace, onViewResult }) {
   );
 }
 
-export default function ProjectsPage({
+export default function FieldsPage({
   user,
   backendHealthy,
   onNavigate,
@@ -495,7 +495,7 @@ export default function ProjectsPage({
     }
 
     onOpenField(item.field, null, { navigate: false });
-    onNavigate('Analysis Report');
+    onNavigate('Analysis Results');
   };
 
   const hasAnyFields = fieldItems.length > 0;

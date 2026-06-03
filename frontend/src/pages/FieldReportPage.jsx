@@ -255,8 +255,8 @@ export default function AnalysisDetailsPage({
             onClick: () => onNavigate('Workspace')
           }}
           secondaryAction={{
-            label: 'Open Projects',
-            onClick: () => onNavigate('Projects')
+            label: 'Open Fields',
+            onClick: () => onNavigate('Fields')
           }}
         />
       </div>

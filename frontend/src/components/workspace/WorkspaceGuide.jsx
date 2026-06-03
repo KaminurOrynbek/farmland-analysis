@@ -3,38 +3,54 @@ import React, { useEffect, useMemo, useState } from 'react';
 const steps = [
   {
     title: 'Step 1 — Upload GeoJSON',
-    text: 'Use this exact button to upload your field boundary file.',
+    text: 'Option 1 is to upload an existing field boundary file from your device.',
     selectors: ['[data-guide="upload-geojson"]', '[data-guide="field-upload-section"]'],
     placement: 'right',
     button: 'OK, next'
   },
   {
-    title: 'Step 2 — Name and save field',
+    title: 'Step 2 — Draw on the map',
+    text: 'Option 2 is to use the drawing tools on the map to sketch a new field boundary.',
+    selectors: ['.leaflet-pm-toolbar[data-guide="draw-on-map"]', '[data-guide="draw-on-map"]'],
+    placement: 'right',
+    button: 'OK, next'
+  },
+  {
+    title: 'Step 3 — Name and save field',
     text: 'Enter a field name here, then save the field before analysis.',
     selectors: ['[data-guide="field-name"]', '[data-guide="save-field"]', '[data-guide="field-save-section"]'],
     placement: 'right',
     button: 'OK, next'
   },
   {
-    title: 'Step 3 — Fetch satellite data',
+    title: 'Step 4 — Fetch satellite data',
     text: 'After the field boundary is ready, fetch satellite metadata for the current field.',
     selectors: ['[data-guide="fetch-satellite"]', '[data-guide="fetch-data-section"]'],
     placement: 'right',
     button: 'OK, next'
   },
   {
-    title: 'Step 4 — Run analysis',
-    text: 'Run the analysis after the field is saved and satellite data is ready.',
-    selectors: ['[data-guide="run-analysis-card"]'],
-    placement: 'left',
+    title: 'Step 5 — Run analysis',
+    text: 'Run the analysis after the field is saved and the satellite data step is complete.',
+    selectors: ['[data-guide="run-analysis"]', '[data-guide="run-analysis-section"]'],
+    placement: 'right',
     button: 'OK, next'
   },
   {
-    title: 'Step 5 — Open report',
-    text: 'After the analysis is ready, open the full report to review map, summary, NDVI, and EVI.',
-    selectors: ['[data-guide="open-report-card"]'],
+    title: 'Step 6 — Field comments',
+    text: 'Use the Comments tab to review team notes for saved fields. Owners, editors, and admins can post updates.',
+    selectors: ['[data-guide="field-comments"]', '.workspace-selection-tab.active'],
     placement: 'left',
-    button: 'Finish guide'
+    button: 'OK, next',
+    targetTab: 'comments'
+  },
+  {
+    title: 'Step 7 — Open report',
+    text: 'Return to Overview and open the report after analysis is ready.',
+    selectors: ['[data-guide="open-report"]'],
+    placement: 'left',
+    button: 'Finish guide',
+    targetTab: 'overview'
   }
 ];
 
@@ -159,8 +175,20 @@ export default function GuidedTour({ activePage, isOpen, onClose }) {
   };
 
   const nextStep = () => {
-    if (stepIndex < steps.length - 1) {
-      setStepIndex((current) => current + 1);
+    const nextIndex = stepIndex + 1;
+
+    if (nextIndex < steps.length) {
+      const nextStepConfig = steps[nextIndex];
+
+      if (nextStepConfig?.targetTab) {
+        window.dispatchEvent(
+          new CustomEvent('workspace-guide-target', {
+            detail: { targetTab: nextStepConfig.targetTab }
+          })
+        );
+      }
+
+      setStepIndex(nextIndex);
     } else {
       closeGuide();
     }
@@ -171,7 +199,7 @@ export default function GuidedTour({ activePage, isOpen, onClose }) {
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 3000,
+        zIndex: 6000,
         pointerEvents: 'none',
         background: 'rgba(2, 6, 23, 0.24)'
       }}

@@ -30,6 +30,7 @@ function NavButton({ item, activePage, onNavigate, onLogout, isLogout = false })
 
   return (
     <button
+      type="button"
       onClick={isLogout ? onLogout : () => onNavigate(item.id)}
       style={{
         display: 'flex',
@@ -38,11 +39,7 @@ function NavButton({ item, activePage, onNavigate, onLogout, isLogout = false })
         padding: '9px 12px',
         width: '100%',
         background: isActive ? 'var(--accent-color)' : 'transparent',
-        color: isActive
-          ? '#fff'
-          : isLogout
-            ? '#fca5a5'
-            : 'var(--text-secondary)',
+        color: isActive ? '#fff' : isLogout ? '#fca5a5' : 'var(--text-secondary)',
         border: 'none',
         borderRadius: '10px',
         cursor: 'pointer',
@@ -69,9 +66,9 @@ export default function AppSidebar({ activePage, onNavigate, onLogout, user }) {
     }
 
     items.push(
-      { id: 'My Farm', label: 'Fields', icon: <FolderOpen size={16} /> },
+      { id: 'Fields', label: 'Fields', icon: <FolderOpen size={16} /> },
       { id: 'Workspace', label: 'Workspace', icon: <MapIcon size={16} /> },
-      { id: 'Analysis Report', label: 'Analysis results', icon: <LineChart size={16} /> },
+      { id: 'Analysis Results', label: 'Analysis Results', icon: <LineChart size={16} /> },
       { id: 'Field Sharing', label: 'Field Sharing', icon: <Users size={16} /> }
     );
 
@@ -102,7 +99,7 @@ export default function AppSidebar({ activePage, onNavigate, onLogout, user }) {
           gap: '9px',
           cursor: 'pointer'
         }}
-        onClick={() => onNavigate(isAdmin ? 'Dashboard' : 'My Farm')}
+        onClick={() => onNavigate(isAdmin ? 'Dashboard' : 'Fields')}
       >
         <AgroVisionLogo size={32} showText />
       </div>

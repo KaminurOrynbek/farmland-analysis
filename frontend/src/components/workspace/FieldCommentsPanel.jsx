@@ -36,7 +36,8 @@ export default function FieldCommentsPanel({
   user,
   fieldId,
   selectedField,
-  hasGeometry
+  hasGeometry,
+  variant = 'panel'
 }) {
   const [comments, setComments] = useState([]);
   const [draftComment, setDraftComment] = useState('');
@@ -119,12 +120,123 @@ export default function FieldCommentsPanel({
     }
   };
 
-  if (!hasGeometry && !fieldId) {
+  const isEmbedded = variant === 'embedded';
+
+  if (!isEmbedded && !hasGeometry && !fieldId) {
     return null;
   }
 
+  const commentsBody = !fieldId ? (
+    <div className="workspace-note-card">
+      Save or select a field to view comments.
+    </div>
+  ) : (
+    <div className="workspace-comments-body">
+      {error ? (
+        <div className="workspace-note-card" style={{ color: 'var(--status-warning)' }}>
+          {error}
+        </div>
+      ) : null}
+
+      <div className="workspace-comments-list" style={commentListStyle}>
+        {loading ? (
+          <div className="empty-state compact">Loading comments...</div>
+        ) : sortedComments.length === 0 ? (
+          <div className="workspace-note-card">
+            No comments yet. Use this area for short field observations and recommendations.
+          </div>
+        ) : (
+          sortedComments.map((comment) => (
+            <article
+              key={comment.id || `${comment.created_at}-${comment.author_id}`}
+              style={commentCardStyle}
+            >
+              <div style={commentHeaderStyle}>
+                <div>
+                  <strong style={{ display: 'block', marginBottom: '4px' }}>
+                    {getCommentAuthor(comment)}
+                  </strong>
+                  <span style={metaTextStyle}>{formatDateTime(comment.created_at)}</span>
+                </div>
+
+                <span style={metaBadgeStyle}>
+                  <MapPinned size={12} />
+                  {getMarkersCount(comment)}
+                </span>
+              </div>
+
+              <p style={commentTextStyle}>{getCommentText(comment)}</p>
+            </article>
+          ))
+        )}
+      </div>
+
+      <form className="workspace-comments-composer" onSubmit={handleSubmit} style={composerStyle}>
+        <div style={composerHeaderStyle}>
+          <strong>{canComment ? 'Add comment' : 'Comments are read only'}</strong>
+          <span style={canComment ? metaBadgeStyle : readOnlyBadgeStyle}>
+            {canComment ? (
+              <>
+                <MessageSquare size={12} />
+                Can comment
+              </>
+            ) : (
+              <>
+                <Lock size={12} />
+                Read only
+              </>
+            )}
+          </span>
+        </div>
+
+        <textarea
+          value={draftComment}
+          onChange={(event) => setDraftComment(event.target.value)}
+          placeholder={
+            canComment
+              ? 'Write a short field update or recommendation.'
+              : 'Viewer access can read comments but cannot post new ones.'
+          }
+          rows={4}
+          style={textareaStyle}
+          disabled={!canComment || !fieldId || saving}
+        />
+
+        <button
+          type="submit"
+          className="primary-btn"
+          disabled={!canComment || !fieldId || !draftComment.trim() || saving}
+          style={{ justifyContent: 'center' }}
+        >
+          <Send size={15} />
+          {saving ? 'Posting...' : 'Post Comment'}
+        </button>
+      </form>
+    </div>
+  );
+
+  if (isEmbedded) {
+    return (
+      <div className="workspace-comments-embedded" data-guide="field-comments">
+        <div style={embeddedHeaderStyle}>
+          <div>
+            <strong style={{ display: 'block', marginBottom: '4px' }}>Field comments</strong>
+            <span style={metaTextStyle}>{fieldId ? fieldName : 'Saved fields only'}</span>
+          </div>
+
+          <span className="status-pill neutral">
+            <MessageSquare size={14} />
+            {sortedComments.length}
+          </span>
+        </div>
+
+        {commentsBody}
+      </div>
+    );
+  }
+
   return (
-    <section className="glass-panel workspace-comments-panel" style={panelStyle}>
+    <section className="glass-panel workspace-comments-panel" style={panelStyle} data-guide="field-comments">
       <div style={headerStyle}>
         <div>
           <div className="page-kicker" style={{ marginBottom: '8px' }}>Field comments</div>
@@ -137,94 +249,7 @@ export default function FieldCommentsPanel({
         </span>
       </div>
 
-      {!fieldId ? (
-        <div className="workspace-note-card">
-          Save this field first to load and post comments for the team.
-        </div>
-      ) : (
-        <div className="workspace-comments-body">
-          {error ? (
-            <div className="workspace-note-card" style={{ color: 'var(--status-warning)' }}>
-              {error}
-            </div>
-          ) : null}
-
-          <div className="workspace-comments-list" style={commentListStyle}>
-            {loading ? (
-              <div className="empty-state compact">Loading comments...</div>
-            ) : sortedComments.length === 0 ? (
-              <div className="workspace-note-card">
-                No comments yet. Use this area for short field observations and recommendations.
-              </div>
-            ) : (
-              sortedComments.map((comment) => (
-                <article
-                  key={comment.id || `${comment.created_at}-${comment.author_id}`}
-                  style={commentCardStyle}
-                >
-                  <div style={commentHeaderStyle}>
-                    <div>
-                      <strong style={{ display: 'block', marginBottom: '4px' }}>
-                        {getCommentAuthor(comment)}
-                      </strong>
-                      <span style={metaTextStyle}>{formatDateTime(comment.created_at)}</span>
-                    </div>
-
-                    <span style={metaBadgeStyle}>
-                      <MapPinned size={12} />
-                      {getMarkersCount(comment)}
-                    </span>
-                  </div>
-
-                  <p style={commentTextStyle}>{getCommentText(comment)}</p>
-                </article>
-              ))
-            )}
-          </div>
-
-          <form className="workspace-comments-composer" onSubmit={handleSubmit} style={composerStyle}>
-            <div style={composerHeaderStyle}>
-              <strong>{canComment ? 'Add comment' : 'Comments are read only'}</strong>
-              <span style={canComment ? metaBadgeStyle : readOnlyBadgeStyle}>
-                {canComment ? (
-                  <>
-                    <MessageSquare size={12} />
-                    Can comment
-                  </>
-                ) : (
-                  <>
-                    <Lock size={12} />
-                    Read only
-                  </>
-                )}
-              </span>
-            </div>
-
-            <textarea
-              value={draftComment}
-              onChange={(event) => setDraftComment(event.target.value)}
-              placeholder={
-                canComment
-                  ? 'Write a short field update or recommendation.'
-                  : 'Viewer access can read comments but cannot post new ones.'
-              }
-              rows={4}
-              style={textareaStyle}
-              disabled={!canComment || !fieldId || saving}
-            />
-
-            <button
-              type="submit"
-              className="primary-btn"
-              disabled={!canComment || !fieldId || !draftComment.trim() || saving}
-              style={{ justifyContent: 'center' }}
-            >
-              <Send size={15} />
-              {saving ? 'Posting...' : 'Post Comment'}
-            </button>
-          </form>
-        </div>
-      )}
+      {commentsBody}
     </section>
   );
 }
@@ -241,6 +266,11 @@ const headerStyle = {
   justifyContent: 'space-between',
   gap: '12px',
   alignItems: 'flex-start'
+};
+
+const embeddedHeaderStyle = {
+  ...headerStyle,
+  marginBottom: '12px'
 };
 
 const commentListStyle = {

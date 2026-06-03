@@ -13,10 +13,11 @@ const getInitials = (name = 'AgroVision User') => (
     .join('') || 'AG'
 );
 
-export default function Navbar({ activePage, onNavigate, user }) {
+export default function Navbar({ activePage, onNavigate, onOpenGuidedTour, user }) {
   const displayName = getDisplayName(user);
   const initials = getInitials(displayName);
-  const pageLabel = activePage === 'My Farm' ? 'Fields' : activePage;
+  const pageLabel = activePage;
+  const canOpenGuide = activePage === 'Workspace' && typeof onOpenGuidedTour === 'function';
 
   return (
     <nav
@@ -36,30 +37,43 @@ export default function Navbar({ activePage, onNavigate, user }) {
         </strong>
       </div>
 
-      <button
-        className="app-user-chip"
-        onClick={() => onNavigate('Settings')}
-        style={{
-          cursor: 'pointer',
-          background: 'transparent',
-          border: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          padding: '6px 8px'
-        }}
-      >
-        <div className="app-user-avatar">{initials}</div>
+      <div className="app-navbar-right" style={{ alignItems: 'center' }}>
+        {canOpenGuide ? (
+          <button
+            type="button"
+            className="secondary-btn app-guide-btn"
+            onClick={onOpenGuidedTour}
+          >
+            Workflow guide
+          </button>
+        ) : null}
 
-        <div className="app-user-meta" style={{ textAlign: 'left' }}>
-          <strong style={{ color: 'var(--text-primary)', fontSize: '0.82rem' }}>
-            {displayName}
-          </strong>
-          <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem' }}>
-            {user?.role || 'FARMER'}
-          </span>
-        </div>
-      </button>
+        <button
+          type="button"
+          className="app-user-chip"
+          onClick={() => onNavigate('Settings')}
+          style={{
+            cursor: 'pointer',
+            background: 'transparent',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '6px 8px'
+          }}
+        >
+          <div className="app-user-avatar">{initials}</div>
+
+          <div className="app-user-meta" style={{ textAlign: 'left' }}>
+            <strong style={{ color: 'var(--text-primary)', fontSize: '0.82rem' }}>
+              {displayName}
+            </strong>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem' }}>
+              {user?.role || 'FARMER'}
+            </span>
+          </div>
+        </button>
+      </div>
     </nav>
   );
 }

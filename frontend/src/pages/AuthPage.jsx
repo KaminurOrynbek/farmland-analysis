@@ -265,7 +265,7 @@ export default function AuthPage({ onBack, onLogin, onRegistered }) {
               </div>
 
               <div className="auth-info-item">
-                <span className="auth-info-kicker">AI Reports</span>
+                <span className="auth-info-kicker">Reports</span>
                 <p>Review field health, crop classification, stress zones, and risk interpretation.</p>
               </div>
             </div>

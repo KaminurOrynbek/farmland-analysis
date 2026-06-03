@@ -308,7 +308,7 @@ export default function HomePage({
       title: 'Review fields',
       text: 'Open the fields workspace to inspect what has been created and analyzed across the platform.',
       icon: <Database size={18} color="var(--status-healthy)" />,
-      onClick: () => onNavigate('Projects')
+      onClick: () => onNavigate('Fields')
     },
     {
       title: 'Review audit logs',
@@ -353,7 +353,7 @@ export default function HomePage({
             <button
               type="button"
               className="secondary-btn"
-              onClick={() => onNavigate('Projects')}
+              onClick={() => onNavigate('Fields')}
             >
               Review fields
             </button>
@@ -510,7 +510,7 @@ export default function HomePage({
           <div className="section-card-header">
             <div>
               <div className="section-kicker">Attention Queue</div>
-              <h2>Projects that need attention</h2>
+              <h2>Fields that need attention</h2>
             </div>
           </div>
 

@@ -75,6 +75,15 @@ function GeomanDrawControl({ onDrawn }) {
       removalMode: true
     });
 
+    const markGuideToolbar = () => {
+      const toolbar = map.getContainer().querySelector('.leaflet-pm-toolbar');
+      if (toolbar) {
+        toolbar.setAttribute('data-guide', 'draw-on-map');
+      }
+    };
+
+    window.setTimeout(markGuideToolbar, 0);
+
     const handleCreate = (event) => {
       if (event.shape === 'Polygon' || event.shape === 'Rectangle') {
         const geojson = event.layer.toGeoJSON();

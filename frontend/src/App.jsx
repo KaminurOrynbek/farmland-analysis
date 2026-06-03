@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Navbar from './components/layout/AppHeader';
-import ProjectsPage from './pages/ProjectsOverviewPage';
+import FieldsPage from './pages/FieldsPage.jsx';
 import LandingPage from './pages/LandingPage';
 import AnalysisDetailsPage from './pages/FieldReportPage.jsx';
 import AuthPage from './pages/AuthPage';
@@ -211,32 +211,21 @@ const buildWorkspaceFieldKey = ({
 const WORKSPACE_GUIDE_PENDING_KEY = 'workspaceGuidePendingAfterRegistration';
 const isAdminUser = (user) => user?.role === 'ADMIN';
 
-const normalizePageId = (page) => {
-  if (page === 'Home') return 'Dashboard';
-  if (page === 'Projects') return 'My Farm';
-  if (page === 'Reports') return 'Analysis Report';
-  if (page === 'Team / Access' || page === 'Field Access') return 'Field Sharing';
-  if (page === 'Profile') return 'Settings';
-  if (page === 'Admin') return 'Admin Panel';
-  return page;
-};
 
 const getDefaultPrivatePage = (user) => (
-  isAdminUser(user) ? 'Dashboard' : 'My Farm'
+  isAdminUser(user) ? 'Dashboard' : 'Fields'
 );
 
 const getAccessiblePage = (page, user) => {
-  const normalizedPage = normalizePageId(page);
-
-  if (normalizedPage === 'Dashboard' && !isAdminUser(user)) {
-    return 'My Farm';
+  if (page === 'Dashboard' && !isAdminUser(user)) {
+    return 'Fields';
   }
 
-  if (normalizedPage === 'Admin Panel' && !isAdminUser(user)) {
+  if (page === 'Admin Panel' && !isAdminUser(user)) {
     return getDefaultPrivatePage(user);
   }
 
-  return normalizedPage;
+  return page;
 };
 
 function App() {
@@ -341,13 +330,11 @@ function App() {
   };
 
   const handleNavigate = (page) => {
-    const normalizedPage = normalizePageId(page);
-
-    if (normalizedPage === 'Admin Panel' && !isAdminUser(sessionUser)) {
+    if (page === 'Admin Panel' && !isAdminUser(sessionUser)) {
       return;
     }
 
-    const nextPage = getAccessiblePage(normalizedPage, sessionUser);
+    const nextPage = getAccessiblePage(page, sessionUser);
 
     if (nextPage !== 'Workspace') {
       setIsGuidedTourOpen(false);
@@ -677,7 +664,7 @@ function App() {
       setFieldNameDraft('');
     }
 
-    handleNavigate('Analysis Report');
+    handleNavigate('Analysis Results');
   };
 
   const handleRunNewAnalysisFromReport = async () => {
@@ -846,12 +833,12 @@ function App() {
             onChangeSeason={setSelectedSeason}
             onOpenField={handleOpenField}
             onOpenAnalysis={handleOpenAnalysis}
-            onOpenReport={() => handleNavigate('Analysis Report')}
+            onOpenReport={() => handleNavigate('Analysis Results')}
             isGuidedTourOpen={isGuidedTourOpen}
             onCloseGuidedTour={handleCloseGuidedTour}
           />
         );
-      case 'Analysis Report':
+      case 'Analysis Results':
         return (
           <AnalysisDetailsPage
             user={sessionUser}
@@ -871,9 +858,9 @@ function App() {
             refreshKey={dataRefreshKey}
           />
         );
-      case 'My Farm':
+      case 'Fields':
         return (
-          <ProjectsPage
+          <FieldsPage
             user={sessionUser}
             backendHealthy={backendHealthy}
             selectedSeason={selectedSeason}
@@ -935,7 +922,7 @@ function App() {
             latestAnalysisAt={latestAnalysisAt}
           />
         ) : (
-          <ProjectsPage
+          <FieldsPage
             user={sessionUser}
             backendHealthy={backendHealthy}
             selectedSeason={selectedSeason}

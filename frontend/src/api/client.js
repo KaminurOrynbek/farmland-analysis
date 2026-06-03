@@ -93,7 +93,6 @@ export const updateCurrentUser = async ({ fullName, email }) => {
   return response.data;
 };
 
-
 export const loginUser = async ({ email, password }) => {
   const formData = new URLSearchParams();
   formData.append('username', email);
@@ -156,7 +155,6 @@ export const fetchAnalysisHistory = async () => {
   const response = await api.get('/analysis/history');
   return response.data;
 };
-
 
 export const shareField = async ({ fieldId, email, role }) => {
   const response = await api.post('/geo/fields/share', {
@@ -270,7 +268,6 @@ export const subscribeToAnalysisUpdates = (userId, handlers = {}) => {
     }
   };
 };
-
 
 export const fetchFieldComments = async (fieldId) => {
   const response = await api.get(`/fields/${fieldId}/comments`);
