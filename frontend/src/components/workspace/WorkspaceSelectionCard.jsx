@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { CalendarClock, ChevronDown, Satellite } from 'lucide-react';
-import { formatWorkspaceDate } from '../../utils/fieldAnalysisUtils';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -43,7 +42,6 @@ export default function MonitoringSeasonSelector({
   value,
   onChange,
   options = DEFAULT_OPTIONS,
-  allowCustom = false,
   compact = false
 }) {
   const selectedMode = getSelectedMode(value);
@@ -67,22 +65,6 @@ export default function MonitoringSeasonSelector({
     onChange?.(nextSelection);
   };
 
-  const handleDateChange = (key, nextDate) => {
-    const nextSelection = {
-      ...selection,
-      mode: 'custom',
-      [key]: nextDate
-    };
-
-    const nextYear = nextSelection.startDate
-      ? new Date(nextSelection.startDate).getFullYear()
-      : CURRENT_YEAR;
-
-    onChange?.({
-      ...nextSelection,
-      seasonYear: String(nextYear)
-    });
-  };
 
   if (compact) {
     return (

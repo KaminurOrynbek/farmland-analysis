@@ -88,7 +88,7 @@ export default function MonitoringSeasonSelector({
       <strong className="analysis-period-title">Analysis period</strong>
 
       <label className="analysis-period-field">
-        <span>Period</span>
+        {!compact ? <span>Period</span> : null}
 
         <div className="analysis-period-select-wrap">
           <select
@@ -114,7 +114,7 @@ export default function MonitoringSeasonSelector({
         </div>
       </label>
 
-      {isCustom ? (
+      {isCustom && !compact ? (
         <div className="analysis-period-date-grid">
           <label className="analysis-period-field">
             <span>Start date</span>
