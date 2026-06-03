@@ -2,10 +2,11 @@ import React, { useMemo } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 const CURRENT_YEAR = new Date().getFullYear();
+const PREVIOUS_YEAR = CURRENT_YEAR - 1;
 
 const DEFAULT_OPTIONS = [
-  { value: String(CURRENT_YEAR), label: 'Season current year' },
-  { value: String(CURRENT_YEAR - 1), label: 'Season previous year' }
+  { value: String(CURRENT_YEAR), label: `Current season (${CURRENT_YEAR})` },
+  { value: String(PREVIOUS_YEAR), label: `Previous season (${PREVIOUS_YEAR})` }
 ];
 
 const getSelectedMode = (value) => {
@@ -43,7 +44,9 @@ export default function MonitoringSeasonSelector({
   onChange,
   options = DEFAULT_OPTIONS,
   allowCustom = false,
-  compact = false
+  compact = false,
+  label = 'Period',
+  helperText = null
 }) {
   const selectedMode = getSelectedMode(value);
 
@@ -53,6 +56,11 @@ export default function MonitoringSeasonSelector({
   );
 
   const isCustom = selectedMode === 'custom';
+  const resolvedHelperText = helperText ?? (
+    isCustom
+      ? 'Used to search satellite imagery for the selected dates.'
+      : 'Used to search satellite imagery for the selected season.'
+  );
 
   const handleModeChange = (event) => {
     const nextMode = event.target.value;
@@ -86,7 +94,7 @@ export default function MonitoringSeasonSelector({
   return (
     <section className="analysis-period-card" data-guide="season-date-selection">
       <label className="analysis-period-field">
-        {!compact ? <span>Period</span> : null}
+        {!compact && label ? <span>{label}</span> : null}
 
         <div className="analysis-period-select-wrap">
           <select
@@ -112,12 +120,8 @@ export default function MonitoringSeasonSelector({
         </div>
       </label>
 
-      {!compact ? (
-        <p className="analysis-period-helper">
-          {isCustom
-            ? 'Used to search satellite imagery for the selected dates.'
-            : 'Used to search satellite imagery for this year.'}
-        </p>
+      {!compact && resolvedHelperText ? (
+        <p className="analysis-period-helper">{resolvedHelperText}</p>
       ) : null}
 
       {isCustom && !compact ? (

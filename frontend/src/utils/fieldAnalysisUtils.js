@@ -1,13 +1,21 @@
 import { formatAreaMeasure } from './analysisFormatters';
 
 export const ANALYSIS_LIMITATION_NOTE =
-  'This result is based on satellite indicators and model-assisted land-cover classification. It should support field monitoring, not replace agronomic inspection.';
+  'This result supports field monitoring and does not replace agronomic inspection.';
 
 export const getCurrentSeasonYear = () => String(new Date().getFullYear());
 
+const getPreviousSeasonYear = () => String(Number(getCurrentSeasonYear()) - 1);
+
 export const SEASON_OPTIONS = [
-  { value: '2025', label: 'Season 2025' },
-  { value: '2026', label: 'Season 2026' }
+  {
+    value: getCurrentSeasonYear(),
+    label: `Current season (${getCurrentSeasonYear()})`
+  },
+  {
+    value: getPreviousSeasonYear(),
+    label: `Previous season (${getPreviousSeasonYear()})`
+  }
 ];
 
 const CUSTOM_SEASON_OPTION = {
@@ -66,26 +74,46 @@ export const createSeasonSelection = (
   };
 };
 
-export const buildSeasonOptions = (items = [], includeCustom = false) => {
-  const seasonValues = new Set([
-    '2025',
-    '2026',
-    getCurrentSeasonYear()
-  ]);
+const getSeasonOptionLabel = (seasonYear) => {
+  if (String(seasonYear) === getCurrentSeasonYear()) {
+    return `Current season (${seasonYear})`;
+  }
+
+  if (String(seasonYear) === getPreviousSeasonYear()) {
+    return `Previous season (${seasonYear})`;
+  }
+
+  return `Season ${seasonYear}`;
+};
+
+export const buildSeasonOptions = (items = [], includeCustom = false, selectedSeason = null) => {
+  const orderedSeasons = [getCurrentSeasonYear(), getPreviousSeasonYear()];
+  const seasonValues = new Set(orderedSeasons);
+  const normalizedSelectedSeason = selectedSeason ? String(selectedSeason) : null;
+
+  if (normalizedSelectedSeason && !seasonValues.has(normalizedSelectedSeason)) {
+    orderedSeasons.push(normalizedSelectedSeason);
+    seasonValues.add(normalizedSelectedSeason);
+  }
 
   items.forEach((item) => {
     const nextSeason = getAnalysisYear(item);
-    if (nextSeason) {
-      seasonValues.add(String(nextSeason));
+
+    if (
+      nextSeason &&
+      normalizedSelectedSeason &&
+      String(nextSeason) === normalizedSelectedSeason &&
+      !seasonValues.has(normalizedSelectedSeason)
+    ) {
+      orderedSeasons.push(normalizedSelectedSeason);
+      seasonValues.add(normalizedSelectedSeason);
     }
   });
 
-  const dynamicOptions = Array.from(seasonValues)
-    .sort((left, right) => Number(right) - Number(left))
-    .map((value) => ({
-      value,
-      label: `Season ${value}`
-    }));
+  const dynamicOptions = orderedSeasons.map((value) => ({
+    value,
+    label: getSeasonOptionLabel(value)
+  }));
 
   return includeCustom
     ? [...dynamicOptions, CUSTOM_SEASON_OPTION]
@@ -282,21 +310,21 @@ export const createFieldFallbackRecord = (selectedField, currentFieldId = null) 
 export const getRiskTone = (riskLevel) => {
   if (riskLevel === 'Low') return 'healthy';
   if (riskLevel === 'Medium') return 'warning';
-  if (riskLevel === 'High') return 'critical';
+  if (riskLevel === 'High' || riskLevel === 'Critical') return 'critical';
   return 'neutral';
 };
 
 export const getRiskColor = (riskLevel) => {
   if (riskLevel === 'Low') return 'var(--status-healthy)';
   if (riskLevel === 'Medium') return 'var(--status-warning)';
-  if (riskLevel === 'High') return 'var(--status-critical)';
+  if (riskLevel === 'High' || riskLevel === 'Critical') return 'var(--status-critical)';
   return 'var(--text-secondary)';
 };
 
 export const mapRiskToStatus = (riskLevel) => {
   if (riskLevel === 'Low') return 'Healthy';
   if (riskLevel === 'Medium') return 'Warning';
-  if (riskLevel === 'High') return 'Critical';
+  if (riskLevel === 'High' || riskLevel === 'Critical') return 'Critical';
   return 'Not analyzed';
 };
 
@@ -401,7 +429,7 @@ export const getConditionSummaryDisplay = (analysisSummary) => {
   if (fieldCondition === 'Healthy') {
     return {
       value: fieldCondition,
-      helper: 'Lower screening priority in the current result. Continue routine monitoring.'
+      helper: 'Low inspection priority in the current result. Continue routine monitoring.'
     };
   }
 
@@ -415,7 +443,7 @@ export const getConditionSummaryDisplay = (analysisSummary) => {
   if (fieldCondition === 'Critical') {
     return {
       value: fieldCondition,
-      helper: 'Higher screening priority detected. Field inspection recommended.'
+      helper: 'Higher inspection priority detected. Field inspection is recommended.'
     };
   }
 
@@ -429,7 +457,7 @@ export const getInspectionMessage = (analysisSummary) => {
   const condition = mapRiskToStatus(analysisSummary?.riskLevel);
 
   if (condition === 'Healthy') {
-    return 'Remote-sensing screening result indicates lower current priority. Continue monitoring and inspect if field conditions change.';
+    return 'Remote-sensing result indicates lower current inspection priority. Continue monitoring and inspect if field conditions change.';
   }
 
   if (condition === 'Warning') {
@@ -437,7 +465,7 @@ export const getInspectionMessage = (analysisSummary) => {
   }
 
   if (condition === 'Critical') {
-    return 'Remote-sensing screening result indicates higher screening priority. Field inspection recommended.';
+    return 'Remote-sensing result indicates higher inspection priority. Field inspection is recommended.';
   }
 
   return 'Remote-sensing screening result is not available yet.';

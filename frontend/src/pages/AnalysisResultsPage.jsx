@@ -1,21 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Activity,
-  AlertTriangle,
-  BrainCircuit,
-  CalendarClock,
-  CheckCircle2,
-  FileText,
-  Info,
-  MapPinned,
-  ShieldAlert,
-  Sprout
-} from 'lucide-react';
+import { BrainCircuit, CalendarClock, Info, MapPinned } from 'lucide-react';
 import { fetchAnalysisHistory } from '../api/client';
-import AnalysisHistoryList from '../components/workspace/AnalysisHistoryList';
 import FieldMap from '../components/workspace/FieldMap';
 import NoAnalysisState from '../components/workspace/NoAnalysisState';
-import FieldMetricCard from '../components/workspace/FieldMetricCard';
 import MonitoringSeasonSelector from '../components/workspace/MonitoringSeasonSelector';
 import { APP_PAGES } from '../constants/appPages';
 import { formatAreaMeasure, formatIndex } from '../utils/analysisFormatters';
@@ -26,11 +13,10 @@ import {
   filterAnalysesBySeason,
   formatWorkspaceDate,
   formatWorkspaceDateTime,
+  getCurrentSeasonYear,
   getFieldSelectionId,
   getFieldSelectionName,
-  getRiskTone,
   getVegetationIndexLevelDisplay,
-  getVegetationLevelDisplay,
   normalizeAnalysisRecord,
   sortAnalysesByNewest
 } from '../utils/fieldAnalysisUtils';
@@ -57,153 +43,90 @@ const buildGeoJsonFromSelection = (selectedField, fieldId, fieldName) => {
   };
 };
 
-const getFarmerStatus = (riskLevel) => {
+const hasMeaningfulAnalysis = (analysis) => (
+  Boolean(
+    analysis?.analysisId ||
+    analysis?.predictedClass ||
+    analysis?.riskLevel ||
+    analysis?.ndviValue !== null && analysis?.ndviValue !== undefined ||
+    analysis?.eviValue !== null && analysis?.eviValue !== undefined
+  )
+);
+
+const getInspectionPrioritySummary = ({
+  riskLevel,
+  selectedSeason,
+  fallbackSeason
+}) => {
   if (riskLevel === 'Low') {
     return {
-      value: 'Stable',
       tone: 'healthy',
-      title: 'The field looks stable',
-      action: 'Continue routine monitoring.',
-      helper:
-        'The current satellite indicators do not show a strong reason for urgent inspection.',
-      icon: <CheckCircle2 size={18} />
+      priorityLabel: 'Low inspection priority',
+      headline: 'The field looks stable',
+      reason: 'The latest satellite image shows steady vegetation signals for this field.',
+      badge: 'Continue routine monitoring'
     };
   }
 
   if (riskLevel === 'Medium') {
     return {
-      value: 'Monitor',
       tone: 'warning',
-      title: 'The field needs monitoring',
-      action: 'Check this field when possible.',
-      helper:
-        'The satellite indicators show mixed vegetation signals. This does not confirm crop damage, but it is worth reviewing.',
-      icon: <Info size={18} />
+      priorityLabel: 'Medium inspection priority',
+      headline: 'Check the field when convenient',
+      reason: 'The latest satellite image shows mixed vegetation signals that are worth checking on your next visit.',
+      badge: 'Check during next field visit'
     };
   }
 
   if (riskLevel === 'High') {
     return {
-      value: 'Needs attention',
       tone: 'critical',
-      title: 'The field needs attention',
-      action: 'Field inspection is recommended.',
-      helper:
-        'The satellite indicators show weak vegetation signals. A field visit can help confirm the cause.',
-      icon: <AlertTriangle size={18} />
+      priorityLabel: 'High inspection priority',
+      headline: 'Inspect this field soon',
+      reason: 'The latest satellite image shows weaker vegetation signals than expected for this field.',
+      badge: 'Inspect soon'
     };
   }
 
+  if (riskLevel === 'Critical') {
+    return {
+      tone: 'critical',
+      priorityLabel: 'Critical inspection priority',
+      headline: 'Inspect this field urgently',
+      reason: 'The latest satellite image shows very weak or unusual vegetation signals that need urgent attention.',
+      badge: 'Inspect urgently'
+    };
+  }
+
+  const seasonMessage =
+    fallbackSeason && String(fallbackSeason) !== String(selectedSeason)
+      ? `No stored analysis is available for Season ${selectedSeason}. The map keeps the latest available context from Season ${fallbackSeason}.`
+      : `No stored analysis is available for Season ${selectedSeason}.`;
+
   return {
-    value: 'Not analyzed',
     tone: 'neutral',
-    title: 'No land status available',
-    action: 'Run an analysis to generate a field report.',
-    helper: 'After analysis, this page will show vegetation indicators and land-cover output.',
-    icon: <Info size={18} />
-  };
-};
-
-const getVegetationFarmerText = (ndviValue) => {
-  const display = getVegetationLevelDisplay(ndviValue);
-
-  if (display.value === 'High') {
-    return {
-      ...display,
-      action: 'Vegetation signal is strong for the selected image period.'
-    };
-  }
-
-  if (display.value === 'Moderate') {
-    return {
-      ...display,
-      action: 'Vegetation signal is acceptable but should be monitored.'
-    };
-  }
-
-  if (display.value === 'Low') {
-    return {
-      ...display,
-      action: 'Vegetation signal is low. Inspecting the parcel is recommended.'
-    };
-  }
-
-  return {
-    ...display,
-    action: 'Vegetation signal will appear after analysis.'
+    priorityLabel: 'Not analyzed',
+    headline: 'No analysis available for this period',
+    reason: seasonMessage,
+    badge: 'No result for selected period'
   };
 };
 
 function ResultHeroMetric({ label, value, children }) {
   return (
-    <div className="farmer-report-hero-metric">
+    <div className="analysis-results-metric">
       <span>{label}</span>
       {children || <strong>{value}</strong>}
     </div>
   );
 }
 
-function FarmerResultCard({ label, value, helper, tone = 'neutral', icon }) {
+function TechnicalDetail({ label, value, helper }) {
   return (
-    <div className={`farmer-result-card farmer-result-card-${tone}`}>
-      <div className="farmer-result-card-head">
-        <span>{label}</span>
-        {icon ? <span className="farmer-result-card-icon">{icon}</span> : null}
-      </div>
+    <div className="analysis-results-technical-item">
+      <span>{label}</span>
       <strong>{value}</strong>
       {helper ? <p>{helper}</p> : null}
-    </div>
-  );
-}
-
-function IndicatorLevelCard({
-  title,
-  metricName,
-  rawValue,
-  level,
-  tone,
-  helper,
-  explanation,
-  icon,
-  accentColor
-}) {
-  const scaleLevels = ['Low', 'Moderate', 'High'];
-
-  return (
-    <div className="report-indicator-card glass-panel">
-      <div className="workspace-metric-head">
-        <span className="workspace-metric-label">{title}</span>
-        {icon ? React.cloneElement(icon, { size: 18, color: accentColor }) : null}
-      </div>
-
-      <div className="report-indicator-copy">
-        <div className="report-indicator-topline">
-          <strong className="report-indicator-level">{level}</strong>
-          <span className={`status-pill ${tone}`}>{metricName}</span>
-        </div>
-
-        <span className="report-indicator-raw">
-          {metricName} value {rawValue}
-        </span>
-      </div>
-
-      <div className="report-indicator-scale" aria-hidden="true">
-        {scaleLevels.map((scaleLevel) => {
-          const isActive = scaleLevel === level;
-
-          return (
-            <span
-              key={scaleLevel}
-              className={`report-indicator-scale-step ${isActive ? `active ${tone}` : ''}`}
-            >
-              {scaleLevel}
-            </span>
-          );
-        })}
-      </div>
-
-      <p className="workspace-metric-helper">{helper}</p>
-      <p className="workspace-helper-text">{explanation}</p>
     </div>
   );
 }
@@ -222,7 +145,6 @@ export default function AnalysisResultsPage({
   onChangeSeason,
   onNavigate,
   onRunNewAnalysis,
-  onOpenAnalysis,
   refreshKey
 }) {
   const [history, setHistory] = useState([]);
@@ -231,6 +153,7 @@ export default function AnalysisResultsPage({
 
   const selectedFieldId = getFieldSelectionId(selectedField);
   const selectedFieldName = getFieldSelectionName(selectedField);
+  const selectedSeasonLabel = String(selectedSeason || getCurrentSeasonYear());
 
   const fieldRecord = useMemo(
     () => createFieldFallbackRecord(selectedField, selectedFieldId),
@@ -295,34 +218,65 @@ export default function AnalysisResultsPage({
     );
   }, [history, selectedFieldId, selectedFieldName]);
 
-  const seasonOptions = useMemo(() => buildSeasonOptions(fieldHistory), [fieldHistory]);
+  const seasonOptions = useMemo(
+    () => buildSeasonOptions(fieldHistory, false, selectedSeasonLabel),
+    [fieldHistory, selectedSeasonLabel]
+  );
 
   const seasonHistory = useMemo(
-    () => filterAnalysesBySeason(fieldHistory, selectedSeason),
-    [fieldHistory, selectedSeason]
+    () => filterAnalysesBySeason(fieldHistory, selectedSeasonLabel),
+    [fieldHistory, selectedSeasonLabel]
   );
 
   const latestSeasonAnalysis = seasonHistory[0] || null;
-  const previousSeasonRuns = seasonHistory.slice(1);
-
-  const currentSessionAnalysis = analysisStarted
-    ? normalizeAnalysisRecord({
-      ...analysisResults,
-      analysisDate: latestAnalysisAt || analysisResults.analysisDate
-    })
-    : null;
-
-  const activeReport = (
-    currentSessionAnalysis?.analysisId &&
-    String(currentSessionAnalysis.seasonYear) === String(selectedSeason)
-  )
+  const currentSessionAnalysis = useMemo(() => (
+    analysisStarted
+      ? normalizeAnalysisRecord({
+          ...analysisResults,
+          analysisDate: latestAnalysisAt || analysisResults.analysisDate
+        })
+      : null
+  ), [analysisResults, analysisStarted, latestAnalysisAt]);
+  const latestAvailableReport = hasMeaningfulAnalysis(currentSessionAnalysis)
     ? currentSessionAnalysis
-    : latestSeasonAnalysis;
+    : fieldHistory.find((item) => hasMeaningfulAnalysis(item)) || null;
 
-  const landStatus = getFarmerStatus(activeReport?.riskLevel);
-  const vegetationStatus = getVegetationFarmerText(activeReport?.ndviValue);
-  const ndviLevel = getVegetationIndexLevelDisplay('ndvi', activeReport?.ndviValue);
-  const eviLevel = getVegetationIndexLevelDisplay('evi', activeReport?.eviValue);
+  const selectedSeasonReport =
+    hasMeaningfulAnalysis(currentSessionAnalysis) &&
+    String(currentSessionAnalysis?.seasonYear) === selectedSeasonLabel
+      ? currentSessionAnalysis
+      : latestSeasonAnalysis;
+
+  const activeReport = selectedSeasonReport;
+  const contextReport = activeReport || latestAvailableReport;
+  const displayFieldName =
+    selectedFieldName !== 'Unnamed Field'
+      ? selectedFieldName
+      : contextReport?.fieldName || selectedFieldName;
+  const previousSeasonRuns = useMemo(() => {
+    if (!activeReport) {
+      return [];
+    }
+
+    if (
+      activeReport.analysisId &&
+      seasonHistory[0]?.analysisId &&
+      String(activeReport.analysisId) === String(seasonHistory[0].analysisId)
+    ) {
+      return seasonHistory.slice(1);
+    }
+
+    return seasonHistory;
+  }, [activeReport, seasonHistory]);
+  const showingLatestContextFallback = !activeReport && Boolean(contextReport);
+
+  const inspectionSummary = getInspectionPrioritySummary({
+    riskLevel: activeReport?.riskLevel,
+    selectedSeason: selectedSeasonLabel,
+    fallbackSeason: contextReport?.seasonYear
+  });
+  const ndviDisplay = getVegetationIndexLevelDisplay('ndvi', activeReport?.ndviValue);
+  const eviDisplay = getVegetationIndexLevelDisplay('evi', activeReport?.eviValue);
 
   const analysisGeoJsonData = useMemo(() => (
     geoJsonData?.features?.length
@@ -332,42 +286,42 @@ export default function AnalysisResultsPage({
 
   const fieldArea = fieldRecord?.area_ha
     ? formatAreaMeasure(fieldRecord.area_ha)
-    : activeReport?.areaHectares
-      ? formatAreaMeasure(activeReport.areaHectares)
+    : contextReport?.areaHectares
+      ? formatAreaMeasure(contextReport.areaHectares)
       : 'Area pending';
 
-  const analysisFieldContext = useMemo(() => {
-    if (!analysisGeoJsonData?.features?.[0]?.geometry) {
-      return null;
-    }
+  const latestRunLabel = contextReport?.analysisDate
+    ? formatWorkspaceDateTime(contextReport.analysisDate, 'Not available')
+    : 'Not available';
 
-    return {
-      id: fieldRecord?.id || selectedFieldId,
-      name: fieldRecord?.name || selectedFieldName,
-      area_ha: fieldRecord?.area_ha || null,
-      role: fieldRecord?.role || null,
-      owner_name: fieldRecord?.owner_name || null,
-      owner_email: fieldRecord?.owner_email || null,
-      geometry: analysisGeoJsonData.features[0].geometry
-    };
-  }, [analysisGeoJsonData, fieldRecord, selectedFieldId, selectedFieldName]);
-
-  const satelliteDateLabel = activeReport?.satelliteAcquisitionDate
-    ? formatWorkspaceDate(activeReport.satelliteAcquisitionDate)
-    : activeReport?.startDate && activeReport?.endDate
-      ? `${formatWorkspaceDate(activeReport.startDate)} to ${formatWorkspaceDate(activeReport.endDate)}`
+  const satelliteDateLabel = contextReport?.satelliteAcquisitionDate
+    ? formatWorkspaceDate(contextReport.satelliteAcquisitionDate)
+    : contextReport?.startDate && contextReport?.endDate
+      ? `${formatWorkspaceDate(contextReport.startDate)} to ${formatWorkspaceDate(contextReport.endDate)}`
       : 'Not available';
 
-  const latestRunLabel = activeReport?.analysisDate
-    ? formatWorkspaceDateTime(activeReport.analysisDate, 'Not available')
-    : 'Not available';
+  const previousRunsMessage = useMemo(() => {
+    if (loadingHistory) {
+      return 'Loading previous runs...';
+    }
+
+    if (!activeReport) {
+      return `No stored runs are available for Season ${selectedSeasonLabel}.`;
+    }
+
+    if (!previousSeasonRuns.length) {
+      return `No previous runs are stored for Season ${selectedSeasonLabel}.`;
+    }
+
+    return `${previousSeasonRuns.length} previous run${previousSeasonRuns.length === 1 ? '' : 's'} stored for Season ${selectedSeasonLabel}.`;
+  }, [activeReport, loadingHistory, previousSeasonRuns.length, selectedSeasonLabel]);
 
   if (!selectedField && !activeReport) {
     return (
       <div className="content-page">
         <NoAnalysisState
           title="No analysis available yet"
-          description="Select or save a field in Workspace, then run an analysis to open Analysis Results."
+          description="Select or save a field in Workspace, then run an analysis to open the land health report."
           primaryAction={{
             label: `Open ${APP_PAGES.WORKSPACE}`,
             onClick: () => onNavigate(APP_PAGES.WORKSPACE)
@@ -382,27 +336,21 @@ export default function AnalysisResultsPage({
   }
 
   return (
-    <div className="content-page analysis-results-page farmer-report-page">
-      <section className="farmer-report-hero glass-panel">
-        <div className="farmer-report-hero-copy">
+    <div className="content-page analysis-results-page">
+      <section className="analysis-results-hero glass-panel">
+        <div className="analysis-results-hero-copy">
           <div className="page-kicker">Land health report</div>
-          <h1 className="page-title">{selectedFieldName}</h1>
-          <p className="page-subtitle">
-            Satellite-based summary for the selected parcel. The report shows what the imagery suggests and what action is recommended next.
-          </p>
+          <h1 className="page-title">{displayFieldName}</h1>
+          <p className="page-subtitle">Satellite-based summary for the selected parcel.</p>
         </div>
 
-        <div className="farmer-report-hero-side">
-          <div className="farmer-report-hero-metrics">
+        <div className="analysis-results-hero-side">
+          <div className="analysis-results-metrics">
             <ResultHeroMetric label="Area" value={fieldArea} />
-            <ResultHeroMetric
-              label="Analysis period"
-              value={selectedSeason ? `Season ${selectedSeason}` : 'Not selected'}
-            />
-            <ResultHeroMetric label="Land status">
-              <span className={`status-pill ${landStatus.tone}`}>
-                {landStatus.icon}
-                {landStatus.value}
+            <ResultHeroMetric label="Analysis period" value={`Season ${selectedSeasonLabel}`} />
+            <ResultHeroMetric label="Inspection priority">
+              <span className={`status-pill ${inspectionSummary.tone}`}>
+                {inspectionSummary.priorityLabel}
               </span>
             </ResultHeroMetric>
           </div>
@@ -425,61 +373,24 @@ export default function AnalysisResultsPage({
 
       {notice ? <div className="workspace-notice-banner">{notice}</div> : null}
 
-      {activeReport ? (
-        <section className={`farmer-decision-card glass-panel farmer-decision-card-${landStatus.tone}`}>
-          <div className="farmer-decision-main">
-            <span className="farmer-decision-label">Recommended action</span>
-            <h2>{landStatus.title}</h2>
-            <p>{landStatus.helper}</p>
-            <strong>{landStatus.action}</strong>
-          </div>
+      <section className={`analysis-results-action-card glass-panel tone-${inspectionSummary.tone}`}>
+        <div className="analysis-results-action-copy">
+          <span className="analysis-results-card-kicker">Recommended action</span>
+          <h2>{inspectionSummary.headline}</h2>
+          <p>{inspectionSummary.reason}</p>
+          <span className={`analysis-results-action-badge ${inspectionSummary.tone}`}>
+            {inspectionSummary.badge}
+          </span>
+        </div>
 
-          <div className="farmer-decision-details">
-            <FarmerResultCard
-              label="Vegetation condition"
-              value={vegetationStatus.value}
-              helper={vegetationStatus.action}
-              tone={getRiskTone(activeReport.riskLevel)}
-              icon={<Activity size={16} />}
-            />
+        <div className="analysis-results-note">
+          <Info size={16} />
+          <span>{ANALYSIS_LIMITATION_NOTE}</span>
+        </div>
+      </section>
 
-            <FarmerResultCard
-              label="Detected land cover"
-              value={activeReport.predictedClass || 'Not analyzed'}
-              helper="Model-assisted EuroSAT land-cover class."
-              icon={<FileText size={16} />}
-            />
-
-            <FarmerResultCard
-              label="Model confidence"
-              value={activeReport.confidenceLabel}
-              helper="Confidence of the land-cover classification."
-              icon={<ShieldAlert size={16} />}
-            />
-          </div>
-
-          <div className="farmer-limitation-note">
-            <Info size={16} />
-            <span>{ANALYSIS_LIMITATION_NOTE}</span>
-          </div>
-        </section>
-      ) : (
-        <NoAnalysisState
-          title={`No analysis available for Season ${selectedSeason}`}
-          description="Choose another season or run a new analysis for this field."
-          primaryAction={{
-            label: 'Run new analysis',
-            onClick: () => onRunNewAnalysis?.()
-          }}
-          secondaryAction={{
-            label: 'Open Workspace',
-            onClick: () => onNavigate(APP_PAGES.WORKSPACE)
-          }}
-        />
-      )}
-
-      <section className="farmer-report-main-grid">
-        <div className="glass-panel report-map-panel">
+      <section className="analysis-results-main-grid">
+        <div className="analysis-results-map-panel glass-panel">
           <div className="workspace-section-heading">
             <div className="workspace-section-icon">
               <MapPinned size={16} />
@@ -487,32 +398,33 @@ export default function AnalysisResultsPage({
             <div>
               <strong style={{ fontSize: '1rem' }}>Field map</strong>
               <p className="workspace-helper-text">
-                Boundary colored by the latest land status from the analysis.
+                Boundary colored by the latest available inspection priority.
               </p>
             </div>
           </div>
 
-          <div className="workspace-map-stage report-map-stage farmer-report-map-stage">
+          <div className="workspace-map-stage analysis-results-map-stage">
             <FieldMap
               user={user}
               backendHealthy={backendHealthy}
-              analysisStarted={Boolean(activeReport?.analysisId)}
+              analysisStarted={Boolean(contextReport)}
               isAnalyzing={false}
               geoJsonData={analysisGeoJsonData}
               selectedField={selectedField}
               setSelectedField={setSelectedField}
               fieldLayerVisible={Boolean(analysisGeoJsonData) || fieldLayerVisible}
-              analysisResults={activeReport || analysisResults}
-              fieldRiskLevel={activeReport?.riskLevel}
-              fieldName={selectedFieldName}
-              hasStoredAnalysis={Boolean(activeReport?.analysisId)}
+              analysisResults={contextReport || analysisResults}
+              fieldRiskLevel={contextReport?.riskLevel}
+              fieldName={displayFieldName}
+              hasStoredAnalysis={Boolean(contextReport)}
               readOnly
               showDemoData={false}
+              showInfoCard={false}
             />
           </div>
         </div>
 
-        <aside className="glass-panel farmer-report-side-panel">
+        <aside className="analysis-results-context-panel glass-panel">
           <div className="workspace-section-heading">
             <div className="workspace-section-icon">
               <CalendarClock size={16} />
@@ -520,156 +432,108 @@ export default function AnalysisResultsPage({
             <div>
               <strong style={{ fontSize: '1rem' }}>Analysis context</strong>
               <p className="workspace-helper-text">
-                Review the latest run and switch between stored seasons.
+                Choose a monitoring season and review the latest available run details.
               </p>
             </div>
           </div>
 
           <MonitoringSeasonSelector
-            value={selectedSeason}
+            value={selectedSeasonLabel}
             onChange={onChangeSeason}
             options={seasonOptions}
-            compact
+            label="Analysis period"
+            helperText="Choose the current or previous monitoring season."
           />
 
-          <div className="farmer-context-list">
-            <div className="farmer-context-row">
+          {showingLatestContextFallback ? (
+            <div className="analysis-results-context-banner">
+              {`No result for Season ${selectedSeasonLabel}. Context below is from the latest available run in Season ${contextReport?.seasonYear}.`}
+            </div>
+          ) : null}
+
+          <div className="analysis-results-context-list">
+            <div className="analysis-results-context-row">
               <span>Latest run</span>
               <strong>{latestRunLabel}</strong>
             </div>
 
-            <div className="farmer-context-row">
+            <div className="analysis-results-context-row">
               <span>Satellite image date</span>
               <strong>{satelliteDateLabel}</strong>
             </div>
 
-            <div className="farmer-context-row">
+            <div className="analysis-results-context-row">
               <span>Land-cover class</span>
-              <strong>{activeReport?.predictedClass || 'Not available'}</strong>
+              <strong>{contextReport?.predictedClass || 'Not available'}</strong>
             </div>
 
-            <div className="farmer-context-row">
+            <div className="analysis-results-context-row">
               <span>Confidence</span>
-              <strong>{activeReport?.confidenceLabel || '—'}</strong>
+              <strong>{contextReport?.confidenceLabel || '—'}</strong>
             </div>
           </div>
 
-          {loadingHistory ? (
-            <div className="empty-state compact">Loading field history...</div>
-          ) : seasonHistory.length ? (
-            <>
-              {previousSeasonRuns.length ? (
-                <AnalysisHistoryList
-                  items={previousSeasonRuns}
-                  selectedSeason={selectedSeason}
-                  emptyText={`No previous stored runs for Season ${selectedSeason}.`}
-                  onItemClick={(analysisItem) => onOpenAnalysis?.(analysisItem, analysisFieldContext)}
-                />
-              ) : (
-                <div className="workspace-note-card">
-                  No previous stored runs for this season yet.
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="workspace-note-card">
-              {`No stored analyses for Season ${selectedSeason}.`}
-            </div>
-          )}
+          <div className="analysis-results-context-banner">{previousRunsMessage}</div>
         </aside>
       </section>
 
-      {activeReport ? (
-        <section className="workspace-panel-section glass-panel report-section-card farmer-technical-section">
-          <div className="workspace-section-heading">
-            <div className="workspace-section-icon">
-              <BrainCircuit size={16} />
-            </div>
-            <div>
-              <strong style={{ fontSize: '1rem' }}>Technical details</strong>
-              <p className="workspace-helper-text">
-                These values explain how the land status was formed. NDVI and EVI describe vegetation signal; ResNet-50 provides land-cover classification.
-              </p>
-            </div>
+      <section className="analysis-results-technical glass-panel">
+        <div className="workspace-section-heading">
+          <div className="workspace-section-icon">
+            <BrainCircuit size={16} />
           </div>
-
-          <div className="report-indicator-grid">
-            <IndicatorLevelCard
-              title="Vegetation greenness"
-              metricName="NDVI"
-              rawValue={formatIndex(activeReport.ndviValue)}
-              level={ndviLevel.value}
-              tone={ndviLevel.tone}
-              helper={ndviLevel.helper}
-              explanation="NDVI is calculated from near-infrared and red reflectance to describe vegetation greenness."
-              icon={<Activity />}
-              accentColor="var(--status-healthy)"
-            />
-
-            <IndicatorLevelCard
-              title="Vegetation vigor"
-              metricName="EVI"
-              rawValue={formatIndex(activeReport.eviValue)}
-              level={eviLevel.value}
-              tone={eviLevel.tone}
-              helper={eviLevel.helper}
-              explanation="EVI is a supporting vegetation indicator that can reduce some background effects."
-              icon={<Sprout />}
-              accentColor="var(--accent-color)"
-            />
+          <div>
+            <strong style={{ fontSize: '1rem' }}>Technical details</strong>
+            <p className="workspace-helper-text">
+              Concise values from the selected analysis period.
+            </p>
           </div>
+        </div>
 
-          <div className="report-technical-grid">
-            <FieldMetricCard
-              label="Land-cover workflow"
-              value="ResNet-50-assisted"
-              helper="Transfer-learning-based classification using EuroSAT land-cover labels."
-              icon={<BrainCircuit />}
-              accentColor="var(--accent-color)"
+        {activeReport ? (
+          <div className="analysis-results-technical-grid">
+            <TechnicalDetail
+              label="Vegetation greenness (NDVI)"
+              value={formatIndex(activeReport.ndviValue)}
+              helper={ndviDisplay.value}
             />
-
-            <FieldMetricCard
+            <TechnicalDetail
+              label="Vegetation vigor (EVI)"
+              value={formatIndex(activeReport.eviValue)}
+              helper={eviDisplay.value}
+            />
+            <TechnicalDetail label="Land-cover workflow" value="ResNet-50-assisted" />
+            <TechnicalDetail
               label="EuroSAT class"
               value={activeReport.euroSatClass || activeReport.predictedClass || 'Not available'}
-              helper="Predicted broad land-cover class, not crop disease or yield diagnosis."
-              icon={<FileText />}
-              accentColor="var(--status-warning)"
             />
-
-            <FieldMetricCard
+            <TechnicalDetail
               label="Model confidence"
-              value={activeReport.confidenceLabel}
-              helper="Confidence score returned by the classifier."
-              icon={<ShieldAlert />}
-              accentColor="var(--status-healthy)"
+              value={activeReport.confidenceLabel || '—'}
             />
-
-            <FieldMetricCard
+            <TechnicalDetail
               label="Satellite source"
               value={activeReport.satelliteSource || 'Not available'}
-              helper="Source recorded for the imagery request used by this run."
-              icon={<MapPinned />}
-              accentColor="var(--status-warning)"
             />
-
-            <FieldMetricCard
+            <TechnicalDetail
               label="Cloud coverage"
-              value={activeReport.cloudCoverage === null ? 'Unknown' : `${activeReport.cloudCoverage}%`}
-              helper="Returned only when image-quality metadata is available."
-              icon={<CalendarClock />}
-              accentColor="var(--accent-color)"
+              value={
+                activeReport.cloudCoverage === null
+                  ? 'Unknown'
+                  : `${activeReport.cloudCoverage}%`
+              }
             />
-
-            <FieldMetricCard
+            <TechnicalDetail
               label="Quality flags"
               value={activeReport.qualityFlags?.length ? activeReport.qualityFlags.join(', ') : 'None'}
-              helper="Processing notes such as unavailable EVI or low classification confidence."
-              icon={<ShieldAlert />}
-              accentColor="var(--status-critical)"
             />
           </div>
-        </section>
-      ) : null}
+        ) : (
+          <div className="analysis-results-empty-card">
+            No technical details are available for Season {selectedSeasonLabel}.
+          </div>
+        )}
+      </section>
     </div>
   );
 }
