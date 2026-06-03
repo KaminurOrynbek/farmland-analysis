@@ -64,7 +64,7 @@ function SidebarSection({ title, children, guideId = null }) {
   );
 }
 
-export default function WorkspaceSidebar({
+export default function FieldControlPanel({
   user,
   selectedField,
   isFetchingSatelliteData,

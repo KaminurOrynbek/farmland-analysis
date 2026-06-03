@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Mail, UserRound, Save, X, Edit3 } from 'lucide-react';
 import { updateCurrentUser } from '../api/client';
 
-export default function ProfilePage({ user, onUpdateUser }) {
+export default function SettingsPage({ user, onUpdateUser }) {
   const displayName = user?.full_name || user?.name || 'AgroVision User';
   const displayEmail = user?.email || 'farmer@agrovision.ai';
   const displayRole = user?.role || 'FARMER';
@@ -75,7 +75,7 @@ export default function ProfilePage({ user, onUpdateUser }) {
             marginBottom: '8px'
           }}
         >
-          Account settings
+          Settings
         </p>
 
         <h1
@@ -85,7 +85,7 @@ export default function ProfilePage({ user, onUpdateUser }) {
             fontSize: '1.75rem'
           }}
         >
-          Profile
+          Settings
         </h1>
 
         <p

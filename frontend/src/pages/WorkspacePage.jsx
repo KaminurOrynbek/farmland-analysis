@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { fetchAllFields, fetchAnalysisHistory } from '../api/client';
 import { getFieldPermissions } from '../permissions/permissions';
-import MapView from '../components/workspace/FieldMap';
-import WorkspaceSidebar from '../components/workspace/FieldControlPanel';
+import FieldMap from '../components/workspace/FieldMap';
+import FieldControlPanel from '../components/workspace/FieldControlPanel';
 import WorkspaceGuide from '../components/workspace/WorkspaceGuide';
 import WorkspaceSelectionCard from '../components/workspace/WorkspaceSelectionCard';
 import {
@@ -77,7 +77,7 @@ export default function WorkspacePage({
   analysisResults,
   analysisStarted,
   latestAnalysisAt,
-  onOpenReport,
+  onOpenResults,
   isGuidedTourOpen,
   onCloseGuidedTour
 }) {
@@ -173,7 +173,7 @@ export default function WorkspacePage({
     isFetchingSatelliteData,
     isAnalyzing
   });
-  const canViewReport = Boolean(
+  const canViewResults = Boolean(
     (analysisStarted && analysisResults?.analysisId) ||
     currentFieldAnalyses.length
   );
@@ -186,7 +186,7 @@ export default function WorkspacePage({
 
       <div className="workspace-layout-grid">
         <div className="workspace-sidebar-column">
-          <WorkspaceSidebar
+          <FieldControlPanel
             user={user}
             selectedField={selectedField}
             isFetchingSatelliteData={isFetchingSatelliteData}
@@ -236,7 +236,7 @@ export default function WorkspacePage({
           ) : null}
 
           <main className="map-container workspace-map-stage" style={mapPanelStyle} tabIndex={-1}>
-            <MapView
+            <FieldMap
               user={user}
               backendHealthy={backendHealthy}
               analysisStarted={analysisStarted}
@@ -262,8 +262,8 @@ export default function WorkspacePage({
               riskLevel={fieldRiskLevel}
               latestAnalysisAt={latestAnalysisAt || selectedFieldSummary?.latestAnalysisAt || null}
               analysisHistory={currentFieldAnalyses}
-              canViewReport={canViewReport}
-              onOpenReport={onOpenReport}
+              canViewResults={canViewResults}
+              onOpenResults={onOpenResults}
             />
           </main>
         </div>

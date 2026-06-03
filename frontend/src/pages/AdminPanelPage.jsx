@@ -188,7 +188,7 @@ export default function AdminPanelPage({ refreshKey }) {
             Platform Operations
           </h1>
           <p className="page-subtitle">
-            Manage user accounts and review audit history from one professional admin workspace.
+            Manage user accounts and review audit history from one professional admin panel.
           </p>
         </div>
 
@@ -231,7 +231,7 @@ export default function AdminPanelPage({ refreshKey }) {
       <section className="section-card glass-panel">
         <div className="section-card-header">
           <div>
-            <div className="section-kicker">Admin Workspace</div>
+            <div className="section-kicker">Admin Panel</div>
             <h2>Switch between users and audit history</h2>
           </div>
 

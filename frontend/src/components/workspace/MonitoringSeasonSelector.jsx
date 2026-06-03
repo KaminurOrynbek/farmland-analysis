@@ -2,7 +2,7 @@ import React from 'react';
 import { CalendarRange } from 'lucide-react';
 import { SEASON_OPTIONS } from '../../utils/fieldAnalysisUtils';
 
-export default function SeasonSelector({
+export default function MonitoringSeasonSelector({
   value,
   onChange,
   options = SEASON_OPTIONS,

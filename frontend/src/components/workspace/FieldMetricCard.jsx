@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function FieldSummaryCard({
+export default function FieldMetricCard({
   label,
   value,
   helper,

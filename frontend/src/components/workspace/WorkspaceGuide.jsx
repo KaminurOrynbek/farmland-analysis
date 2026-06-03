@@ -45,8 +45,8 @@ const steps = [
     targetTab: 'comments'
   },
   {
-    title: 'Step 7 — Open report',
-    text: 'Return to Overview and open the report after analysis is ready.',
+    title: 'Step 7 — Open results',
+    text: 'Return to Overview and open Analysis Results after analysis is ready.',
     selectors: ['[data-guide="open-report"]'],
     placement: 'left',
     button: 'Finish guide',

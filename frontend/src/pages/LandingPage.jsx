@@ -44,7 +44,7 @@ const STEPS = [
   },
   {
     n: 5,
-    title: 'Save and compare reports',
+    title: 'Save and compare results',
     desc: 'Keep previous analyses and track how fields change over time.'
   }
 ];
@@ -62,8 +62,8 @@ const FEATURES = [
   },
   {
     icon: <LineChart size={28} color="#a855f7" />,
-    title: 'Clear Reports',
-    desc: 'Get simple reports with field health, risk level, and practical recommendations.'
+    title: 'Analysis Results',
+    desc: 'Get clear results with field health, risk level, and practical recommendations.'
   }
 ];
 
@@ -110,7 +110,7 @@ const FAQ_ITEMS = [
   },
   {
     title: 'Do I need technical knowledge to use it?',
-    text: 'No. The system is designed around simple steps: add a field, run analysis, and read the report.'
+    text: 'No. The system is designed around simple steps: add a field, run analysis, and review the results.'
   },
   {
     title: 'Can I upload my own field boundaries?',
@@ -169,7 +169,7 @@ export default function LandingPage({ onSignIn, onGetStarted }) {
                 Monitor farmland health from one clear workspace.
               </h1>
               <p className="landing-subheadline">
-                AgroVision helps you review field condition, detect possible risk zones, and save analysis reports using satellite-powered agricultural insights.
+                AgroVision helps you review field condition, detect possible risk zones, and save analysis results using satellite-powered agricultural insights.
               </p>
               <div className="landing-cta-row">
                 <button type="button" className="landing-btn-primary" onClick={onGetStarted}>
@@ -234,7 +234,7 @@ export default function LandingPage({ onSignIn, onGetStarted }) {
             <p className="landing-section-label">How It Works</p>
             <h2 className="landing-section-title">Simple steps to field insights</h2>
             <p className="landing-section-copy">
-              Add your field and get a clear health report in minutes.
+              Add your field and get clear health results in minutes.
             </p>
           </div>
 
@@ -274,7 +274,7 @@ export default function LandingPage({ onSignIn, onGetStarted }) {
             <p className="landing-section-label">Technology</p>
             <h2 className="landing-section-title">Powered by satellite imagery and AI-assisted analysis</h2>
             <p className="landing-section-copy">
-              The technical layer stays behind the interface, while users see simple field health results and practical reports.
+              The technical layer stays behind the interface, while users see simple field health results and practical recommendations.
             </p>
           </div>
 
