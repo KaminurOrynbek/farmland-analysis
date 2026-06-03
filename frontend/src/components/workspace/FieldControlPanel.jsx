@@ -6,7 +6,8 @@ import {
   X
 } from 'lucide-react';
 import { getFieldPermissions } from '../../permissions/permissions';
-import { getFieldSelectionId } from '../../utils/fieldAnalysisUtils';
+import { formatWorkspaceDate, getFieldSelectionId } from '../../utils/fieldAnalysisUtils';
+import MonitoringSeasonSelector from './MonitoringSeasonSelector';
 
 const normalizeGeoJson = (geoJson, metadata = {}) => {
   if (geoJson.type === 'FeatureCollection') {
@@ -82,13 +83,19 @@ export default function FieldControlPanel({
   setGeoJsonUploadError,
   fieldName,
   setFieldName,
+  setFieldCropType,
+  setFieldPlantingDate,
+  seasonSelection,
+  onSeasonSelectionChange,
   fieldLayerVisible,
   setFieldLayerVisible,
   setSelectedField,
   onSaveField,
   isSavingField,
   onRunAnalysis,
+  onOpenResults,
   canRunAnalysis,
+  canViewResults,
   runAnalysisReason
 }) {
   const geoJsonInputRef = useRef(null);
@@ -148,6 +155,8 @@ export default function FieldControlPanel({
     setGeoJsonUploadError(null);
     setSelectedField(null);
     setFieldName('');
+    setFieldCropType?.('');
+    setFieldPlantingDate?.('');
 
     if (geoJsonInputRef.current) {
       geoJsonInputRef.current.value = '';
@@ -155,7 +164,12 @@ export default function FieldControlPanel({
   };
 
   const handleSaveField = async () => {
-    await onSaveField?.(fieldName);
+    await onSaveField?.({
+      name: fieldName,
+      cropType: null,
+      plantingDate: null,
+      seasonYear: null
+    });
   };
 
   const handleFocusMapDrawing = () => {
@@ -173,9 +187,15 @@ export default function FieldControlPanel({
         style={{ display: 'none' }}
       />
 
-      <SidebarSection title="Field Boundary" guideId="field-upload-section">
+      <MonitoringSeasonSelector
+        value={seasonSelection}
+        onChange={onSeasonSelectionChange}
+        allowCustom
+      />
+
+      <SidebarSection title="Field boundary" guideId="field-upload-section">
         <p className="workspace-helper-text" style={{ margin: 0 }}>
-          Upload a boundary file or draw one directly on the map.
+          Upload a GeoJSON boundary or draw one directly on the map.
         </p>
 
         <div className="workspace-boundary-methods">
@@ -207,7 +227,7 @@ export default function FieldControlPanel({
             </span>
             <span>
               <strong>Draw on map</strong>
-              <small>Use the map tools to sketch a new field.</small>
+              <small>Use the map tools to sketch a new field boundary.</small>
             </span>
           </button>
         </div>
@@ -217,7 +237,7 @@ export default function FieldControlPanel({
             <div>
               <strong>{geoJsonMeta?.name || 'Current boundary'}</strong>
               <p className="workspace-helper-text">
-                {hasSavedField ? 'Saved field' : 'Ready to save'}
+                {hasSavedField ? 'Saved field boundary' : 'Boundary ready to save'}
               </p>
             </div>
 
@@ -235,20 +255,19 @@ export default function FieldControlPanel({
         ) : null}
       </SidebarSection>
 
-      <SidebarSection title="Field" guideId="field-save-section">
-        <label className="workspace-label" htmlFor="field-name-input">
-          Field name
+      <SidebarSection title="Field details" guideId="field-details-section">
+        <label className="workspace-field-stack">
+          <span className="workspace-label">Field name</span>
+          <input
+            type="text"
+            value={fieldName}
+            onChange={(event) => setFieldName(event.target.value)}
+            placeholder="North Wheat Field"
+            className="workspace-input"
+            data-guide="field-name"
+            disabled={!canCreateField}
+          />
         </label>
-        <input
-          id="field-name-input"
-          type="text"
-          value={fieldName}
-          onChange={(event) => setFieldName(event.target.value)}
-          placeholder="North Wheat Field"
-          className="workspace-input"
-          data-guide="field-name"
-          disabled={!canCreateField}
-        />
 
         <button
           type="button"
@@ -259,21 +278,47 @@ export default function FieldControlPanel({
         >
           {isSavingField ? 'Saving...' : 'Save field'}
         </button>
+
+        <p className="workspace-helper-text" style={{ margin: 0 }}>
+          Comments are available after the field is saved.
+        </p>
       </SidebarSection>
 
-      <SidebarSection title="Satellite source" guideId="satellite-source-section">
-        <select
-          className="workspace-input"
-          value={satelliteDataset}
-          onChange={(event) => setSatelliteDataset(event.target.value)}
-          data-guide="satellite-source"
-        >
-          <option value="sentinel2">Sentinel-2 (Optical)</option>
-          <option value="landsat">Landsat 8-9</option>
-        </select>
+      <SidebarSection title="Satellite data" guideId="satellite-source-section">
+        <label className="workspace-field-stack">
+          <span className="workspace-label">Satellite source</span>
+          <select
+            className="workspace-input"
+            value={satelliteDataset}
+            onChange={(event) => setSatelliteDataset(event.target.value)}
+            data-guide="satellite-source"
+          >
+            <option value="sentinel2">Sentinel-2</option>
+            <option value="landsat">Landsat 8-9</option>
+          </select>
+        </label>
+
+        {satelliteFetchResult ? (
+          <div className="workspace-loaded-card">
+            <strong>{satelliteFetchResult.satellite_source || 'Satellite metadata ready'}</strong>
+            <p className="workspace-helper-text">
+              Image date: {formatWorkspaceDate(satelliteFetchResult.acquisition_date, 'Not available')}
+            </p>
+            <p className="workspace-helper-text">
+              Requested period: {formatWorkspaceDate(satelliteFetchResult.start_date)} to {formatWorkspaceDate(satelliteFetchResult.end_date)}
+            </p>
+          </div>
+        ) : null}
+
+        {satelliteFetchError ? (
+          <div className="workspace-note-card">
+            <strong>Satellite metadata unavailable</strong>
+            <p className="workspace-helper-text">{satelliteFetchError}</p>
+          </div>
+        ) : null}
       </SidebarSection>
 
-      <SidebarSection title="Fetch data" guideId="fetch-data-section">
+      <SidebarSection title="Fetch satellite data" guideId="fetch-data-section">
         <button
           type="button"
           className="secondary-btn"
@@ -285,17 +330,9 @@ export default function FieldControlPanel({
           {isFetchingSatelliteData ? 'Fetching...' : 'Fetch satellite data'}
         </button>
 
-        {satelliteFetchResult ? (
-          <p className="workspace-helper-text" style={{ margin: 0 }}>
-            {satelliteFetchResult.dataset || 'Satellite metadata ready'} · {satelliteFetchResult.acquisition_date || 'Date pending'}
-          </p>
-        ) : null}
-
-        {satelliteFetchError ? (
-          <p className="workspace-helper-text" style={{ margin: 0 }}>
-            Satellite metadata is unavailable right now.
-          </p>
-        ) : null}
+        <p className="workspace-helper-text" style={{ margin: 0 }}>
+          Fetch satellite metadata for the selected analysis period before running analysis.
+        </p>
       </SidebarSection>
 
       <SidebarSection title="Run analysis" guideId="run-analysis-section">
@@ -310,20 +347,31 @@ export default function FieldControlPanel({
           {isAnalyzing ? 'Analyzing...' : 'Run analysis'}
         </button>
 
+        {canViewResults ? (
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={() => onOpenResults?.()}
+            data-guide="open-results"
+          >
+            Open results
+          </button>
+        ) : null}
+
         {runAnalysisReason ? (
           <p className="workspace-helper-text" style={{ margin: 0 }}>
             {runAnalysisReason}
           </p>
-        ) : null}
+        ) : (
+          <p className="workspace-helper-text" style={{ margin: 0 }}>
+            Run NDVI, EVI, and model-assisted land-cover classification.
+          </p>
+        )}
       </SidebarSection>
 
       <SidebarSection title="Map layers" guideId="map-layers-section">
         <label className="workspace-checkbox-row">
-          <input
-            type="checkbox"
-            checked
-            readOnly
-          />
+          <input type="checkbox" checked readOnly />
           <span>Satellite basemap</span>
         </label>
 

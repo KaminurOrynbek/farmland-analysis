@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import AppHeader from './components/layout/AppHeader';
 import FieldsPage from './pages/FieldsPage.jsx';
 import LandingPage from './pages/LandingPage';
-import AnalysisResultsPage from './pages/FieldReportPage.jsx';
+import AnalysisResultsPage from './pages/AnalysisResultsPage.jsx';
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/ProfilePage';
@@ -31,27 +31,14 @@ import {
 } from './constants/appPages';
 import { computeBboxFromGeoJson } from './utils/geoUtils.js';
 import { getSavedFieldId } from './utils/fieldIdentity';
+import {
+  createEmptyAnalysisRecord,
+  createSeasonSelection,
+  getCurrentSeasonYear,
+  normalizeAnalysisRecord
+} from './utils/fieldAnalysisUtils';
 
-const DEFAULT_ANALYSIS_RESULTS = {
-  analysisId: null,
-  status: 'idle',
-  vegetationHealth: '—',
-  healthDelta: '',
-  cropType: '—',
-  confidence: '—',
-  analyzedArea: '—',
-  analyzedAreaHectares: null,
-  fieldCount: 0,
-  stressZonesCount: 0,
-  stressAreaPercentage: 0,
-  ndviValue: null,
-  eviValue: null,
-  riskLevel: '—',
-  overallStatus: 'Unknown',
-  assessment: null,
-  recommendations: [],
-  message: ''
-};
+const DEFAULT_ANALYSIS_RESULTS = createEmptyAnalysisRecord();
 
 const enrichFeatureCollection = (featureCollection, metadata) => {
   if (!featureCollection?.features?.length) {
@@ -76,14 +63,6 @@ const enrichFeatureCollection = (featureCollection, metadata) => {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const buildAssessmentMessage = (assessment, fallbackMessage = '') => (
-  assessment?.summary ||
-  assessment?.vegetation_description ||
-  assessment?.stress_assessment ||
-  fallbackMessage ||
-  ''
-);
-
 const applyAnalysisStatusUpdate = (setAnalysisResults, analysisId, statusResponse) => {
   setAnalysisResults((current) => ({
     ...current,
@@ -99,62 +78,6 @@ const isAnalysisFinished = (statusResponse) => (
   statusResponse?.progress === 100
 );
 
-const normalizeAnalysisResult = (item) => {
-  const assessment = item?.assessment || {};
-  const recommendations = Array.isArray(assessment.recommendations)
-    ? assessment.recommendations
-    : [];
-
-  const riskLevel = item?.risk_level || 'Unknown';
-  const overallStatus = assessment.overall_status || mapRiskToStatus(riskLevel);
-
-  return {
-    analysisId: item?.analysis_id || null,
-    status: item?.status || 'DONE',
-    vegetationHealth:
-      item?.vegetation_health !== null && item?.vegetation_health !== undefined
-        ? `${Math.round(item.vegetation_health)}%`
-        : '—',
-    healthDelta: '',
-    cropType: item?.crop_type || 'Unknown crop',
-    confidence:
-      item?.confidence !== null && item?.confidence !== undefined
-        ? `${(item.confidence * 100).toFixed(1)}%`
-        : '—',
-    analyzedArea:
-      item?.area_ha !== null && item?.area_ha !== undefined
-        ? `${Number(item.area_ha).toFixed(2)} ha`
-        : 'Unknown',
-    analyzedAreaHectares:
-      item?.area_ha !== null && item?.area_ha !== undefined
-        ? Number(item.area_ha)
-        : null,
-    fieldCount: 1,
-    stressZonesCount: item?.stress_zones_count || 0,
-    stressAreaPercentage: item?.stress_area_percentage || 0,
-    ndviValue:
-      item?.ndvi_value !== null && item?.ndvi_value !== undefined
-        ? Number(item.ndvi_value)
-        : null,
-    eviValue:
-      item?.evi_value !== null && item?.evi_value !== undefined
-        ? Number(item.evi_value)
-        : null,
-    riskLevel,
-    overallStatus,
-    assessment,
-    recommendations,
-    message: buildAssessmentMessage(assessment, item?.message || '')
-  };
-};
-
-const mapRiskToStatus = (riskLevel) => {
-  if (riskLevel === 'Low') return 'Healthy';
-  if (riskLevel === 'Medium') return 'Warning';
-  if (riskLevel === 'High') return 'Critical';
-  return 'Unknown';
-};
-
 const buildFeatureCollectionFromField = (field) => ({
   type: 'FeatureCollection',
   features: [
@@ -165,7 +88,10 @@ const buildFeatureCollectionFromField = (field) => ({
         field_id: field.id,
         name: field.name,
         area: field.area_ha || 0,
-        role: field.role
+        role: field.role,
+        crop_type: field.crop_type || null,
+        planting_date: field.planting_date || null,
+        season_year: field.season_year || null
       },
       geometry: field.geometry
     }
@@ -175,14 +101,40 @@ const buildFeatureCollectionFromField = (field) => ({
 const buildSelectionFromAnalysis = (analysisItem, field = null) => ({
   type: 'Feature',
   properties: {
-    id: field?.id || analysisItem?.field_id || null,
-    field_id: field?.id || analysisItem?.field_id || null,
-    name: field?.name || analysisItem?.field_name || 'Unnamed Field',
-    area: field?.area_ha || analysisItem?.area_ha || 0,
-    role: field?.role || null
+    id: field?.id || analysisItem?.field_id || analysisItem?.fieldId || null,
+    field_id: field?.id || analysisItem?.field_id || analysisItem?.fieldId || null,
+    name: field?.name || analysisItem?.field_name || analysisItem?.fieldName || 'Unnamed Field',
+    area: field?.area_ha || analysisItem?.area_ha || analysisItem?.areaHectares || 0,
+    role: field?.role || null,
+    crop_type: field?.crop_type || analysisItem?.field_metadata?.crop_type || analysisItem?.fieldMetadata?.cropType || null,
+    planting_date: field?.planting_date || analysisItem?.field_metadata?.planting_date || analysisItem?.fieldMetadata?.plantingDate || null,
+    season_year: field?.season_year || analysisItem?.season_year || analysisItem?.seasonYear || null
   },
   geometry: field?.geometry || null
 });
+
+const getSeasonSelectionFromRecord = (record) => {
+  const seasonYear = String(record?.seasonYear || record?.season_year || getCurrentSeasonYear());
+  const startDate = record?.startDate || record?.start_date || null;
+  const endDate = record?.endDate || record?.end_date || null;
+
+  if (!startDate || !endDate) {
+    return createSeasonSelection(seasonYear, { seasonYear });
+  }
+
+  const expectedStart = `${seasonYear}-01-01`;
+  const expectedEnd = `${seasonYear}-12-31`;
+  const mode =
+    startDate === expectedStart && endDate === expectedEnd
+      ? seasonYear
+      : 'custom';
+
+  return createSeasonSelection(mode, {
+    seasonYear,
+    startDate,
+    endDate
+  });
+};
 
 const getCurrentFieldId = ({ geoJsonUploadResponse }) => (
   getSavedFieldId(geoJsonUploadResponse)
@@ -191,12 +143,14 @@ const getCurrentFieldId = ({ geoJsonUploadResponse }) => (
 const buildWorkspaceFieldKey = ({
   geoJsonData,
   selectedField,
-  geoJsonUploadResponse
+  geoJsonUploadResponse,
+  seasonSelection
 }) => {
   const savedFieldId = getCurrentFieldId({ geoJsonUploadResponse });
+  const seasonKey = `${seasonSelection?.seasonYear || 'season'}:${seasonSelection?.startDate || 'start'}:${seasonSelection?.endDate || 'end'}`;
 
   if (savedFieldId) {
-    return `field:${savedFieldId}`;
+    return `field:${savedFieldId}:${seasonKey}`;
   }
 
   const geometry =
@@ -208,7 +162,7 @@ const buildWorkspaceFieldKey = ({
     return null;
   }
 
-  return `geometry:${JSON.stringify(geometry)}`;
+  return `geometry:${JSON.stringify(geometry)}:${seasonKey}`;
 };
 
 const WORKSPACE_GUIDE_PENDING_KEY = 'workspaceGuidePendingAfterRegistration';
@@ -242,7 +196,12 @@ function App() {
   const [dataRefreshKey, setDataRefreshKey] = useState(0);
   const [isSessionReady, setIsSessionReady] = useState(false);
   const [isGuidedTourOpen, setIsGuidedTourOpen] = useState(false);
-  const [selectedSeason, setSelectedSeason] = useState('2026');
+  const [selectedSeason, setSelectedSeason] = useState(getCurrentSeasonYear());
+  const [seasonSelection, setSeasonSelection] = useState(
+    createSeasonSelection(getCurrentSeasonYear())
+  );
+  const [fieldCropTypeDraft, setFieldCropTypeDraft] = useState('');
+  const [fieldPlantingDateDraft, setFieldPlantingDateDraft] = useState('');
 
   // Health check on load
   useEffect(() => {
@@ -300,7 +259,7 @@ function App() {
 
   const resetAnalysisState = () => {
     setAnalysisStarted(false);
-    setAnalysisResults(DEFAULT_ANALYSIS_RESULTS);
+    setAnalysisResults(createEmptyAnalysisRecord());
     setLatestAnalysisAt(null);
   };
 
@@ -312,6 +271,8 @@ function App() {
     setSelectedField(null);
     setPendingDrawnField(null);
     setFieldNameDraft('');
+    setFieldCropTypeDraft('');
+    setFieldPlantingDateDraft('');
     resetAnalysisState();
     handleNavigate(APP_PAGES.WORKSPACE);
   };
@@ -351,14 +312,30 @@ function App() {
     setAnalysisStarted(true);
 
     try {
-      const queuedJob = await runAnalysis(fieldId, '2023-05-01', '2023-08-30');
+      const queuedJob = await runAnalysis({
+        fieldId,
+        startDate: seasonSelection.startDate,
+        endDate: seasonSelection.endDate,
+        seasonYear: Number(seasonSelection.seasonYear),
+        satelliteSource: currentSatelliteFetchResult?.satellite_source || null,
+        satelliteAcquisitionDate: currentSatelliteFetchResult?.acquisition_date || null,
+        cloudCoverage: currentSatelliteFetchResult?.cloud_coverage ?? null,
+        qualityFlags: currentSatelliteFetchResult?.quality_flags ?? null
+      });
       const analysisId = queuedJob.analysis_id;
 
       setAnalysisResults((current) => ({
         ...current,
         analysisId,
         status: 'PROCESSING',
-        message: 'Analysis has started. Satellite imagery, vegetation indices, and AI model are being processed.'
+        seasonYear: String(queuedJob.season_year || seasonSelection.seasonYear),
+        startDate: queuedJob.start_date || seasonSelection.startDate,
+        endDate: queuedJob.end_date || seasonSelection.endDate,
+        satelliteSource: currentSatelliteFetchResult?.satellite_source || null,
+        satelliteAcquisitionDate: currentSatelliteFetchResult?.acquisition_date || null,
+        cloudCoverage: currentSatelliteFetchResult?.cloud_coverage ?? null,
+        qualityFlags: currentSatelliteFetchResult?.quality_flags ?? null,
+        message: 'Analysis has started. Satellite indicators and model-assisted land-cover classification are being processed.'
       }));
 
       let finalStatus = null;
@@ -430,10 +407,12 @@ function App() {
         throw new Error('Analysis completed, but results were not found in history.');
       }
 
-      const normalizedResult = normalizeAnalysisResult(latestAnalysis);
+      const normalizedResult = normalizeAnalysisRecord(latestAnalysis);
 
       setAnalysisResults(normalizedResult);
-      setLatestAnalysisAt(latestAnalysis.analysis_date || new Date().toISOString());
+      setLatestAnalysisAt(normalizedResult.analysisDate || latestAnalysis.analysis_date || new Date().toISOString());
+      setSelectedSeason(normalizedResult.seasonYear || selectedSeason);
+      setSeasonSelection(getSeasonSelectionFromRecord(normalizedResult));
       handleDataChanged();
     } catch (error) {
       console.error('Analysis failed:', error);
@@ -454,7 +433,8 @@ function App() {
     const currentFieldKey = buildWorkspaceFieldKey({
       geoJsonData,
       selectedField,
-      geoJsonUploadResponse
+      geoJsonUploadResponse,
+      seasonSelection
     });
 
     if (!bbox || !currentFieldKey) {
@@ -468,7 +448,10 @@ function App() {
     try {
       const metadata = await fetchSatelliteData({
         dataset,
-        bbox
+        bbox,
+        startDate: seasonSelection.startDate,
+        endDate: seasonSelection.endDate,
+        seasonYear: Number(seasonSelection.seasonYear)
       });
 
       setSatelliteFetchResult({
@@ -485,8 +468,8 @@ function App() {
     }
   };
 
-  const saveFieldFeatureCollection = async (fieldName, featureCollection) => {
-    const trimmedFieldName = fieldName.trim();
+  const saveFieldFeatureCollection = async (fieldDetails, featureCollection) => {
+    const trimmedFieldName = fieldDetails.name.trim();
     const geometryToSave = featureCollection?.features?.[0]?.geometry;
 
     if (!trimmedFieldName) {
@@ -502,7 +485,13 @@ function App() {
     setIsSavingField(true);
 
     try {
-      const response = await saveField(trimmedFieldName, geometryToSave, 0.0);
+      const response = await saveField({
+        name: trimmedFieldName,
+        geometry: geometryToSave,
+        cropType: fieldDetails.cropType || null,
+        plantingDate: fieldDetails.plantingDate || null,
+        seasonYear: fieldDetails.seasonYear ? Number(fieldDetails.seasonYear) : null
+      });
       const field = response.data;
 
       const metadata = {
@@ -510,7 +499,10 @@ function App() {
         field_id: field.id,
         name: field.name || trimmedFieldName,
         area: field.area_ha || 0,
-        role: field.role
+        role: field.role,
+        crop_type: field.crop_type || fieldDetails.cropType || null,
+        planting_date: field.planting_date || fieldDetails.plantingDate || null,
+        season_year: field.season_year || fieldDetails.seasonYear || null
       };
       const enrichedFeatureCollection = enrichFeatureCollection(featureCollection, metadata);
 
@@ -524,6 +516,8 @@ function App() {
       setGeoJsonUploadError(null);
       setPendingDrawnField(null);
       setFieldNameDraft(field.name || trimmedFieldName);
+      setFieldCropTypeDraft(field.crop_type || fieldDetails.cropType || '');
+      setFieldPlantingDateDraft(field.planting_date || fieldDetails.plantingDate || '');
       handleDataChanged();
       return true;
     } catch (error) {
@@ -543,7 +537,9 @@ function App() {
       geoJsonUploadResponse,
       geoJsonUploadError,
       selectedField,
-      fieldNameDraft
+      fieldNameDraft,
+      fieldCropTypeDraft,
+      fieldPlantingDateDraft
     };
 
     setPendingDrawnField({
@@ -558,14 +554,21 @@ function App() {
     setFieldNameDraft('');
   };
 
-  const handleSaveUploadedField = async (fieldName) => saveFieldFeatureCollection(fieldName, geoJsonData);
+  const handleSaveUploadedField = async (fieldDetails) => (
+    saveFieldFeatureCollection(fieldDetails, geoJsonData)
+  );
 
   const handleSaveDrawnField = async (fieldName) => {
     if (!pendingDrawnField?.featureCollection) {
       return false;
     }
 
-    return saveFieldFeatureCollection(fieldName, pendingDrawnField.featureCollection);
+    return saveFieldFeatureCollection({
+      name: fieldName,
+      cropType: fieldCropTypeDraft,
+      plantingDate: fieldPlantingDateDraft,
+      seasonYear: seasonSelection.seasonYear
+    }, pendingDrawnField.featureCollection);
   };
 
   const handleCancelDrawnField = () => {
@@ -579,6 +582,8 @@ function App() {
     setGeoJsonUploadError(pendingDrawnField.previousState.geoJsonUploadError);
     setSelectedField(pendingDrawnField.previousState.selectedField);
     setFieldNameDraft(pendingDrawnField.previousState.fieldNameDraft);
+    setFieldCropTypeDraft(pendingDrawnField.previousState.fieldCropTypeDraft);
+    setFieldPlantingDateDraft(pendingDrawnField.previousState.fieldPlantingDateDraft);
     setPendingDrawnField(null);
   };
 
@@ -601,17 +606,27 @@ function App() {
       size: null
     });
     setFieldNameDraft(field.name || 'Saved Field');
+    setFieldCropTypeDraft(field.crop_type || '');
+    setFieldPlantingDateDraft(field.planting_date || '');
     setGeoJsonUploadResponse({
       status: 'success',
       data: field
     });
     setGeoJsonUploadError(null);
+    if (field?.season_year) {
+      setSelectedSeason(String(field.season_year));
+      setSeasonSelection(createSeasonSelection(String(field.season_year), {
+        seasonYear: String(field.season_year)
+      }));
+    }
 
-    if (latestAnalysis?.analysis_id) {
-      const normalized = normalizeAnalysisResult(latestAnalysis);
+    if (latestAnalysis?.analysis_id || latestAnalysis?.analysisId) {
+      const normalized = normalizeAnalysisRecord(latestAnalysis);
       setAnalysisStarted(true);
       setAnalysisResults(normalized);
-      setLatestAnalysisAt(latestAnalysis.analysis_date || new Date().toISOString());
+      setLatestAnalysisAt(normalized.analysisDate || latestAnalysis.analysis_date || new Date().toISOString());
+      setSelectedSeason(normalized.seasonYear || selectedSeason);
+      setSeasonSelection(getSeasonSelectionFromRecord(normalized));
     } else {
       resetAnalysisState();
     }
@@ -622,11 +637,13 @@ function App() {
   };
 
   const handleOpenAnalysis = (analysisItem, field) => {
-    const normalized = normalizeAnalysisResult(analysisItem);
+    const normalized = normalizeAnalysisRecord(analysisItem);
 
     setAnalysisStarted(true);
     setAnalysisResults(normalized);
-    setLatestAnalysisAt(analysisItem.analysis_date || new Date().toISOString());
+    setLatestAnalysisAt(normalized.analysisDate || analysisItem.analysis_date || new Date().toISOString());
+    setSelectedSeason(normalized.seasonYear || selectedSeason);
+    setSeasonSelection(getSeasonSelectionFromRecord(normalized));
     setSelectedField(buildSelectionFromAnalysis(analysisItem, field));
     setPendingDrawnField(null);
 
@@ -638,6 +655,8 @@ function App() {
         size: null
       });
       setFieldNameDraft(field.name || 'Saved Field');
+      setFieldCropTypeDraft(field.crop_type || '');
+      setFieldPlantingDateDraft(field.planting_date || '');
       setGeoJsonUploadResponse({
         status: 'success',
         data: field
@@ -649,6 +668,8 @@ function App() {
       setGeoJsonUploadResponse(null);
       setGeoJsonUploadError(null);
       setFieldNameDraft('');
+      setFieldCropTypeDraft('');
+      setFieldPlantingDateDraft('');
     }
 
     handleNavigate(APP_PAGES.ANALYSIS_RESULTS);
@@ -732,7 +753,8 @@ function App() {
   const currentWorkspaceFieldKey = buildWorkspaceFieldKey({
     geoJsonData,
     selectedField,
-    geoJsonUploadResponse
+    geoJsonUploadResponse,
+    seasonSelection
   });
 
   const currentSatelliteFetchResult =
@@ -823,6 +845,15 @@ function App() {
             setGeoJsonUploadError={setGeoJsonUploadError}
             fieldName={fieldNameDraft}
             setFieldName={setFieldNameDraft}
+            fieldCropType={fieldCropTypeDraft}
+            setFieldCropType={setFieldCropTypeDraft}
+            fieldPlantingDate={fieldPlantingDateDraft}
+            setFieldPlantingDate={setFieldPlantingDateDraft}
+            seasonSelection={seasonSelection}
+            onSeasonSelectionChange={(nextSelection) => {
+              setSeasonSelection(nextSelection);
+              setSelectedSeason(String(nextSelection.seasonYear || getCurrentSeasonYear()));
+            }}
             fieldLayerVisible={fieldLayerVisible}
             setFieldLayerVisible={setFieldLayerVisible}
             selectedField={selectedField}
@@ -837,6 +868,7 @@ function App() {
             analysisResults={analysisResults}
             analysisStarted={analysisStarted}
             latestAnalysisAt={latestAnalysisAt}
+            selectedSeason={selectedSeason}
             onOpenField={handleOpenField}
             onOpenAnalysis={handleOpenAnalysis}
             onOpenResults={() => handleNavigate(APP_PAGES.ANALYSIS_RESULTS)}

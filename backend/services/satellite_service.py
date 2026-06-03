@@ -1,24 +1,51 @@
-from typing import List, Dict, Any
-from datetime import datetime
+from datetime import date
+from typing import List, Dict, Any, Optional
+
+from backend.services.season_service import resolve_monitoring_window
 
 class SatelliteService:
-    def fetch_satellite_metadata(self, dataset: str, bbox: List[float]) -> Dict[str, Any]:
+    DATASETS = {
+        "sentinel2": {
+            "label": "Sentinel-2",
+            "resolution": "10m"
+        },
+        "landsat": {
+            "label": "Landsat 8-9",
+            "resolution": "30m"
+        }
+    }
+
+    def fetch_satellite_metadata(
+        self,
+        dataset: str,
+        bbox: List[float],
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+        season_year: Optional[int] = None
+    ) -> Dict[str, Any]:
         """
-        Simulate retrieval of satellite metadata for a given dataset and bounding box.
-        Future: Integrate with Sentinel Hub, STAC API, or GEE.
+        Returns transparent satellite request metadata for the selected monitoring window.
         """
-        # Validate dataset
-        valid_datasets = ["sentinel2", "landsat"]
-        if dataset.lower() not in valid_datasets:
-            dataset = "sentinel2" # Default to sentinel2
-            
-        # Mock retrieval logic
+        dataset_key = dataset.lower() if dataset and dataset.lower() in self.DATASETS else "sentinel2"
+        dataset_meta = self.DATASETS[dataset_key]
+        requested_start, requested_end, resolved_season = resolve_monitoring_window(
+            season_year=season_year,
+            start_date=start_date,
+            end_date=end_date
+        )
+
         return {
-            "dataset": dataset.lower(),
-            "acquisition_date": datetime.now().strftime("%Y-%m-%d"),
-            "resolution": "10m" if dataset.lower() == "sentinel2" else "30m",
+            "dataset": dataset_key,
+            "satellite_source": dataset_meta["label"],
+            "acquisition_date": None,
+            "start_date": requested_start.isoformat(),
+            "end_date": requested_end.isoformat(),
+            "season_year": resolved_season,
+            "resolution": dataset_meta["resolution"],
             "bbox": bbox,
-            "status": "tile_ready"
+            "cloud_coverage": None,
+            "quality_flags": None,
+            "status": "metadata_ready"
         }
 
 satellite_service = SatelliteService()

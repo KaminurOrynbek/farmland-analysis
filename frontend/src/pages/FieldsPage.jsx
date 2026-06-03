@@ -34,7 +34,7 @@ const ACCESS_ROLE_OPTIONS = [
 
 const SORT_OPTIONS = [
   { value: 'latest', label: 'Latest analysis' },
-  { value: 'risk', label: 'Risk level' },
+  { value: 'risk', label: 'Screening priority' },
   { value: 'area', label: 'Area' },
   { value: 'name', label: 'Name' }
 ];
@@ -42,7 +42,7 @@ const SORT_OPTIONS = [
 const PAGE_SIZE = 10;
 const FIELD_TABLE_COLUMNS = [
   { key: 'field', label: 'Field', align: 'left' },
-  { key: 'status', label: 'Status', align: 'left' },
+  { key: 'status', label: 'Screening', align: 'left' },
   { key: 'area', label: 'Area', align: 'left' },
   { key: 'lastAnalysis', label: 'Last Analysis', align: 'left' },
   { key: 'runs', label: 'Runs', align: 'left' },
@@ -77,14 +77,14 @@ const getRiskAccentColor = (riskLabel) => {
 };
 
 const getLatestAnalysisDate = (summary) => (
-  summary.latestOverallAnalysis?.analysis_date ||
+  summary.latestOverallAnalysis?.analysisDate ||
   summary.latestAnalysisAt ||
   null
 );
 
 const getLatestCropType = (summary) => (
-  summary.latestOverallAnalysis?.crop_type ||
-  summary.latestAnalysis?.crop_type ||
+  summary.latestOverallAnalysis?.predictedClass ||
+  summary.latestAnalysis?.predictedClass ||
   null
 );
 

@@ -85,6 +85,9 @@ class Field(Base):
     boundary_geom = Column(Geometry(geometry_type='POLYGON', srid=4326), comment='PostGIS POLYGON WGS84')
     area_ha = Column(Numeric, comment='Auto-calculated from geometry')
     location_name = Column(String)
+    crop_type = Column(String)
+    planting_date = Column(Date)
+    season_year = Column(Integer)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     deleted_at = Column(DateTime(timezone=True))
@@ -177,6 +180,13 @@ class Analysis(Base):
     celery_task_id = Column(String, comment='Celery async task ID')
     progress_percent = Column(Integer, default=0)
     current_stage = Column(String, default="Pending")
+    season_year = Column(Integer)
+    requested_start_date = Column(Date)
+    requested_end_date = Column(Date)
+    satellite_acquisition_date = Column(Date)
+    satellite_source = Column(String)
+    cloud_coverage = Column(Float)
+    quality_flags = Column(JSONB)
     input_key = Column(String, comment='S3 key for raw imagery')
     result_key = Column(String, comment='S3 key for processed results map')
     event_log = Column(JSONB, default=list, comment='List of events {timestamp, stage, progress}')
@@ -291,7 +301,6 @@ class MLPrediction(Base):
     agronomic_assessment = Column(JSONB)
 
     analysis = relationship("Analysis", back_populates="ml_prediction")
-
 
 
 

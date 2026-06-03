@@ -17,7 +17,10 @@ async def fetch_satellite_data(
     try:
         metadata = satellite_service.fetch_satellite_metadata(
             dataset=request.dataset,
-            bbox=request.bbox
+            bbox=request.bbox,
+            start_date=request.start_date,
+            end_date=request.end_date,
+            season_year=request.season_year
         )
         return metadata
     except Exception as e:

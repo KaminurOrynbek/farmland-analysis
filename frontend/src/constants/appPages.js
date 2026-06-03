@@ -8,18 +8,7 @@ export const APP_PAGES = {
   SETTINGS: 'Settings'
 };
 
-const LEGACY_PAGE_ALIASES = {
-  Home: APP_PAGES.DASHBOARD,
-  Profile: APP_PAGES.SETTINGS,
-  Admin: APP_PAGES.ADMIN_PANEL,
-  'Field Access': APP_PAGES.FIELD_SHARING,
-  'Analysis Report': APP_PAGES.ANALYSIS_RESULTS,
-  Reports: APP_PAGES.ANALYSIS_RESULTS,
-  Projects: APP_PAGES.WORKSPACE,
-  'My Farm': APP_PAGES.FIELDS
-};
-
-export const normalizeAppPage = (page) => LEGACY_PAGE_ALIASES[page] || page;
+export const normalizeAppPage = (page) => page;
 
 export const isAdminUser = (user) => user?.role === 'ADMIN';
 

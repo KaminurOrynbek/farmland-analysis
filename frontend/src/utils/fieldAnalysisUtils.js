@@ -1,15 +1,19 @@
 import { formatAreaMeasure } from './analysisFormatters';
 
+export const ANALYSIS_LIMITATION_NOTE =
+  'This result is based on satellite indicators and model-assisted land-cover classification. It should support field monitoring, not replace agronomic inspection.';
+
+export const getCurrentSeasonYear = () => String(new Date().getFullYear());
+
 export const SEASON_OPTIONS = [
   { value: '2025', label: 'Season 2025' },
   { value: '2026', label: 'Season 2026' }
 ];
 
-const DEFAULT_RECOMMENDATIONS = [
-  'Inspect low-vigor zones in the field and compare them with recent weather or irrigation events.',
-  'Check soil moisture, weeds, pests, and fertilizer balance before making major interventions.',
-  'Repeat the analysis after the next cloud-free satellite acquisition to confirm the trend.'
-];
+const CUSTOM_SEASON_OPTION = {
+  value: 'custom',
+  label: 'Custom date range'
+};
 
 const toDate = (value) => {
   if (!value) {
@@ -20,6 +24,15 @@ const toDate = (value) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
+const toOptionalNumber = (value) => {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
 const average = (values) => {
   if (!values.length) {
     return null;
@@ -28,30 +41,73 @@ const average = (values) => {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 };
 
-const normalizeConfidence = (value) => {
+const getPresetDateRange = (seasonYear) => ({
+  startDate: `${seasonYear}-01-01`,
+  endDate: `${seasonYear}-12-31`
+});
+
+export const createSeasonSelection = (
+  mode = getCurrentSeasonYear(),
+  overrides = {}
+) => {
+  const normalizedMode = String(mode || getCurrentSeasonYear());
+  const inferredSeasonYear =
+    overrides.seasonYear ||
+    (normalizedMode === 'custom'
+      ? getCurrentSeasonYear()
+      : normalizedMode);
+  const presetRange = getPresetDateRange(inferredSeasonYear);
+
+  return {
+    mode: normalizedMode,
+    seasonYear: String(inferredSeasonYear),
+    startDate: overrides.startDate || presetRange.startDate,
+    endDate: overrides.endDate || presetRange.endDate
+  };
+};
+
+export const buildSeasonOptions = (items = [], includeCustom = false) => {
+  const seasonValues = new Set([
+    '2025',
+    '2026',
+    getCurrentSeasonYear()
+  ]);
+
+  items.forEach((item) => {
+    const nextSeason = getAnalysisYear(item);
+    if (nextSeason) {
+      seasonValues.add(String(nextSeason));
+    }
+  });
+
+  const dynamicOptions = Array.from(seasonValues)
+    .sort((left, right) => Number(right) - Number(left))
+    .map((value) => ({
+      value,
+      label: `Season ${value}`
+    }));
+
+  return includeCustom
+    ? [...dynamicOptions, CUSTOM_SEASON_OPTION]
+    : dynamicOptions;
+};
+
+export const normalizeConfidence = (value, fallback = '—') => {
   if (value === null || value === undefined || value === '') {
-    return '—';
+    return fallback;
   }
 
-  if (typeof value === 'string') {
-    if (value.includes('%')) {
-      return value;
-    }
-
-    const numeric = Number(value);
-    if (!Number.isNaN(numeric)) {
-      return `${numeric.toFixed(1)}%`;
-    }
-
+  if (typeof value === 'string' && value.includes('%')) {
     return value;
   }
 
   const numeric = Number(value);
   if (Number.isNaN(numeric)) {
-    return '—';
+    return fallback;
   }
 
-  return `${((numeric <= 1 ? numeric * 100 : numeric)).toFixed(1)}%`;
+  const percentage = numeric <= 1 ? numeric * 100 : numeric;
+  return `${percentage.toFixed(1)}%`;
 };
 
 export const formatWorkspaceDateTime = (value, fallback = '—') => {
@@ -59,8 +115,22 @@ export const formatWorkspaceDateTime = (value, fallback = '—') => {
   return parsed ? parsed.toLocaleString() : fallback;
 };
 
+export const formatWorkspaceDate = (value, fallback = '—') => {
+  const parsed = toDate(value);
+  return parsed ? parsed.toLocaleDateString() : fallback;
+};
+
 export const getAnalysisYear = (analysis) => {
-  const parsed = toDate(analysis?.analysis_date);
+  if (analysis?.season_year || analysis?.seasonYear) {
+    return String(analysis.season_year || analysis.seasonYear);
+  }
+
+  const parsed =
+    toDate(analysis?.analysis_date) ||
+    toDate(analysis?.analysisDate) ||
+    toDate(analysis?.start_date) ||
+    toDate(analysis?.startDate);
+
   return parsed ? String(parsed.getFullYear()) : null;
 };
 
@@ -74,8 +144,14 @@ export const matchesSeason = (analysis, season) => {
 
 export const sortAnalysesByNewest = (items = []) => (
   [...items].sort((left, right) => {
-    const rightTime = toDate(right?.analysis_date)?.getTime() || 0;
-    const leftTime = toDate(left?.analysis_date)?.getTime() || 0;
+    const rightTime =
+      toDate(right?.analysis_date)?.getTime() ||
+      toDate(right?.analysisDate)?.getTime() ||
+      0;
+    const leftTime =
+      toDate(left?.analysis_date)?.getTime() ||
+      toDate(left?.analysisDate)?.getTime() ||
+      0;
     return rightTime - leftTime;
   })
 );
@@ -83,6 +159,89 @@ export const sortAnalysesByNewest = (items = []) => (
 export const filterAnalysesBySeason = (items = [], season) => (
   sortAnalysesByNewest(items.filter((item) => matchesSeason(item, season)))
 );
+
+export const normalizeAnalysisRecord = (record = {}) => {
+  const predictedClass =
+    record?.predicted_class ||
+    record?.predictedClass ||
+    record?.eurosat_class ||
+    record?.euroSatClass ||
+    record?.crop_type ||
+    record?.cropType ||
+    null;
+  const qualityFlags = Array.isArray(record?.quality_flags)
+    ? record.quality_flags
+    : Array.isArray(record?.qualityFlags)
+      ? record.qualityFlags
+      : null;
+  const fieldMetadata = record?.field_metadata || record?.fieldMetadata || {};
+
+  return {
+    analysisId: record?.analysis_id || record?.analysisId || null,
+    fieldId: record?.field_id || record?.fieldId || null,
+    fieldName: record?.field_name || record?.fieldName || null,
+    areaHectares:
+      toOptionalNumber(record?.area_ha) ??
+      toOptionalNumber(record?.areaHectares),
+    analysisDate:
+      record?.analysis_date ||
+      record?.analysisDate ||
+      record?.analysis_created_at ||
+      null,
+    analysisCreatedAt:
+      record?.analysis_created_at ||
+      record?.analysisCreatedAt ||
+      null,
+    seasonYear: String(
+      record?.season_year ||
+      record?.seasonYear ||
+      getAnalysisYear(record) ||
+      getCurrentSeasonYear()
+    ),
+    startDate: record?.start_date || record?.startDate || null,
+    endDate: record?.end_date || record?.endDate || null,
+    satelliteAcquisitionDate:
+      record?.satellite_acquisition_date ||
+      record?.satelliteAcquisitionDate ||
+      null,
+    satelliteSource:
+      record?.satellite_source ||
+      record?.satelliteSource ||
+      null,
+    ndviValue:
+      toOptionalNumber(record?.ndvi_value) ??
+      toOptionalNumber(record?.ndviValue),
+    eviValue:
+      toOptionalNumber(record?.evi_value) ??
+      toOptionalNumber(record?.eviValue),
+    predictedClass,
+    euroSatClass:
+      record?.eurosat_class ||
+      record?.euroSatClass ||
+      predictedClass,
+    confidence:
+      toOptionalNumber(record?.confidence) ??
+      toOptionalNumber(record?.modelConfidence),
+    confidenceLabel: normalizeConfidence(record?.confidence ?? record?.modelConfidence),
+    riskLevel: record?.risk_level || record?.riskLevel || null,
+    status: record?.status || null,
+    cloudCoverage:
+      toOptionalNumber(record?.cloud_coverage) ??
+      toOptionalNumber(record?.cloudCoverage),
+    qualityFlags,
+    fieldMetadata: {
+      cropType: fieldMetadata?.crop_type || fieldMetadata?.cropType || null,
+      plantingDate: fieldMetadata?.planting_date || fieldMetadata?.plantingDate || null,
+      seasonYear: fieldMetadata?.season_year || fieldMetadata?.seasonYear || null
+    }
+  };
+};
+
+export const createEmptyAnalysisRecord = () => normalizeAnalysisRecord({
+  analysisId: null,
+  status: 'idle',
+  seasonYear: getCurrentSeasonYear()
+});
 
 export const getFieldSelectionId = (selectedField) => (
   selectedField?.properties?.field_id ||
@@ -106,18 +265,17 @@ export const createFieldFallbackRecord = (selectedField, currentFieldId = null) 
     id: currentFieldId || getFieldSelectionId(selectedField) || 'current-selection',
     name: getFieldSelectionName(selectedField),
     area_ha:
-      Number(
+      toOptionalNumber(
         selectedField?.properties?.area ||
         selectedField?.properties?.area_ha ||
-        selectedField?.area_ha ||
-        0
+        selectedField?.area_ha
       ) || 0,
-    role:
-      selectedField?.properties?.role ||
-      selectedField?.role ||
-      null,
+    role: selectedField?.properties?.role || selectedField?.role || null,
     owner_name: selectedField?.properties?.owner_name || selectedField?.owner_name || null,
-    owner_email: selectedField?.properties?.owner_email || selectedField?.owner_email || null
+    owner_email: selectedField?.properties?.owner_email || selectedField?.owner_email || null,
+    crop_type: selectedField?.properties?.crop_type || selectedField?.crop_type || null,
+    planting_date: selectedField?.properties?.planting_date || selectedField?.planting_date || null,
+    season_year: selectedField?.properties?.season_year || selectedField?.season_year || null
   };
 };
 
@@ -139,14 +297,14 @@ export const mapRiskToStatus = (riskLevel) => {
   if (riskLevel === 'Low') return 'Healthy';
   if (riskLevel === 'Medium') return 'Warning';
   if (riskLevel === 'High') return 'Critical';
-  return 'Unknown';
+  return 'Not analyzed';
 };
 
 export const getVegetationLevelDisplay = (ndviValue) => {
   if (ndviValue === null || ndviValue === undefined || Number.isNaN(Number(ndviValue))) {
     return {
-      value: 'Unknown',
-      helper: 'Vegetation level will appear after analysis.'
+      value: 'Not analyzed',
+      helper: 'Vegetation signal will appear after analysis.'
     };
   }
 
@@ -155,29 +313,29 @@ export const getVegetationLevelDisplay = (ndviValue) => {
   if (numeric >= 0.6) {
     return {
       value: 'High',
-      helper: 'Strong vegetation signal in the latest screening result.'
+      helper: 'Strong vegetation signal in the selected monitoring window.'
     };
   }
 
   if (numeric >= 0.35) {
     return {
       value: 'Moderate',
-      helper: 'Mixed vegetation signal; field inspection recommended.'
+      helper: 'Moderate vegetation signal. Field inspection recommended.'
     };
   }
 
   return {
     value: 'Low',
-    helper: 'Lower vegetation signal detected; field inspection recommended.'
+    helper: 'Lower vegetation signal detected. Field inspection recommended.'
   };
 };
 
 export const getVegetationIndexLevelDisplay = (indexType, value) => {
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
     return {
-      value: 'Unknown',
+      value: 'Not analyzed',
       tone: 'neutral',
-      helper: `${indexType.toUpperCase()} level will appear after analysis.`
+      helper: `${indexType.toUpperCase()} is not available for this run.`
     };
   }
 
@@ -188,7 +346,7 @@ export const getVegetationIndexLevelDisplay = (indexType, value) => {
       return {
         value: 'High',
         tone: 'healthy',
-        helper: 'Strong canopy signal in the latest screening result.'
+        helper: 'Higher canopy signal detected in the selected image window.'
       };
     }
 
@@ -196,14 +354,14 @@ export const getVegetationIndexLevelDisplay = (indexType, value) => {
       return {
         value: 'Moderate',
         tone: 'warning',
-        helper: 'Moderate canopy signal; field inspection recommended.'
+        helper: 'Moderate canopy signal. Field inspection recommended.'
       };
     }
 
     return {
       value: 'Low',
       tone: 'critical',
-      helper: 'Lower canopy signal detected; field inspection recommended.'
+      helper: 'Lower canopy signal detected. Field inspection recommended.'
     };
   }
 
@@ -211,7 +369,7 @@ export const getVegetationIndexLevelDisplay = (indexType, value) => {
     return {
       value: 'High',
       tone: 'healthy',
-      helper: 'Strong greenness signal in the latest screening result.'
+      helper: 'Higher greenness signal detected in the selected image window.'
     };
   }
 
@@ -219,144 +377,85 @@ export const getVegetationIndexLevelDisplay = (indexType, value) => {
     return {
       value: 'Moderate',
       tone: 'warning',
-      helper: 'Mixed greenness signal; field inspection recommended.'
+      helper: 'Moderate greenness signal. Field inspection recommended.'
     };
   }
 
   return {
     value: 'Low',
     tone: 'critical',
-    helper: 'Lower greenness signal detected; field inspection recommended.'
+    helper: 'Lower greenness signal detected. Field inspection recommended.'
   };
 };
 
 export const getConditionSummaryDisplay = (analysisSummary) => {
-  if (!analysisSummary) {
+  if (!analysisSummary?.analysisId) {
     return {
-      value: 'Unknown',
-      helper: 'No screening result is available yet.'
+      value: 'Not analyzed',
+      helper: 'Run an analysis to view a remote-sensing screening result.'
     };
   }
 
-  if (analysisSummary.overallStatus && analysisSummary.overallStatus !== 'Unknown') {
+  const fieldCondition = mapRiskToStatus(analysisSummary.riskLevel);
+
+  if (fieldCondition === 'Healthy') {
     return {
-      value: analysisSummary.overallStatus,
-      helper: 'Remote-sensing screening summary for the current field.'
+      value: fieldCondition,
+      helper: 'Lower screening priority in the current result. Continue routine monitoring.'
     };
   }
 
-  if (analysisSummary.riskLevel === 'Low') {
+  if (fieldCondition === 'Warning') {
     return {
-      value: 'Stable',
-      helper: 'Current signals look relatively stable, but field inspection is still recommended.'
+      value: fieldCondition,
+      helper: 'Mixed signals detected. Field inspection recommended.'
     };
   }
 
-  if (analysisSummary.riskLevel === 'Medium') {
+  if (fieldCondition === 'Critical') {
     return {
-      value: 'Needs attention',
-      helper: 'Some signals need closer review in the field.'
-    };
-  }
-
-  if (analysisSummary.riskLevel === 'High') {
-    return {
-      value: 'Priority review',
-      helper: 'Higher-risk signals were detected; field inspection recommended.'
+      value: fieldCondition,
+      helper: 'Higher screening priority detected. Field inspection recommended.'
     };
   }
 
   return {
-    value: 'Unknown',
-    helper: 'Analysis details are incomplete for this field.'
+    value: 'Not analyzed',
+    helper: 'Run an analysis to view a remote-sensing screening result.'
   };
 };
 
-export const getRecommendedActionSummary = (recommendations = []) => {
-  if (recommendations.length > 0) {
-    return recommendations[0];
+export const getInspectionMessage = (analysisSummary) => {
+  const condition = mapRiskToStatus(analysisSummary?.riskLevel);
+
+  if (condition === 'Healthy') {
+    return 'Remote-sensing screening result indicates lower current priority. Continue monitoring and inspect if field conditions change.';
   }
 
-  return 'Field inspection recommended to confirm current conditions before action.';
+  if (condition === 'Warning') {
+    return 'Remote-sensing screening result indicates mixed signals. Field inspection recommended.';
+  }
+
+  if (condition === 'Critical') {
+    return 'Remote-sensing screening result indicates higher screening priority. Field inspection recommended.';
+  }
+
+  return 'Remote-sensing screening result is not available yet.';
 };
 
-const extractRecommendations = (analysisLike) => {
-  const direct = Array.isArray(analysisLike?.recommendations)
-    ? analysisLike.recommendations
-    : [];
-  const nested = Array.isArray(analysisLike?.assessment?.recommendations)
-    ? analysisLike.assessment.recommendations
-    : [];
-
-  const values = direct.length ? direct : nested;
-  return values.length ? values : DEFAULT_RECOMMENDATIONS;
-};
-
-const buildAssessmentCopy = (analysisLike) => (
-  analysisLike?.assessment?.summary ||
-  analysisLike?.assessment?.stress_assessment ||
-  analysisLike?.assessment?.vegetation_description ||
-  analysisLike?.message ||
-  ''
+export const buildHistoryAnalysisDisplay = (analysisItem) => (
+  analysisItem ? normalizeAnalysisRecord(analysisItem) : null
 );
 
-export const buildHistoryAnalysisDisplay = (analysisItem) => {
-  if (!analysisItem) {
-    return null;
-  }
-
-  return {
-    analysisId: analysisItem.analysis_id || null,
-    analysisDate: analysisItem.analysis_date || null,
-    cropType: analysisItem.crop_type || 'Unknown crop',
-    confidenceLabel: normalizeConfidence(analysisItem.confidence),
-    ndviValue:
-      analysisItem.ndvi_value !== null && analysisItem.ndvi_value !== undefined
-        ? Number(analysisItem.ndvi_value)
-        : null,
-    eviValue:
-      analysisItem.evi_value !== null && analysisItem.evi_value !== undefined
-        ? Number(analysisItem.evi_value)
-        : null,
-    riskLevel: analysisItem.risk_level || 'Unknown',
-    overallStatus: analysisItem?.assessment?.overall_status || mapRiskToStatus(analysisItem.risk_level),
-    recommendations: extractRecommendations(analysisItem),
-    summary: buildAssessmentCopy(analysisItem),
-    analyzedArea:
-      analysisItem.area_ha !== null && analysisItem.area_ha !== undefined
-        ? formatAreaMeasure(Number(analysisItem.area_ha))
-        : '—',
-    stressZonesCount: Number(analysisItem.stress_zones_count || 0),
-    stressAreaPercentage: Number(analysisItem.stress_area_percentage || 0)
-  };
-};
-
 export const buildSessionAnalysisDisplay = (analysisResults, latestAnalysisAt = null) => {
-  if (!analysisResults?.analysisId && !analysisResults?.cropType && !analysisResults?.riskLevel) {
+  if (!analysisResults?.analysisId && !analysisResults?.predictedClass) {
     return null;
   }
 
-  return {
-    analysisId: analysisResults.analysisId || null,
-    analysisDate: latestAnalysisAt || null,
-    cropType: analysisResults.cropType || 'Unknown crop',
-    confidenceLabel: normalizeConfidence(analysisResults.confidence),
-    ndviValue:
-      analysisResults.ndviValue !== null && analysisResults.ndviValue !== undefined
-        ? Number(analysisResults.ndviValue)
-        : null,
-    eviValue:
-      analysisResults.eviValue !== null && analysisResults.eviValue !== undefined
-        ? Number(analysisResults.eviValue)
-        : null,
-    riskLevel: analysisResults.riskLevel || 'Unknown',
-    overallStatus: analysisResults.overallStatus || mapRiskToStatus(analysisResults.riskLevel),
-    recommendations: extractRecommendations(analysisResults),
-    summary: buildAssessmentCopy(analysisResults),
-    analyzedArea: analysisResults.analyzedArea || '—',
-    stressZonesCount: Number(analysisResults.stressZonesCount || 0),
-    stressAreaPercentage: Number(analysisResults.stressAreaPercentage || 0)
-  };
+  return normalizeAnalysisRecord({
+    ...analysisResults,
+    analysisDate: latestAnalysisAt || analysisResults.analysisDate
+  });
 };
 
 export const getActiveAnalysisDisplay = ({
@@ -365,7 +464,7 @@ export const getActiveAnalysisDisplay = ({
   latestAnalysisAt,
   fallbackHistoryAnalysis
 }) => {
-  if (analysisStarted && (analysisResults?.analysisId || analysisResults?.cropType !== '—')) {
+  if (analysisStarted && (analysisResults?.analysisId || analysisResults?.predictedClass)) {
     return buildSessionAnalysisDisplay(analysisResults, latestAnalysisAt);
   }
 
@@ -374,7 +473,7 @@ export const getActiveAnalysisDisplay = ({
 
 export const buildFieldWorkspaceSummaries = (fields = [], history = [], selectedSeason = null) => {
   const groupedHistory = history.reduce((accumulator, analysisItem) => {
-    const fieldKey = analysisItem?.field_id || analysisItem?.field_name;
+    const fieldKey = analysisItem?.field_id || analysisItem?.fieldId || analysisItem?.field_name;
     if (!fieldKey) {
       return accumulator;
     }
@@ -383,7 +482,7 @@ export const buildFieldWorkspaceSummaries = (fields = [], history = [], selected
       accumulator[fieldKey] = [];
     }
 
-    accumulator[fieldKey].push(analysisItem);
+    accumulator[fieldKey].push(normalizeAnalysisRecord(analysisItem));
     return accumulator;
   }, {});
 
@@ -399,7 +498,7 @@ export const buildFieldWorkspaceSummaries = (fields = [], history = [], selected
     const latestSeasonAnalysis = seasonAnalyses[0] || null;
     const latestAnalysis = activeAnalyses[0] || null;
     const ndviSeries = activeAnalyses
-      .map((item) => item?.ndvi_value)
+      .map((item) => item?.ndviValue)
       .filter((value) => value !== null && value !== undefined)
       .map(Number);
 
@@ -410,15 +509,33 @@ export const buildFieldWorkspaceSummaries = (fields = [], history = [], selected
       latestOverallAnalysis,
       latestSeasonAnalysis,
       latestAnalysis,
-      latestRisk: latestAnalysis?.risk_level || latestOverallAnalysis?.risk_level || null,
+      latestRisk: latestAnalysis?.riskLevel || latestOverallAnalysis?.riskLevel || null,
+      latestClassification:
+        latestAnalysis?.predictedClass ||
+        latestOverallAnalysis?.predictedClass ||
+        null,
       latestNdvi:
-        latestAnalysis?.ndvi_value !== null && latestAnalysis?.ndvi_value !== undefined
-          ? Number(latestAnalysis.ndvi_value)
-          : latestOverallAnalysis?.ndvi_value !== null && latestOverallAnalysis?.ndvi_value !== undefined
-            ? Number(latestOverallAnalysis.ndvi_value)
-            : null,
+        latestAnalysis?.ndviValue ??
+        latestOverallAnalysis?.ndviValue ??
+        null,
       averageNdvi: average(ndviSeries),
-      latestAnalysisAt: latestAnalysis?.analysis_date || latestOverallAnalysis?.analysis_date || null
+      latestAnalysisAt: latestAnalysis?.analysisDate || latestOverallAnalysis?.analysisDate || null
     };
   });
 };
+
+export const formatFieldSeason = (field) => (
+  field?.season_year ? `Season ${field.season_year}` : 'Season not set'
+);
+
+export const formatFieldPlantingDate = (field) => (
+  formatWorkspaceDate(field?.planting_date || field?.plantingDate, 'Planting date not set')
+);
+
+export const formatFieldCropType = (field) => (
+  field?.crop_type || field?.cropType || 'Crop type not set'
+);
+
+export const formatAreaSummary = (value) => (
+  value !== null && value !== undefined ? formatAreaMeasure(value) : '—'
+);

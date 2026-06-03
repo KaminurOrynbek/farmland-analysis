@@ -1,7 +1,12 @@
 import os
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore"
+    )
+
     PROJECT_NAME: str = "Farmland Image Analysis System"
     VERSION: str = "1.0.0"
     
@@ -35,7 +40,4 @@ class Settings(BaseSettings):
     MINIO_BUCKET_RAW: str = os.getenv("MINIO_BUCKET_RAW", "satellite-data")
     MINIO_BUCKET_RESULTS: str = os.getenv("MINIO_BUCKET_RESULTS", "analysis-results")
         
-    class Config:
-        env_file = ".env"
-
 settings = Settings()

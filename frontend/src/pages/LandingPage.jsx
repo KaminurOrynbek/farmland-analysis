@@ -35,12 +35,12 @@ const STEPS = [
   {
     n: 3,
     title: 'Run field analysis',
-    desc: 'Let the system check vegetation condition and possible risk areas.'
+    desc: 'Run remote-sensing screening based on vegetation indicators and land-cover classification.'
   },
   {
     n: 4,
     title: 'Understand the results',
-    desc: 'Review field health, risk level, and suggested next steps.'
+    desc: 'Review field condition, vegetation signal, and monitoring history in plain language.'
   },
   {
     n: 5,
@@ -63,7 +63,7 @@ const FEATURES = [
   {
     icon: <LineChart size={28} color="#a855f7" />,
     title: 'Analysis Results',
-    desc: 'Get clear results with field health, risk level, and practical recommendations.'
+    desc: 'Get clear screening results with vegetation indicators, land-cover labels, and season history.'
   }
 ];
 
@@ -81,7 +81,7 @@ const BENEFITS = [
   {
     icon: <Database size={26} color="#8b5cf6" />,
     title: 'Keep field history',
-    desc: 'Save analyses and compare field condition across different periods.'
+    desc: 'Save analyses and compare field condition across different seasons.'
   }
 ];
 
@@ -94,19 +94,19 @@ const TECH_CARDS = [
   {
     icon: <BrainCircuit size={26} color="#a855f7" />,
     title: 'AI-assisted analysis',
-    desc: 'The system helps classify field condition and highlight possible risk areas.'
+    desc: 'The system helps classify land cover and highlight where field inspection may be useful.'
   },
   {
     icon: <Sprout size={26} color="var(--status-healthy)" />,
     title: 'Vegetation insights',
-    desc: 'The platform converts raw imagery into understandable crop health indicators.'
+    desc: 'The platform converts raw imagery into understandable vegetation indicators for field monitoring.'
   }
 ];
 
 const FAQ_ITEMS = [
   {
     title: 'What can AgroVision help me understand?',
-    text: 'It helps you see field condition, identify possible risk zones, and review previous analysis results.'
+    text: 'It helps you review field condition, vegetation signals, detected land cover, and previous analysis results.'
   },
   {
     title: 'Do I need technical knowledge to use it?',
@@ -118,7 +118,7 @@ const FAQ_ITEMS = [
   },
   {
     title: 'Does this replace agronomists?',
-    text: 'No. AgroVision supports decision-making by showing where attention may be needed. Final decisions should still include expert judgment.'
+    text: 'No. AgroVision supports field monitoring by showing where attention may be needed. Agronomic decisions should still include field inspection and expert judgment.'
   }
 ];
 
@@ -163,13 +163,13 @@ export default function LandingPage({ onSignIn, onGetStarted }) {
             <div className="landing-hero-copy glass-panel">
               <div className="landing-hero-badge">
                 <MapPin size={14} />
-                <span>Farmland monitoring · Field health · Risk insights</span>
+                <span>Farmland monitoring · Vegetation indicators · Land-cover insights</span>
               </div>
               <h1 className="landing-headline">
-                Monitor farmland health from one clear workspace.
+                Monitor farmland conditions from one clear workspace.
               </h1>
               <p className="landing-subheadline">
-                AgroVision helps you review field condition, detect possible risk zones, and save analysis results using satellite-powered agricultural insights.
+                AgroVision helps you review field condition, vegetation signals, and land-cover screening results using satellite imagery and model-assisted analysis.
               </p>
               <div className="landing-cta-row">
                 <button type="button" className="landing-btn-primary" onClick={onGetStarted}>
@@ -197,12 +197,12 @@ export default function LandingPage({ onSignIn, onGetStarted }) {
                   <span className="landing-metric-label">Remote imagery</span>
                 </div>
                 <div className="landing-metric">
-                  <span className="landing-metric-value">Health</span>
-                  <span className="landing-metric-label">Crop condition</span>
+                  <span className="landing-metric-value">NDVI / EVI</span>
+                  <span className="landing-metric-label">Vegetation indicators</span>
                 </div>
                 <div className="landing-metric">
                   <span className="landing-metric-value">AI-assisted</span>
-                  <span className="landing-metric-label">Risk assessment</span>
+                  <span className="landing-metric-label">Land-cover screening</span>
                 </div>
               </div>
             </aside>
@@ -214,7 +214,7 @@ export default function LandingPage({ onSignIn, onGetStarted }) {
             <p className="landing-section-label">Features</p>
             <h2 className="landing-section-title">Everything you need to understand your fields</h2>
             <p className="landing-section-copy">
-              AgroVision turns field boundaries and satellite-based analysis into clear information about crop condition, risk areas, and monitoring history.
+              AgroVision turns field boundaries and satellite-based analysis into clear information about field condition, vegetation signals, and monitoring history.
             </p>
           </div>
 
@@ -234,7 +234,7 @@ export default function LandingPage({ onSignIn, onGetStarted }) {
             <p className="landing-section-label">How It Works</p>
             <h2 className="landing-section-title">Simple steps to field insights</h2>
             <p className="landing-section-copy">
-              Add your field and get clear health results in minutes.
+              Add your field and get a clear monitoring summary in minutes.
             </p>
           </div>
 
@@ -254,7 +254,7 @@ export default function LandingPage({ onSignIn, onGetStarted }) {
             <p className="landing-section-label">Benefits</p>
             <h2 className="landing-section-title">Why use AgroVision?</h2>
             <p className="landing-section-copy">
-              Take the guesswork out of crop management. Get timely insights to protect your yield and optimize field operations.
+              Keep field monitoring organized with clear satellite-based screening and season-by-season history.
             </p>
           </div>
 
@@ -274,7 +274,7 @@ export default function LandingPage({ onSignIn, onGetStarted }) {
             <p className="landing-section-label">Technology</p>
             <h2 className="landing-section-title">Powered by satellite imagery and AI-assisted analysis</h2>
             <p className="landing-section-copy">
-              The technical layer stays behind the interface, while users see simple field health results and practical recommendations.
+              The technical layer stays behind the interface, while users see a simple screening summary first and technical indicators second.
             </p>
           </div>
 
@@ -310,7 +310,7 @@ export default function LandingPage({ onSignIn, onGetStarted }) {
             <p className="landing-section-label">Get Started</p>
             <h2 className="landing-section-title">Ready to monitor your fields?</h2>
             <p className="landing-section-copy">
-              Start adding your fields today and let AgroVision help you identify risk zones and monitor crop health.
+              Start adding your fields today and let AgroVision support field monitoring with satellite indicators and season history.
             </p>
           </div>
 
@@ -332,7 +332,7 @@ export default function LandingPage({ onSignIn, onGetStarted }) {
         <footer className="landing-footer">
           <div>
             <p className="landing-footer-title">AgroVision</p>
-            <p>Farmland monitoring, field health analysis, and agricultural risk insights in one workspace.</p>
+            <p>Farmland monitoring, vegetation indicators, and land-cover screening in one workspace.</p>
           </div>
         </footer>
       </div>

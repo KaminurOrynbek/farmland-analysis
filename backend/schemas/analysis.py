@@ -1,3 +1,4 @@
+from datetime import date
 from pydantic import BaseModel
 from typing import Dict, Any, Optional, List
 
@@ -5,15 +6,10 @@ class AnalysisRequest(BaseModel):
     field_id: Optional[str] = None
     bbox: Optional[List[float]] = None
     parameters: Optional[Dict[str, Any]] = None
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
-
-class AnalysisResult(BaseModel):
-    status: str
-    vegetation_health: int
-    crop_type: str
-    confidence: float
-    analyzed_area: float
-    stress_zones_count: int
-    ndvi_value: float
-    risk_level: str
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    season_year: Optional[int] = None
+    satellite_source: Optional[str] = None
+    satellite_acquisition_date: Optional[date] = None
+    cloud_coverage: Optional[float] = None
+    quality_flags: Optional[List[str]] = None

@@ -188,7 +188,7 @@ export default function FieldMap({
     layer.bindPopup(`
       <div style="min-width:180px">
         <strong>${popupName}</strong><br />
-        Status: ${mapStatusLabel}
+        Screening priority: ${mapStatusLabel}
       </div>
     `);
   };
@@ -288,7 +288,7 @@ export default function FieldMap({
             <strong>{fieldName || 'Field workspace map'}</strong>
             <p className="workspace-helper-text">
               {hasStoredAnalysis
-                ? `Risk status: ${mapStatusLabel}`
+                ? `Screening priority: ${mapStatusLabel}`
                 : 'Gray boundaries mean the field has not been analyzed yet.'}
             </p>
           </div>

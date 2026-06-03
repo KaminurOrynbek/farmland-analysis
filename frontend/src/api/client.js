@@ -126,21 +126,43 @@ export const checkHealth = async () => {
   }
 };
 
-export const runAnalysis = async (fieldId, startDate = null, endDate = null) => {
+export const runAnalysis = async ({
+  fieldId,
+  startDate = null,
+  endDate = null,
+  seasonYear = null,
+  satelliteSource = null,
+  satelliteAcquisitionDate = null,
+  cloudCoverage = null,
+  qualityFlags = null
+}) => {
   const response = await api.post('/analysis/analyze', {
     field_id: fieldId,
     start_date: startDate,
-    end_date: endDate
+    end_date: endDate,
+    season_year: seasonYear,
+    satellite_source: satelliteSource,
+    satellite_acquisition_date: satelliteAcquisitionDate,
+    cloud_coverage: cloudCoverage,
+    quality_flags: qualityFlags
   });
 
   return response.data;
 };
 
-export const saveField = async (name, geometry, area_ha) => {
+export const saveField = async ({
+  name,
+  geometry,
+  cropType = null,
+  plantingDate = null,
+  seasonYear = null
+}) => {
   const response = await api.post('/geo/fields', {
     name,
     geometry,
-    area_ha
+    crop_type: cropType,
+    planting_date: plantingDate,
+    season_year: seasonYear
   });
 
   return response.data;
@@ -151,8 +173,8 @@ export const fetchAllFields = async () => {
   return response.data;
 };
 
-export const fetchAnalysisHistory = async () => {
-  const response = await api.get('/analysis/history');
+export const fetchAnalysisHistory = async (params = {}) => {
+  const response = await api.get('/analysis/history', { params });
   return response.data;
 };
 
@@ -288,10 +310,19 @@ export const createFieldComment = async ({
   return response.data;
 };
 
-export const fetchSatelliteData = async ({ dataset, bbox }) => {
+export const fetchSatelliteData = async ({
+  dataset,
+  bbox,
+  startDate = null,
+  endDate = null,
+  seasonYear = null
+}) => {
   const response = await api.post('/satellite/fetch-satellite-data', {
     dataset,
-    bbox
+    bbox,
+    start_date: startDate,
+    end_date: endDate,
+    season_year: seasonYear
   });
 
   return response.data;

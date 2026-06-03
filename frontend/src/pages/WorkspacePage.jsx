@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
 import { fetchAllFields, fetchAnalysisHistory } from '../api/client';
 import { getFieldPermissions } from '../permissions/permissions';
 import FieldMap from '../components/workspace/FieldMap';
@@ -16,6 +15,7 @@ import {
 const getRunAnalysisReason = ({
   hasGeometry,
   hasSavedField,
+  hasSatelliteMetadata,
   canAnalyze,
   isFetchingSatelliteData,
   isAnalyzing
@@ -26,6 +26,10 @@ const getRunAnalysisReason = ({
 
   if (!hasSavedField) {
     return 'Save the field before running analysis.';
+  }
+
+  if (!hasSatelliteMetadata) {
+    return 'Fetch satellite metadata for the selected season or date range first.';
   }
 
   if (!canAnalyze) {
@@ -63,6 +67,12 @@ export default function WorkspacePage({
   setGeoJsonUploadError,
   fieldName,
   setFieldName,
+  fieldCropType,
+  setFieldCropType,
+  fieldPlantingDate,
+  setFieldPlantingDate,
+  seasonSelection,
+  onSeasonSelectionChange,
   fieldLayerVisible,
   setFieldLayerVisible,
   selectedField,
@@ -77,6 +87,7 @@ export default function WorkspacePage({
   analysisResults,
   analysisStarted,
   latestAnalysisAt,
+  selectedSeason,
   onOpenResults,
   isGuidedTourOpen,
   onCloseGuidedTour
@@ -146,8 +157,8 @@ export default function WorkspacePage({
   }, [fallbackFieldRecord, fields]);
 
   const fieldSummaries = useMemo(
-    () => buildFieldWorkspaceSummaries(effectiveFields, history),
-    [effectiveFields, history]
+    () => buildFieldWorkspaceSummaries(effectiveFields, history, seasonSelection?.seasonYear),
+    [effectiveFields, history, seasonSelection]
   );
 
   const selectedFieldSummary = useMemo(() => {
@@ -162,13 +173,14 @@ export default function WorkspacePage({
   const currentFieldRecord = selectedFieldSummary?.field || fallbackFieldRecord || null;
   const currentFieldAnalyses = selectedFieldSummary?.analyses || [];
   const fieldRiskLevel =
-    analysisStarted && analysisResults?.riskLevel && analysisResults.riskLevel !== '—'
+    analysisStarted && analysisResults?.riskLevel
       ? analysisResults.riskLevel
-      : selectedFieldSummary?.latestOverallAnalysis?.risk_level || null;
+      : selectedFieldSummary?.latestAnalysis?.riskLevel || null;
   const permissions = getFieldPermissions(selectedField?.properties || selectedField, user);
   const runAnalysisReason = getRunAnalysisReason({
     hasGeometry: Boolean(geoJsonData),
     hasSavedField: Boolean(currentFieldId),
+    hasSatelliteMetadata: Boolean(satelliteFetchResult),
     canAnalyze: permissions.canAnalyze,
     isFetchingSatelliteData,
     isAnalyzing
@@ -204,36 +216,24 @@ export default function WorkspacePage({
             setGeoJsonUploadError={setGeoJsonUploadError}
             fieldName={fieldName}
             setFieldName={setFieldName}
+            fieldCropType={fieldCropType}
+            setFieldCropType={setFieldCropType}
+            fieldPlantingDate={fieldPlantingDate}
+            setFieldPlantingDate={setFieldPlantingDate}
+            seasonSelection={seasonSelection}
+            onSeasonSelectionChange={onSeasonSelectionChange}
             fieldLayerVisible={fieldLayerVisible}
             setFieldLayerVisible={setFieldLayerVisible}
             setSelectedField={setSelectedField}
             onSaveField={onSaveField}
             isSavingField={isSavingField}
+            onOpenResults={onOpenResults}
             onRunAnalysis={onRunAnalysis}
             canRunAnalysis={!runAnalysisReason}
+            canViewResults={canViewResults}
             runAnalysisReason={runAnalysisReason}
           />
         </div>
-
-        <div className="workspace-stage-column">
-          {isAnalyzing ? (
-            <div className="glass-panel" style={analysisNoticeStyle}>
-              <Loader2
-                size={18}
-                color="var(--accent-color)"
-                style={{ animation: 'spin 1s linear infinite' }}
-              />
-              <div>
-                <strong style={{ display: 'block', marginBottom: '4px' }}>Analyzing field data</strong>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.84rem' }}>
-                  Processing satellite imagery, vegetation indices, and the transfer learning model.
-                </span>
-              </div>
-              <style>
-                {`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}
-              </style>
-            </div>
-          ) : null}
 
           <main className="map-container workspace-map-stage" style={mapPanelStyle} tabIndex={-1}>
             <FieldMap
@@ -262,11 +262,11 @@ export default function WorkspacePage({
               riskLevel={fieldRiskLevel}
               latestAnalysisAt={latestAnalysisAt || selectedFieldSummary?.latestAnalysisAt || null}
               analysisHistory={currentFieldAnalyses}
+              selectedSeason={selectedSeason}
               canViewResults={canViewResults}
               onOpenResults={onOpenResults}
             />
           </main>
-        </div>
       </div>
 
       <WorkspaceGuide
@@ -285,13 +285,6 @@ export default function WorkspacePage({
     </div>
   );
 }
-
-const analysisNoticeStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '12px',
-  padding: '14px 16px'
-};
 
 const mapPanelStyle = {
   position: 'relative',

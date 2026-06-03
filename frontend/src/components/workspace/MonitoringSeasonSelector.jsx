@@ -1,63 +1,140 @@
-import React from 'react';
-import { CalendarRange } from 'lucide-react';
-import { SEASON_OPTIONS } from '../../utils/fieldAnalysisUtils';
+import React, { useMemo } from 'react';
+import { ChevronDown } from 'lucide-react';
+
+const CURRENT_YEAR = new Date().getFullYear();
+
+const DEFAULT_OPTIONS = [
+  { value: String(CURRENT_YEAR - 1), label: `Season ${CURRENT_YEAR - 1}` },
+  { value: String(CURRENT_YEAR), label: `Season ${CURRENT_YEAR}` }
+];
+
+const getSelectedMode = (value) => {
+  if (typeof value === 'object' && value !== null) {
+    return value.mode === 'custom' ? 'custom' : String(value.seasonYear || CURRENT_YEAR);
+  }
+
+  return String(value || CURRENT_YEAR);
+};
+
+const buildSelection = (mode, currentValue = {}) => {
+  const current = typeof currentValue === 'object' && currentValue !== null ? currentValue : {};
+
+  if (mode === 'custom') {
+    const seasonYear = String(current.seasonYear || CURRENT_YEAR);
+
+    return {
+      mode: 'custom',
+      seasonYear,
+      startDate: current.startDate || `${seasonYear}-01-01`,
+      endDate: current.endDate || `${seasonYear}-12-31`
+    };
+  }
+
+  return {
+    mode,
+    seasonYear: String(mode),
+    startDate: `${mode}-01-01`,
+    endDate: `${mode}-12-31`
+  };
+};
 
 export default function MonitoringSeasonSelector({
   value,
   onChange,
-  options = SEASON_OPTIONS,
-  helperText = 'Prototype season filter: analyses are grouped by the year of the analysis date.',
+  options = DEFAULT_OPTIONS,
+  allowCustom = false,
   compact = false
 }) {
-  if (compact) {
-    return (
-      <div className="season-toggle-group">
-        {options.map((option) => {
-          const isActive = String(option.value) === String(value);
+  const selectedMode = getSelectedMode(value);
 
-          return (
-            <button
-              key={option.value}
-              type="button"
-              className={`season-toggle ${isActive ? 'active' : ''}`}
-              onClick={() => onChange?.(String(option.value))}
-            >
-              {option.label}
-            </button>
-          );
-        })}
-      </div>
-    );
-  }
+  const selection = useMemo(
+    () => (typeof value === 'object' && value !== null ? value : buildSelection(selectedMode, value)),
+    [selectedMode, value]
+  );
+
+  const isCustom = selectedMode === 'custom';
+
+  const handleModeChange = (event) => {
+    const nextMode = event.target.value;
+    const nextSelection = buildSelection(nextMode, selection);
+
+    if (compact) {
+      onChange?.(nextSelection.seasonYear);
+      return;
+    }
+
+    onChange?.(nextSelection);
+  };
+
+  const handleDateChange = (key, nextDate) => {
+    const nextSelection = {
+      ...selection,
+      mode: 'custom',
+      [key]: nextDate
+    };
+
+    const nextYear = nextSelection.startDate
+      ? new Date(nextSelection.startDate).getFullYear()
+      : CURRENT_YEAR;
+
+    onChange?.({
+      ...nextSelection,
+      seasonYear: String(nextYear)
+    });
+  };
 
   return (
-    <div className="workspace-season-card glass-panel">
-      <div className="workspace-section-heading">
-        <div className="workspace-section-icon">
-          <CalendarRange size={16} />
-        </div>
-        <div>
-          <strong style={{ fontSize: '0.92rem' }}>Season focus</strong>
-          <p className="workspace-helper-text">{helperText}</p>
-        </div>
-      </div>
+    <section className="analysis-period-card" data-guide="season-date-selection">
+      <strong className="analysis-period-title">Analysis period</strong>
 
-      <div className="season-toggle-group">
-        {options.map((option) => {
-          const isActive = String(option.value) === String(value);
+      <label className="analysis-period-field">
+        <span>Period</span>
 
-          return (
-            <button
-              key={option.value}
-              type="button"
-              className={`season-toggle ${isActive ? 'active' : ''}`}
-              onClick={() => onChange?.(String(option.value))}
-            >
-              {option.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
+        <div className="analysis-period-select-wrap">
+          <select
+            value={selectedMode}
+            onChange={handleModeChange}
+            className="analysis-period-native-select"
+          >
+            {options.map((option) => {
+              const optionValue = String(option.value || option);
+              const optionLabel = option.label || `Season ${optionValue}`;
+
+              return (
+                <option key={optionValue} value={optionValue}>
+                  {optionLabel}
+                </option>
+              );
+            })}
+
+            {allowCustom ? <option value="custom">Custom date range</option> : null}
+          </select>
+
+          <ChevronDown size={16} />
+        </div>
+      </label>
+
+      {isCustom ? (
+        <div className="analysis-period-date-grid">
+          <label className="analysis-period-field">
+            <span>Start date</span>
+            <input
+              type="date"
+              value={selection.startDate || ''}
+              onChange={(event) => handleDateChange('startDate', event.target.value)}
+            />
+          </label>
+
+          <label className="analysis-period-field">
+            <span>End date</span>
+            <input
+              type="date"
+              value={selection.endDate || ''}
+              onChange={(event) => handleDateChange('endDate', event.target.value)}
+            />
+          </label>
+        </div>
+      ) : null}
+    </section>
   );
 }

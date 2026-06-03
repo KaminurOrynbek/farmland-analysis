@@ -1,230 +1,114 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-  CalendarClock,
-  ChevronDown,
-  ChevronUp,
-  FileText,
-  MapPinned,
-  MessageSquare,
-  ShieldAlert
-} from 'lucide-react';
-import FieldCommentsPanel from './FieldCommentsPanel';
-import { formatAreaMeasure } from '../../utils/analysisFormatters';
-import { formatWorkspaceDateTime, getRiskTone } from '../../utils/fieldAnalysisUtils';
+import React, { useMemo } from 'react';
+import { CalendarClock, ChevronDown, Satellite } from 'lucide-react';
+import { formatWorkspaceDate } from '../../utils/fieldAnalysisUtils';
 
-function DetailRow({ icon, label, value }) {
-  return (
-    <div className="workspace-selection-row">
-      <div className="workspace-selection-label">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <strong>{value}</strong>
-    </div>
-  );
-}
+const CURRENT_YEAR = new Date().getFullYear();
 
-function HistoryRow({ analysis }) {
-  const cropType = analysis?.crop_type || 'Detected cover unavailable';
-  const riskLabel = analysis?.risk_level || 'Not analyzed';
+const DEFAULT_OPTIONS = [
+  { value: String(CURRENT_YEAR - 1), label: `Season ${CURRENT_YEAR - 1}` },
+  { value: String(CURRENT_YEAR), label: `Season ${CURRENT_YEAR}` }
+];
 
-  return (
-    <article className="workspace-history-row">
-      <div>
-        <strong style={{ display: 'block', marginBottom: '4px' }}>
-          {formatWorkspaceDateTime(analysis?.analysis_date, 'Analysis date pending')}
-        </strong>
-        <p className="workspace-helper-text" style={{ margin: 0 }}>
-          {cropType}
-        </p>
-      </div>
+const getSelectedMode = (value) => {
+  if (typeof value === 'object' && value !== null) {
+    return value.mode === 'custom' ? 'custom' : String(value.seasonYear || CURRENT_YEAR);
+  }
 
-      <span className={`status-pill ${getRiskTone(riskLabel)}`}>
-        {riskLabel}
-      </span>
-    </article>
-  );
-}
+  return String(value || CURRENT_YEAR);
+};
 
-export default function WorkspaceSelectionCard({
-  user,
-  fieldId,
-  selectedField,
-  hasGeometry,
-  fieldRecord,
-  riskLevel,
-  latestAnalysisAt,
-  analysisHistory = [],
-  canViewResults,
-  onOpenResults
+const buildSelection = (mode, currentValue = {}) => {
+  const current = typeof currentValue === 'object' && currentValue !== null ? currentValue : {};
+
+  if (mode === 'custom') {
+    const seasonYear = String(current.seasonYear || CURRENT_YEAR);
+
+    return {
+      mode: 'custom',
+      seasonYear,
+      startDate: current.startDate || `${seasonYear}-01-01`,
+      endDate: current.endDate || `${seasonYear}-12-31`
+    };
+  }
+
+  return {
+    mode,
+    seasonYear: String(mode),
+    startDate: `${mode}-01-01`,
+    endDate: `${mode}-12-31`
+  };
+};
+
+export default function MonitoringSeasonSelector({
+  value,
+  onChange,
+  options = DEFAULT_OPTIONS,
+  allowCustom = false,
+  compact = false
 }) {
-  const [activeTab, setActiveTab] = useState('overview');
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const selectedMode = getSelectedMode(value);
 
-  const fieldName = fieldRecord?.name || 'No field selected';
-  const fieldArea = fieldRecord?.area_ha
-    ? formatAreaMeasure(fieldRecord.area_ha)
-    : 'Area pending';
-  const statusLabel = riskLevel || 'Not analyzed';
-  const hasHistory = analysisHistory.length > 0;
-  const currentTab = activeTab === 'history' && !hasHistory ? 'overview' : activeTab;
-  const overviewDetails = [
-    { id: 'area', icon: <MapPinned size={14} />, label: 'Area', value: fieldArea },
-    { id: 'status', icon: <ShieldAlert size={14} />, label: 'Latest status', value: statusLabel },
-    {
-      id: 'analysis',
-      icon: <CalendarClock size={14} />,
-      label: 'Latest analysis',
-      value: formatWorkspaceDateTime(latestAnalysisAt, 'No analysis yet')
-    }
-  ];
-
-  const availableTabs = useMemo(() => {
-    const tabs = [
-      { id: 'overview', label: 'Overview', icon: <MapPinned size={14} /> },
-      { id: 'comments', label: 'Comments', icon: <MessageSquare size={14} />, guideId: 'field-comments' }
-    ];
-
-    if (hasHistory) {
-      tabs.push({ id: 'history', label: 'History', icon: <CalendarClock size={14} /> });
-    }
-
-    return tabs;
-  }, [hasHistory]);
-
-  useEffect(() => {
-    const handleGuideRequest = (event) => {
-      if (event.detail?.targetTab === 'comments') {
-        setIsCollapsed(false);
-        setActiveTab('comments');
-      }
-
-      if (event.detail?.targetTab === 'overview') {
-        setIsCollapsed(false);
-        setActiveTab('overview');
-      }
-    };
-
-    window.addEventListener('workspace-guide-target', handleGuideRequest);
-
-    return () => {
-      window.removeEventListener('workspace-guide-target', handleGuideRequest);
-    };
-  }, []);
-
-  return (
-    <aside
-      className={`workspace-side-panel workspace-compact-panel workspace-summary-card workspace-selection-overlay glass-panel ${
-        isCollapsed ? 'collapsed' : ''
-      }`}
-    >
-      <section className="workspace-panel-section">
-        <div className="workspace-section-heading workspace-selection-heading">
-          <div className="workspace-section-icon">
-            <MapPinned size={16} />
-          </div>
-
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <strong style={{ fontSize: '0.96rem' }}>Selected field</strong>
-            {!isCollapsed ? (
-              <p className="workspace-helper-text" style={{ margin: '4px 0 0' }}>
-                {fieldId
-                  ? 'Saved field details and team context.'
-                  : 'Select or save a field to open details.'}
-              </p>
-            ) : null}
-          </div>
-
-          <button
-            type="button"
-            className="workspace-icon-btn"
-            onClick={() => setIsCollapsed((current) => !current)}
-            aria-label={isCollapsed ? 'Expand selected field panel' : 'Collapse selected field panel'}
-            title={isCollapsed ? 'Expand' : 'Collapse'}
-          >
-            {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-          </button>
-        </div>
-
-        <div className="workspace-note-card">
-          <div className="workspace-inline-title">
-            <strong>{fieldName}</strong>
-            <span className={`status-pill ${getRiskTone(riskLevel)}`}>
-              <ShieldAlert size={14} />
-              {statusLabel}
-            </span>
-          </div>
-        </div>
-
-        {!isCollapsed ? (
-          <>
-            <div className="workspace-selection-tabs">
-              {availableTabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  className={`workspace-selection-tab${currentTab === tab.id ? ' active' : ''}`}
-                  onClick={() => setActiveTab(tab.id)}
-                  data-guide={tab.guideId || undefined}
-                >
-                  {tab.icon}
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="workspace-selection-panel-content">
-              {currentTab === 'overview' ? (
-                <div className="workspace-selection-list">
-                  {overviewDetails.map((item) => (
-                    <DetailRow
-                      key={item.id}
-                      icon={item.icon}
-                      label={item.label}
-                      value={item.value}
-                    />
-                  ))}
-                </div>
-              ) : null}
-
-              {currentTab === 'comments' ? (
-                <FieldCommentsPanel
-                  user={user}
-                  fieldId={fieldId}
-                  selectedField={selectedField}
-                  hasGeometry={hasGeometry}
-                  variant="embedded"
-                />
-              ) : null}
-
-              {currentTab === 'history' && hasHistory ? (
-                <div className="workspace-selection-history-list">
-                  {analysisHistory.slice(0, 5).map((analysis) => (
-                    <HistoryRow
-                      key={analysis.id || `${analysis.analysis_date}-${analysis.crop_type}`}
-                      analysis={analysis}
-                    />
-                  ))}
-                </div>
-              ) : null}
-            </div>
-
-            <div className="workspace-inline-actions">
-              <button
-                type="button"
-                className="secondary-btn"
-                onClick={() => onOpenResults?.()}
-                disabled={!canViewResults}
-                title={canViewResults ? undefined : 'Run an analysis first to open the results.'}
-                data-guide="open-report"
-              >
-                <FileText size={16} />
-                Open results
-              </button>
-            </div>
-          </>
-        ) : null}
-      </section>
-    </aside>
+  const selection = useMemo(
+    () => (typeof value === 'object' && value !== null ? value : buildSelection(selectedMode, value)),
+    [selectedMode, value]
   );
+
+  const isCustom = selectedMode === 'custom';
+
+  const handleModeChange = (event) => {
+    const nextMode = event.target.value;
+    const nextSelection = buildSelection(nextMode, selection);
+
+    if (compact) {
+      onChange?.(nextSelection.seasonYear);
+      return;
+    }
+
+    onChange?.(nextSelection);
+  };
+
+  const handleDateChange = (key, nextDate) => {
+    const nextSelection = {
+      ...selection,
+      mode: 'custom',
+      [key]: nextDate
+    };
+
+    const nextYear = nextSelection.startDate
+      ? new Date(nextSelection.startDate).getFullYear()
+      : CURRENT_YEAR;
+
+    onChange?.({
+      ...nextSelection,
+      seasonYear: String(nextYear)
+    });
+  };
+
+  if (compact) {
+    return (
+      <div className="analysis-period-compact">
+        <select
+          className="workspace-input analysis-period-select"
+          value={selectedMode}
+          onChange={handleModeChange}
+        >
+          {options.map((option) => {
+            const optionValue = String(option.value || option);
+            const optionLabel = option.label || `Season ${optionValue}`;
+
+            return (
+              <option key={optionValue} value={optionValue}>
+                {optionLabel}
+              </option>
+            );
+          })}
+        </select>
+      </div>
+    );
+  }
+
+  if (!isCustom) {
+    return null;
+  }
+
 }

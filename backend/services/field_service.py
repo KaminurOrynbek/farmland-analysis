@@ -14,7 +14,15 @@ class FieldService:
         self.db = db
         self.repo = FieldRepository(db)
 
-    def create_field(self, user: User, name: str, geometry: Dict[str, Any]) -> Dict[str, Any]:
+    def create_field(
+        self,
+        user: User,
+        name: str,
+        geometry: Dict[str, Any],
+        crop_type: Optional[str] = None,
+        planting_date = None,
+        season_year: Optional[int] = None
+    ) -> Dict[str, Any]:
         """
         Processes geometry and saves a new field for the user.
         """
@@ -29,7 +37,10 @@ class FieldService:
             user_id=user.id,
             name=name,
             geometry=geometry,
-            area_ha=calculated_area_ha
+            area_ha=calculated_area_ha,
+            crop_type=crop_type,
+            planting_date=planting_date,
+            season_year=season_year
         )
 
         # Automatically grant OWNER access to the creator in the field_access table
@@ -61,7 +72,10 @@ class FieldService:
             "name": field.name,
             "area_ha": float(field.area_ha) if field.area_ha else 0.0,
             "geometry": mapping(to_shape(field.boundary_geom)),
-            "role": "OWNER"
+            "role": "OWNER",
+            "crop_type": field.crop_type,
+            "planting_date": field.planting_date.isoformat() if field.planting_date else None,
+            "season_year": field.season_year
         }
 
     def get_user_fields(self, user: User) -> List[Dict[str, Any]]:
@@ -92,6 +106,9 @@ class FieldService:
                     "owner_id": owner_id,
                     "owner_email": owner_email,
                     "owner_name": owner_name,
+                    "crop_type": field.crop_type,
+                    "planting_date": field.planting_date.isoformat() if field.planting_date else None,
+                    "season_year": field.season_year,
                     "created_at": field.created_at.isoformat() if field.created_at else None
                 }
                 for field, owner_id, owner_email, owner_name in all_fields
@@ -124,6 +141,9 @@ class FieldService:
                 "owner_id": owner_id,
                 "owner_email": owner_email,
                 "owner_name": owner_name,
+                "crop_type": f.crop_type,
+                "planting_date": f.planting_date.isoformat() if f.planting_date else None,
+                "season_year": f.season_year,
                 "created_at": f.created_at.isoformat() if f.created_at else None
             })
         return result

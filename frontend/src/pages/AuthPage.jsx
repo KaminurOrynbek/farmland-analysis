@@ -267,7 +267,7 @@ export default function AuthPage({ onBack, onLogin, onRegistered }) {
 
               <div className="auth-info-item">
                 <span className="auth-info-kicker">{APP_PAGES.ANALYSIS_RESULTS}</span>
-                <p>Review field health, crop classification, stress zones, and risk interpretation.</p>
+                <p>Review field condition, land-cover classification, vegetation indicators, and screening priority.</p>
               </div>
             </div>
           </div>

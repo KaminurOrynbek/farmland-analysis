@@ -143,7 +143,7 @@ export default function FieldCommentsPanel({
           <div className="empty-state compact">Loading comments...</div>
         ) : sortedComments.length === 0 ? (
           <div className="workspace-note-card">
-            No comments yet. Use this area for short field observations and recommendations.
+            No comments yet. Use this area for short field observations and monitoring notes.
           </div>
         ) : (
           sortedComments.map((comment) => (
@@ -194,7 +194,7 @@ export default function FieldCommentsPanel({
           onChange={(event) => setDraftComment(event.target.value)}
           placeholder={
             canComment
-              ? 'Write a short field update or recommendation.'
+              ? 'Write a short field update or monitoring note.'
               : 'Viewer access can read comments but cannot post new ones.'
           }
           rows={4}

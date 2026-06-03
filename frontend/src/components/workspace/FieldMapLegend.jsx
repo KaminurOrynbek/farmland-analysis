@@ -1,9 +1,9 @@
 import React from 'react';
 
 const LEGEND_ITEMS = [
-  { label: 'Low risk / healthy', color: 'var(--status-healthy)' },
-  { label: 'Medium risk / warning', color: 'var(--status-warning)' },
-  { label: 'High risk / critical', color: 'var(--status-critical)' },
+  { label: 'Low screening priority', color: 'var(--status-healthy)' },
+  { label: 'Medium screening priority', color: 'var(--status-warning)' },
+  { label: 'High screening priority', color: 'var(--status-critical)' },
   { label: 'Not analyzed', color: 'var(--text-secondary)' }
 ];
 
