@@ -139,7 +139,7 @@ function GeoJSONFitter({ data }) {
   return null;
 }
 
-export default function MapView({
+export default function FieldMap({
   user,
   backendHealthy,
   analysisStarted,
