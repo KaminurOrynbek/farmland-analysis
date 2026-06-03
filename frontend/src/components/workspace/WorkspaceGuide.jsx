@@ -2,60 +2,60 @@ import React, { useEffect, useMemo, useState } from 'react';
 
 const steps = [
   {
-    title: 'Step 1 — Upload GeoJSON',
-    text: 'Upload an existing field boundary file when you already have parcel geometry ready.',
-    selectors: ['[data-guide="upload-geojson"]', '[data-guide="field-upload-section"]'],
+    title: 'Step 1 — Analysis period',
+    text: 'Choose the season or custom date range used to search satellite imagery.',
+    selectors: ['[data-guide="season-date-selection"]'],
     placement: 'right',
     button: 'OK, next'
   },
   {
-    title: 'Step 2 — Draw on the map',
-    text: 'Or sketch a field boundary directly on the map with the drawing tools.',
-    selectors: ['.leaflet-pm-toolbar[data-guide="draw-on-map"]', '[data-guide="draw-on-map"]'],
+    title: 'Step 2 — Field boundary',
+    text: 'Upload a GeoJSON boundary or draw a new field directly on the map.',
+    selectors: ['[data-guide="field-upload-section"]', '[data-guide="upload-geojson"]'],
     placement: 'right',
     button: 'OK, next'
   },
   {
-    title: 'Step 3 — Name and save field',
-    text: 'Add the field name, optional field details, and save the field before analysis.',
+    title: 'Step 3 — Field details',
+    text: 'Enter the required field name, then save the boundary. Optional metadata can stay collapsed.',
     selectors: ['[data-guide="field-name"]', '[data-guide="save-field"]', '[data-guide="field-details-section"]'],
     placement: 'right',
     button: 'OK, next'
   },
   {
-    title: 'Step 4 — Season and dates',
-    text: 'Choose the monitoring season, or switch to a custom date range if needed.',
-    selectors: ['[data-guide="season-date-selection"]', '.workspace-season-card'],
+    title: 'Step 4 — Satellite data',
+    text: 'Fetch satellite metadata for the selected field and analysis period before running analysis.',
+    selectors: ['[data-guide="satellite-data-section"]', '[data-guide="fetch-satellite"]'],
     placement: 'right',
     button: 'OK, next'
   },
   {
-    title: 'Step 5 — Fetch satellite data',
-    text: 'Fetch satellite metadata for the selected season or custom monitoring window.',
-    selectors: ['[data-guide="fetch-satellite"]', '[data-guide="fetch-data-section"]'],
-    placement: 'right',
-    button: 'OK, next'
-  },
-  {
-    title: 'Step 6 — Run analysis',
+    title: 'Step 5 — Run analysis',
     text: 'Run the analysis after the field is saved and satellite metadata is ready.',
     selectors: ['[data-guide="run-analysis"]', '[data-guide="run-analysis-section"]'],
     placement: 'right',
     button: 'OK, next'
   },
   {
+    title: 'Step 6 — Selected field',
+    text: 'Use this card to review the saved field, switch tabs, and follow the next action.',
+    selectors: ['[data-guide="selected-field-section"]'],
+    placement: 'right',
+    button: 'OK, next'
+  },
+  {
     title: 'Step 7 — Field comments',
     text: 'Open the Comments tab in the selected-field panel to review or add saved-field notes.',
-    selectors: ['[data-guide="field-comments"]', '.workspace-selection-tab.active'],
-    placement: 'left',
+    selectors: ['[data-guide="field-comments"]', '[data-guide="selected-field-section"]'],
+    placement: 'right',
     button: 'OK, next',
     targetTab: 'comments'
   },
   {
-    title: 'Step 8 — Open report',
-    text: 'Return to Overview and open Analysis Results when the screening run is ready.',
+    title: 'Step 8 — View results',
+    text: 'Return to Overview and open Analysis Results when a field result is ready.',
     selectors: ['[data-guide="open-report"]'],
-    placement: 'left',
+    placement: 'right',
     button: 'Finish guide',
     targetTab: 'overview'
   }

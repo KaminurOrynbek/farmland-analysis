@@ -4,7 +4,6 @@ import { getFieldPermissions } from '../permissions/permissions';
 import FieldMap from '../components/workspace/FieldMap';
 import FieldControlPanel from '../components/workspace/FieldControlPanel';
 import WorkspaceGuide from '../components/workspace/WorkspaceGuide';
-import WorkspaceSelectionCard from '../components/workspace/WorkspaceSelectionCard';
 import {
   buildFieldWorkspaceSummaries,
   createFieldFallbackRecord,
@@ -47,6 +46,13 @@ const getRunAnalysisReason = ({
   return '';
 };
 
+const hasUsableAnalysisResult = (analysis) => (
+  analysis?.status === 'DONE' ||
+  Boolean(analysis?.predictedClass || analysis?.riskLevel) ||
+  analysis?.ndviValue !== null && analysis?.ndviValue !== undefined ||
+  analysis?.eviValue !== null && analysis?.eviValue !== undefined
+);
+
 export default function WorkspacePage({
   user,
   refreshKey,
@@ -67,10 +73,6 @@ export default function WorkspacePage({
   setGeoJsonUploadError,
   fieldName,
   setFieldName,
-  fieldCropType,
-  setFieldCropType,
-  fieldPlantingDate,
-  setFieldPlantingDate,
   seasonSelection,
   onSeasonSelectionChange,
   fieldLayerVisible,
@@ -87,7 +89,7 @@ export default function WorkspacePage({
   analysisResults,
   analysisStarted,
   latestAnalysisAt,
-  selectedSeason,
+  onOpenAnalysis,
   onOpenResults,
   isGuidedTourOpen,
   onCloseGuidedTour
@@ -171,7 +173,25 @@ export default function WorkspacePage({
   }, [currentFieldId, fieldSummaries, selectedField]);
 
   const currentFieldRecord = selectedFieldSummary?.field || fallbackFieldRecord || null;
-  const currentFieldAnalyses = selectedFieldSummary?.analyses || [];
+  const currentFieldAnalyses = useMemo(
+    () => selectedFieldSummary?.analyses || [],
+    [selectedFieldSummary]
+  );
+  const currentSessionAnalysis = useMemo(() => {
+    if (!analysisStarted || !hasUsableAnalysisResult(analysisResults)) {
+      return null;
+    }
+
+    return {
+      ...analysisResults,
+      analysisDate: latestAnalysisAt || analysisResults.analysisDate
+    };
+  }, [analysisResults, analysisStarted, latestAnalysisAt]);
+  const latestResultAnalysis = useMemo(() => (
+    currentSessionAnalysis ||
+    currentFieldAnalyses.find((item) => hasUsableAnalysisResult(item)) ||
+    null
+  ), [currentFieldAnalyses, currentSessionAnalysis]);
   const fieldRiskLevel =
     analysisStarted && analysisResults?.riskLevel
       ? analysisResults.riskLevel
@@ -185,10 +205,16 @@ export default function WorkspacePage({
     isFetchingSatelliteData,
     isAnalyzing
   });
-  const canViewResults = Boolean(
-    (analysisStarted && analysisResults?.analysisId) ||
-    currentFieldAnalyses.length
-  );
+  const canViewResults = Boolean(latestResultAnalysis);
+
+  const handleViewResults = () => {
+    if (latestResultAnalysis) {
+      onOpenAnalysis?.(latestResultAnalysis, currentFieldRecord);
+      return;
+    }
+
+    onOpenResults?.();
+  };
 
   return (
     <div className="content-page workspace-page">
@@ -216,10 +242,6 @@ export default function WorkspacePage({
             setGeoJsonUploadError={setGeoJsonUploadError}
             fieldName={fieldName}
             setFieldName={setFieldName}
-            fieldCropType={fieldCropType}
-            setFieldCropType={setFieldCropType}
-            fieldPlantingDate={fieldPlantingDate}
-            setFieldPlantingDate={setFieldPlantingDate}
             seasonSelection={seasonSelection}
             onSeasonSelectionChange={onSeasonSelectionChange}
             fieldLayerVisible={fieldLayerVisible}
@@ -227,15 +249,20 @@ export default function WorkspacePage({
             setSelectedField={setSelectedField}
             onSaveField={onSaveField}
             isSavingField={isSavingField}
-            onOpenResults={onOpenResults}
+            onViewResults={handleViewResults}
             onRunAnalysis={onRunAnalysis}
             canRunAnalysis={!runAnalysisReason}
             canViewResults={canViewResults}
             runAnalysisReason={runAnalysisReason}
+            fieldRecord={currentFieldRecord}
+            fieldRiskLevel={fieldRiskLevel}
+            latestAnalysisAt={latestAnalysisAt || selectedFieldSummary?.latestAnalysisAt || null}
+            analysisHistory={currentFieldAnalyses}
+            onOpenAnalysis={onOpenAnalysis}
           />
         </div>
 
-          <main className="map-container workspace-map-stage" style={mapPanelStyle} tabIndex={-1}>
+          <main className="workspace-stage-column map-container workspace-map-stage" style={mapPanelStyle} tabIndex={-1}>
             <FieldMap
               user={user}
               backendHealthy={backendHealthy}
@@ -251,20 +278,6 @@ export default function WorkspacePage({
               fieldName={currentFieldRecord?.name || getFieldSelectionName(selectedField)}
               hasStoredAnalysis={Boolean(currentFieldAnalyses.length || analysisStarted)}
               showInfoCard={false}
-            />
-
-            <WorkspaceSelectionCard
-              user={user}
-              fieldId={currentFieldId}
-              selectedField={selectedField}
-              hasGeometry={Boolean(geoJsonData)}
-              fieldRecord={currentFieldRecord}
-              riskLevel={fieldRiskLevel}
-              latestAnalysisAt={latestAnalysisAt || selectedFieldSummary?.latestAnalysisAt || null}
-              analysisHistory={currentFieldAnalyses}
-              selectedSeason={selectedSeason}
-              canViewResults={canViewResults}
-              onOpenResults={onOpenResults}
             />
           </main>
       </div>

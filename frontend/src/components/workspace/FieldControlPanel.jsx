@@ -8,6 +8,7 @@ import {
 import { getFieldPermissions } from '../../permissions/permissions';
 import { formatWorkspaceDate, getFieldSelectionId } from '../../utils/fieldAnalysisUtils';
 import MonitoringSeasonSelector from './MonitoringSeasonSelector';
+import WorkspaceSelectionCard from './WorkspaceSelectionCard';
 
 const normalizeGeoJson = (geoJson, metadata = {}) => {
   if (geoJson.type === 'FeatureCollection') {
@@ -83,8 +84,6 @@ export default function FieldControlPanel({
   setGeoJsonUploadError,
   fieldName,
   setFieldName,
-  setFieldCropType,
-  setFieldPlantingDate,
   seasonSelection,
   onSeasonSelectionChange,
   fieldLayerVisible,
@@ -93,10 +92,15 @@ export default function FieldControlPanel({
   onSaveField,
   isSavingField,
   onRunAnalysis,
-  onOpenResults,
+  onViewResults,
   canRunAnalysis,
   canViewResults,
-  runAnalysisReason
+  runAnalysisReason,
+  fieldRecord,
+  fieldRiskLevel,
+  latestAnalysisAt,
+  analysisHistory,
+  onOpenAnalysis
 }) {
   const geoJsonInputRef = useRef(null);
   const permissions = getFieldPermissions(selectedField?.properties || selectedField, user);
@@ -155,8 +159,6 @@ export default function FieldControlPanel({
     setGeoJsonUploadError(null);
     setSelectedField(null);
     setFieldName('');
-    setFieldCropType?.('');
-    setFieldPlantingDate?.('');
 
     if (geoJsonInputRef.current) {
       geoJsonInputRef.current.value = '';
@@ -187,11 +189,13 @@ export default function FieldControlPanel({
         style={{ display: 'none' }}
       />
 
-      <MonitoringSeasonSelector
-        value={seasonSelection}
-        onChange={onSeasonSelectionChange}
-        allowCustom
-      />
+      <SidebarSection title="Analysis period" guideId="season-date-selection">
+        <MonitoringSeasonSelector
+          value={seasonSelection}
+          onChange={onSeasonSelectionChange}
+          allowCustom
+        />
+      </SidebarSection>
 
       <SidebarSection title="Field boundary" guideId="field-upload-section">
         <p className="workspace-helper-text" style={{ margin: 0 }}>
@@ -253,6 +257,15 @@ export default function FieldControlPanel({
             <p className="workspace-helper-text">{geoJsonUploadError}</p>
           </div>
         ) : null}
+
+        <label className="workspace-checkbox-row">
+          <input
+            type="checkbox"
+            checked={fieldLayerVisible}
+            onChange={(event) => setFieldLayerVisible(event.target.checked)}
+          />
+          <span>Show field boundary on map</span>
+        </label>
       </SidebarSection>
 
       <SidebarSection title="Field details" guideId="field-details-section">
@@ -280,11 +293,11 @@ export default function FieldControlPanel({
         </button>
 
         <p className="workspace-helper-text" style={{ margin: 0 }}>
-          Comments are available after the field is saved.
+          Field name is required before saving.
         </p>
       </SidebarSection>
 
-      <SidebarSection title="Satellite data" guideId="satellite-source-section">
+      <SidebarSection title="Satellite data" guideId="satellite-data-section">
         <label className="workspace-field-stack">
           <span className="workspace-label">Satellite source</span>
           <select
@@ -297,6 +310,21 @@ export default function FieldControlPanel({
             <option value="landsat">Landsat 8-9</option>
           </select>
         </label>
+
+        <button
+          type="button"
+          className="secondary-btn"
+          onClick={() => onFetchSatelliteData?.(satelliteDataset)}
+          disabled={!hasGeometry || isFetchingSatelliteData || isAnalyzing}
+          data-guide="fetch-satellite"
+        >
+          <ImageIcon size={16} />
+          {isFetchingSatelliteData ? 'Fetching...' : 'Fetch satellite data'}
+        </button>
+
+        <p className="workspace-helper-text" style={{ margin: 0 }}>
+          Fetch satellite metadata for the selected analysis period before running analysis.
+        </p>
 
         {satelliteFetchResult ? (
           <div className="workspace-loaded-card">
@@ -318,45 +346,30 @@ export default function FieldControlPanel({
         ) : null}
       </SidebarSection>
 
-      <SidebarSection title="Fetch satellite data" guideId="fetch-data-section">
-        <button
-          type="button"
-          className="secondary-btn"
-          onClick={() => onFetchSatelliteData?.(satelliteDataset)}
-          disabled={!hasGeometry || isFetchingSatelliteData || isAnalyzing}
-          data-guide="fetch-satellite"
-        >
-          <ImageIcon size={16} />
-          {isFetchingSatelliteData ? 'Fetching...' : 'Fetch satellite data'}
-        </button>
-
-        <p className="workspace-helper-text" style={{ margin: 0 }}>
-          Fetch satellite metadata for the selected analysis period before running analysis.
-        </p>
-      </SidebarSection>
-
       <SidebarSection title="Run analysis" guideId="run-analysis-section">
-        <button
-          type="button"
-          className="primary-btn"
-          onClick={() => onRunAnalysis?.()}
-          disabled={!canRunAnalysis}
-          title={runAnalysisReason || undefined}
-          data-guide="run-analysis"
-        >
-          {isAnalyzing ? 'Analyzing...' : 'Run analysis'}
-        </button>
+        <div className="workspace-inline-actions">
+          {canViewResults ? (
+            <button
+              type="button"
+              className="primary-btn"
+              onClick={() => onViewResults?.()}
+              data-guide="open-report"
+            >
+              View results
+            </button>
+          ) : null}
 
-        {canViewResults ? (
           <button
             type="button"
-            className="secondary-btn"
-            onClick={() => onOpenResults?.()}
-            data-guide="open-results"
+            className={canViewResults ? 'secondary-btn' : 'primary-btn'}
+            onClick={() => onRunAnalysis?.()}
+            disabled={!canRunAnalysis}
+            title={runAnalysisReason || undefined}
+            data-guide="run-analysis"
           >
-            Open results
+            {isAnalyzing ? 'Analyzing...' : 'Run analysis'}
           </button>
-        ) : null}
+        </div>
 
         {runAnalysisReason ? (
           <p className="workspace-helper-text" style={{ margin: 0 }}>
@@ -369,20 +382,20 @@ export default function FieldControlPanel({
         )}
       </SidebarSection>
 
-      <SidebarSection title="Map layers" guideId="map-layers-section">
-        <label className="workspace-checkbox-row">
-          <input type="checkbox" checked readOnly />
-          <span>Satellite basemap</span>
-        </label>
-
-        <label className="workspace-checkbox-row">
-          <input
-            type="checkbox"
-            checked={fieldLayerVisible}
-            onChange={(event) => setFieldLayerVisible(event.target.checked)}
-          />
-          <span>Field boundaries</span>
-        </label>
+      <SidebarSection title="Selected field + comments" guideId="selected-field-section">
+        <WorkspaceSelectionCard
+          user={user}
+          fieldId={currentFieldId}
+          selectedField={selectedField}
+          hasGeometry={hasGeometry}
+          fieldRecord={fieldRecord}
+          riskLevel={fieldRiskLevel}
+          latestAnalysisAt={latestAnalysisAt}
+          analysisHistory={analysisHistory}
+          canViewResults={canViewResults}
+          onViewResults={onViewResults}
+          onOpenAnalysis={onOpenAnalysis}
+        />
       </SidebarSection>
     </aside>
   );

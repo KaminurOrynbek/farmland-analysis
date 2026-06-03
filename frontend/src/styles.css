@@ -460,6 +460,9 @@ button {
   width: min(100%, 1680px);
   margin: 0 auto;
   padding-top: 20px;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .page-hero,
@@ -1322,9 +1325,12 @@ button {
 
 .workspace-layout-grid {
   display: grid;
-  grid-template-columns: 304px minmax(0, 1fr);
+  grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
   gap: 20px;
   align-items: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
 }
 
 .workspace-sidebar-column,
@@ -1351,6 +1357,9 @@ button {
   padding: 18px;
   border-radius: 24px;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  max-height: 100%;
 }
 
 .workspace-sidebar-panel {
@@ -1371,6 +1380,7 @@ button {
   width: auto;
   padding: 22px;
   gap: 20px;
+  overscroll-behavior: contain;
 }
 
 .workspace-summary-card {
@@ -1383,7 +1393,8 @@ button {
 }
 
 .workspace-map-stage {
-  min-height: clamp(720px, calc(100dvh - 160px), 900px);
+  min-height: clamp(560px, calc(100dvh - 180px), 900px);
+  height: 100%;
   border-radius: 24px;
   overflow: hidden;
   border: 1px solid var(--border-soft);
@@ -1599,6 +1610,7 @@ button {
   gap: 14px;
   padding-bottom: 18px;
   border-bottom: 1px solid var(--border-soft);
+  min-width: 0;
 }
 
 .workspace-panel-section:last-child {
@@ -1812,32 +1824,32 @@ button {
   min-height: 46px;
 }
 
+.workspace-selection-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-2);
+  min-width: 0;
+}
+
 .workspace-selection-list {
   display: grid;
   gap: 10px;
-}
-
-.workspace-selection-overlay {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  z-index: 1100;
-  width: min(320px, calc(100% - 36px));
-  max-height: calc(100% - 36px);
-  overflow: hidden;
-  pointer-events: auto;
-  box-shadow: 0 18px 42px rgba(2, 6, 23, 0.34);
 }
 
 .workspace-selection-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
 }
 
 .workspace-selection-tab {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 9px 12px;
   border: 1px solid var(--border-strong);
@@ -1862,17 +1874,15 @@ button {
 }
 
 .workspace-selection-panel-content {
-  min-height: 180px;
-  max-height: min(42vh, 360px);
-  overflow-y: auto;
-  padding-right: 4px;
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+  min-width: 0;
 }
 
 .workspace-selection-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  display: grid;
+  gap: 6px;
   padding: 12px 14px;
   border-radius: 14px;
   background: var(--surface-2);
@@ -1880,8 +1890,8 @@ button {
 }
 
 .workspace-selection-row strong {
-  text-align: right;
-  max-width: 48%;
+  text-align: left;
+  max-width: none;
 }
 
 .workspace-selection-label {
@@ -1931,10 +1941,6 @@ button {
   gap: 12px;
 }
 
-.workspace-selection-overlay .workspace-comments-list {
-  max-height: 220px !important;
-}
-
 .workspace-input {
   width: 100%;
   min-height: 46px;
@@ -1960,6 +1966,31 @@ button {
 .workspace-field-stack {
   display: grid;
   gap: 8px;
+}
+
+.workspace-disclosure {
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.workspace-disclosure-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 12px 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.workspace-disclosure-summary::-webkit-details-marker {
+  display: none;
+}
+
+.workspace-disclosure-body {
+  display: grid;
+  gap: 12px;
+  padding: 0 14px 14px;
 }
 
 .workspace-label {
@@ -2027,11 +2058,6 @@ button {
   background: var(--surface-highlight-2);
   color: var(--text-secondary);
   line-height: 1.55;
-}
-
-.workspace-selection-overlay.collapsed {
-  width: 280px;
-  max-height: none;
 }
 
 .workspace-selection-heading {
@@ -2221,40 +2247,6 @@ button {
   font-size: 0.92rem;
 }
 
-.workspace-season-card {
-  padding: 16px;
-  border-radius: 18px;
-  display: grid;
-  gap: 14px;
-}
-
-.season-toggle-group {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.season-toggle-group-three {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.season-toggle {
-  border: 1px solid var(--border-muted);
-  border-radius: 14px;
-  min-height: 42px;
-  background: var(--surface-3);
-  color: var(--text-secondary);
-  font-weight: 700;
-  cursor: pointer;
-  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
-}
-
-.season-toggle.active {
-  color: var(--text-emphasis);
-  border-color: rgba(59, 130, 246, 0.36);
-  background: rgba(59, 130, 246, 0.16);
-}
-
 .map-info-card,
 .map-demo-banner,
 .map-legend {
@@ -2366,13 +2358,6 @@ button {
     min-height: 620px;
   }
 
-  .workspace-selection-overlay {
-    width: min(320px, calc(100% - 28px));
-    top: 14px;
-    right: 14px;
-    max-height: calc(100% - 28px);
-  }
-
   .report-header,
   .report-main-layout,
   .report-detail-grid {
@@ -2405,7 +2390,6 @@ button {
   .projects-field-metrics-compact,
   .workspace-metric-grid,
   .workspace-input-grid,
-  .season-toggle-group,
   .report-summary-grid,
   .report-header-meta-grid,
   .report-indicator-grid,
@@ -2439,15 +2423,6 @@ button {
   .map-demo-banner {
     top: auto;
     bottom: 118px;
-  }
-
-  .workspace-selection-overlay {
-    top: auto;
-    right: 14px;
-    bottom: 14px;
-    left: 14px;
-    width: auto;
-    max-height: min(58%, 420px);
   }
 
   .map-legend {
@@ -3056,18 +3031,14 @@ button {
 
 .analysis-period-card {
   width: 100%;
+  min-width: 0;
   padding: 14px;
   border-radius: 18px;
   border: 1px solid var(--border-muted);
   background: var(--surface-2);
   display: flex;
   flex-direction: column;
-  gap: 14px;
-}
-
-.analysis-period-title {
-  font-size: 0.98rem;
-  line-height: 1.25;
+  gap: 12px;
 }
 
 .analysis-period-field {
@@ -3081,6 +3052,13 @@ button {
   color: var(--text-emphasis);
   font-size: 0.8rem;
   font-weight: 700;
+}
+
+.analysis-period-helper {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin: 0;
 }
 
 .analysis-period-select-wrap {

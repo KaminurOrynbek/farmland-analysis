@@ -4,8 +4,8 @@ import { ChevronDown } from 'lucide-react';
 const CURRENT_YEAR = new Date().getFullYear();
 
 const DEFAULT_OPTIONS = [
-  { value: String(CURRENT_YEAR - 1), label: `Season ${CURRENT_YEAR - 1}` },
-  { value: String(CURRENT_YEAR), label: `Season ${CURRENT_YEAR}` }
+  { value: String(CURRENT_YEAR), label: 'Season current year' },
+  { value: String(CURRENT_YEAR - 1), label: 'Season previous year' }
 ];
 
 const getSelectedMode = (value) => {
@@ -85,8 +85,6 @@ export default function MonitoringSeasonSelector({
 
   return (
     <section className="analysis-period-card" data-guide="season-date-selection">
-      <strong className="analysis-period-title">Analysis period</strong>
-
       <label className="analysis-period-field">
         {!compact ? <span>Period</span> : null}
 
@@ -113,6 +111,14 @@ export default function MonitoringSeasonSelector({
           <ChevronDown size={16} />
         </div>
       </label>
+
+      {!compact ? (
+        <p className="analysis-period-helper">
+          {isCustom
+            ? 'Used to search satellite imagery for the selected dates.'
+            : 'Used to search satellite imagery for this year.'}
+        </p>
+      ) : null}
 
       {isCustom && !compact ? (
         <div className="analysis-period-date-grid">
