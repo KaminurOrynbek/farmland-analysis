@@ -1,5 +1,6 @@
 import React from 'react';
 import AgroVisionLogo from '../components/common/AgroVisionLogo';
+import ThemeToggleButton from '../components/common/ThemeToggleButton.jsx';
 import {
   ArrowRight,
   BrainCircuit,
@@ -129,7 +130,7 @@ const scrollToSection = (sectionId) => {
   });
 };
 
-export default function LandingPage({ onSignIn, onGetStarted }) {
+export default function LandingPage({ onSignIn, onGetStarted, theme, onToggleTheme }) {
   return (
     <div className="landing-page">
       <div className="landing-shell">
@@ -153,6 +154,7 @@ export default function LandingPage({ onSignIn, onGetStarted }) {
           </div>
 
           <div className="landing-nav-actions">
+            <ThemeToggleButton theme={theme} onToggle={onToggleTheme} />
             <button type="button" className="landing-btn-ghost" onClick={onSignIn}>Sign In</button>
             <button type="button" className="landing-btn-outline" onClick={onGetStarted}>Get Started</button>
           </div>

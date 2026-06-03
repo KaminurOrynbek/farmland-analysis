@@ -282,7 +282,7 @@ const commentCardStyle = {
   padding: '12px',
   borderRadius: '14px',
   border: '1px solid var(--border-color)',
-  background: 'rgba(255,255,255,0.02)'
+  background: 'var(--surface-highlight-1)'
 };
 
 const commentHeaderStyle = {
@@ -310,7 +310,7 @@ const metaBadgeStyle = {
   gap: '6px',
   padding: '5px 8px',
   borderRadius: '999px',
-  background: 'rgba(148, 163, 184, 0.12)',
+  background: 'var(--border-soft)',
   color: 'var(--text-secondary)',
   fontSize: '0.74rem',
   whiteSpace: 'nowrap'
@@ -318,7 +318,7 @@ const metaBadgeStyle = {
 
 const readOnlyBadgeStyle = {
   ...metaBadgeStyle,
-  color: '#fbbf24'
+  color: 'var(--status-warning-soft)'
 };
 
 const composerStyle = {
@@ -339,7 +339,7 @@ const textareaStyle = {
   width: '100%',
   padding: '12px',
   borderRadius: '12px',
-  background: 'rgba(15, 23, 42, 0.42)',
+  background: 'var(--surface-3)',
   border: '1px solid var(--border-color)',
   color: 'var(--text-primary)',
   resize: 'vertical',

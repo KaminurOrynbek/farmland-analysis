@@ -660,8 +660,8 @@ const fieldDirectoryResponsiveCss = `
   }
 
   .fields-directory-table-row:hover {
-    background: rgba(255, 255, 255, 0.035);
-    border-color: rgba(148, 163, 184, 0.26);
+    background: var(--surface-highlight-2);
+    border-color: var(--border-heavy);
     transform: translateY(-1px);
   }
 
@@ -676,14 +676,14 @@ const fieldDirectoryResponsiveCss = `
   }
 
   .fields-directory-action-btn--workspace {
-    background: rgba(15, 23, 42, 0.62);
+    background: var(--surface-6);
     border-color: rgba(96, 165, 250, 0.42);
-    color: #dbeafe;
+    color: var(--text-emphasis);
     box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.12);
   }
 
   .fields-directory-action-btn--workspace:hover:not(:disabled) {
-    background: rgba(30, 41, 59, 0.9);
+    background: var(--surface-elevated-strong);
     border-color: rgba(96, 165, 250, 0.9);
     box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
   }
@@ -703,9 +703,9 @@ const fieldDirectoryResponsiveCss = `
 
   .fields-directory-action-btn--disabled,
   .fields-directory-action-btn:disabled {
-    background: rgba(148, 163, 184, 0.12);
-    border-color: rgba(148, 163, 184, 0.16);
-    color: rgba(148, 163, 184, 0.72);
+    background: var(--border-soft);
+    border-color: var(--border-muted);
+    color: var(--text-disabled);
     box-shadow: none;
     cursor: not-allowed;
   }
@@ -761,8 +761,8 @@ const tabButtonStyle = {
   gap: '12px',
   padding: '12px 16px',
   borderRadius: '999px',
-  border: '1px solid rgba(148, 163, 184, 0.28)',
-  background: 'rgba(15, 23, 42, 0.24)',
+  border: '1px solid var(--border-heavy)',
+  background: 'var(--surface-1)',
   color: 'var(--text-primary)',
   fontWeight: 700,
   cursor: 'pointer',
@@ -782,7 +782,7 @@ const tabCountStyle = {
   fontWeight: 800,
   padding: '4px 10px',
   borderRadius: '999px',
-  background: 'rgba(2, 6, 23, 0.5)',
+  background: 'var(--surface-contrast-soft)',
   color: 'inherit',
   textAlign: 'center'
 };
@@ -808,7 +808,7 @@ const controlInputStyle = {
   width: '100%',
   padding: '11px 12px',
   borderRadius: '12px',
-  background: 'rgba(15, 23, 42, 0.45)',
+  background: 'var(--surface-4)',
   border: '1px solid var(--border-color)',
   color: 'var(--text-primary)',
   outline: 'none'
@@ -848,8 +848,8 @@ const tableHeaderLabelStyle = {
 const fieldRowStyle = {
   padding: '12px 18px',
   borderRadius: '16px',
-  border: '1px solid rgba(148, 163, 184, 0.16)',
-  background: 'rgba(255,255,255,0.02)'
+  border: '1px solid var(--border-muted)',
+  background: 'var(--surface-highlight-1)'
 };
 
 const tableCellStyle = {
@@ -886,8 +886,8 @@ const accessRoleBadgeStyle = {
   alignItems: 'center',
   padding: '3px 8px',
   borderRadius: '999px',
-  background: 'rgba(148, 163, 184, 0.14)',
-  border: '1px solid rgba(148, 163, 184, 0.16)',
+  background: 'var(--border-muted)',
+  border: '1px solid var(--border-muted)',
   color: 'var(--text-secondary)',
   fontSize: '0.72rem',
   fontWeight: 700

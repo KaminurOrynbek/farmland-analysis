@@ -226,7 +226,7 @@ const inputStyle = {
   width: '100%',
   padding: '10px 13px',
   borderRadius: '11px',
-  background: 'rgba(15, 23, 42, 0.42)',
+  background: 'var(--surface-3)',
   border: '1px solid var(--border-color)',
   color: 'var(--text-primary)',
   outline: 'none'
@@ -234,8 +234,8 @@ const inputStyle = {
 
 const readonlyStyle = {
   padding: '10px 13px',
-  background: 'rgba(255,255,255,0.035)',
-  border: '1px solid rgba(148, 163, 184, 0.12)',
+  background: 'var(--surface-highlight-2)',
+  border: '1px solid var(--border-soft)',
   borderRadius: '11px',
   fontSize: '0.9rem'
 };

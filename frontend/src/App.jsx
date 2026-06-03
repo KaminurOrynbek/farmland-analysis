@@ -166,6 +166,21 @@ const buildWorkspaceFieldKey = ({
 };
 
 const WORKSPACE_GUIDE_PENDING_KEY = 'workspaceGuidePendingAfterRegistration';
+const THEME_STORAGE_KEY = 'agrovisionTheme';
+
+const getInitialTheme = () => {
+  if (typeof window === 'undefined') {
+    return 'dark';
+  }
+
+  const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+
+  if (savedTheme === 'light' || savedTheme === 'dark') {
+    return savedTheme;
+  }
+
+  return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+};
 
 function App() {
   const [geoJsonUploadResponse, setGeoJsonUploadResponse] = useState(null);
@@ -202,6 +217,7 @@ function App() {
   );
   const [fieldCropTypeDraft, setFieldCropTypeDraft] = useState('');
   const [fieldPlantingDateDraft, setFieldPlantingDateDraft] = useState('');
+  const [theme, setTheme] = useState(getInitialTheme);
 
   // Health check on load
   useEffect(() => {
@@ -216,12 +232,22 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }, [theme]);
+
   const handleDataChanged = () => {
     setDataRefreshKey((current) => current + 1);
   };
 
   const handleOpenAuth = () => {
     setAppView('auth');
+  };
+
+  const handleToggleTheme = () => {
+    setTheme((currentTheme) => (currentTheme === 'light' ? 'dark' : 'light'));
   };
 
   const handleLogin = (user) => {
@@ -785,6 +811,8 @@ function App() {
       <LandingPage
         onSignIn={handleOpenAuth}
         onGetStarted={handleOpenAuth}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
       />
     );
   }
@@ -795,6 +823,8 @@ function App() {
         onBack={() => setAppView('landing')}
         onLogin={handleLogin}
         onRegistered={handleRegisterSuccess}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
       />
     );
   }
@@ -939,6 +969,8 @@ function App() {
           onNavigate={handleNavigate}
           onOpenGuidedTour={handleOpenGuidedTour}
           user={sessionUser}
+          theme={theme}
+          onToggleTheme={handleToggleTheme}
         />
         {renderPrivatePage()}
       </div>

@@ -582,8 +582,8 @@ const tabsStyle = {
 const tabButtonStyle = {
   padding: '10px 14px',
   borderRadius: '12px',
-  border: '1px solid rgba(148, 163, 184, 0.18)',
-  background: 'rgba(15, 23, 42, 0.35)',
+  border: '1px solid var(--border-strong)',
+  background: 'var(--surface-2)',
   color: 'var(--text-secondary)',
   cursor: 'pointer',
   fontWeight: 700
@@ -592,7 +592,7 @@ const tabButtonStyle = {
 const activeTabButtonStyle = {
   background: 'rgba(59, 130, 246, 0.16)',
   borderColor: 'rgba(59, 130, 246, 0.34)',
-  color: '#dbeafe'
+  color: 'var(--text-emphasis)'
 };
 
 const tableStyle = {
@@ -623,7 +623,7 @@ const emptyStyle = {
 const errorStyle = {
   padding: '14px 16px',
   borderRadius: '14px',
-  color: '#fecaca',
+  color: 'var(--status-critical-soft)',
   border: '1px solid rgba(239, 68, 68, 0.3)',
   background: 'rgba(239, 68, 68, 0.08)'
 };
@@ -648,7 +648,7 @@ const roleControlStyle = {
 const inlineSelectStyle = {
   padding: '9px 10px',
   borderRadius: '12px',
-  background: 'rgba(15, 23, 42, 0.45)',
+  background: 'var(--surface-4)',
   border: '1px solid var(--border-color)',
   color: 'var(--text-primary)',
   minWidth: '140px'
@@ -662,14 +662,14 @@ const dangerButtonStyle = {
   borderRadius: '12px',
   border: '1px solid rgba(239, 68, 68, 0.35)',
   background: 'rgba(239, 68, 68, 0.08)',
-  color: '#fecaca',
+  color: 'var(--status-critical-soft)',
   fontWeight: 700
 };
 
 const modalOverlayStyle = {
   position: 'fixed',
   inset: 0,
-  background: 'rgba(2, 6, 23, 0.72)',
+  background: 'var(--surface-contrast)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -696,7 +696,7 @@ const inputStyle = {
   width: '100%',
   padding: '11px 12px',
   borderRadius: '12px',
-  background: 'rgba(15, 23, 42, 0.45)',
+  background: 'var(--surface-4)',
   border: '1px solid var(--border-color)',
   color: 'var(--text-primary)',
   outline: 'none'

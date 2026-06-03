@@ -40,7 +40,7 @@ function NavButton({ item, activePage, onNavigate, onLogout, isLogout = false })
         padding: '9px 12px',
         width: '100%',
         background: isActive ? 'var(--accent-color)' : 'transparent',
-        color: isActive ? '#fff' : isLogout ? '#fca5a5' : 'var(--text-secondary)',
+        color: isActive ? '#fff' : isLogout ? 'var(--status-critical-muted)' : 'var(--text-secondary)',
         border: 'none',
         borderRadius: '10px',
         cursor: 'pointer',

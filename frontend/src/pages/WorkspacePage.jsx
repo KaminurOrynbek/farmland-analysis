@@ -348,7 +348,7 @@ function DrawnFieldNameModal({ isSavingField, onSave, onCancel }) {
 const modalOverlayStyle = {
   position: 'fixed',
   inset: 0,
-  background: 'rgba(2, 6, 23, 0.72)',
+  background: 'var(--surface-contrast)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -381,7 +381,7 @@ const inputStyle = {
   width: '100%',
   padding: '11px 12px',
   borderRadius: '12px',
-  background: 'rgba(15, 23, 42, 0.45)',
+  background: 'var(--surface-4)',
   border: '1px solid var(--border-color)',
   color: 'var(--text-primary)',
   outline: 'none'

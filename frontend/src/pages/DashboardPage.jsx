@@ -583,7 +583,7 @@ export default function DashboardPage({
 const errorStyle = {
   padding: '14px 16px',
   borderRadius: '14px',
-  color: '#fecaca',
+  color: 'var(--status-critical-soft)',
   border: '1px solid rgba(239, 68, 68, 0.3)',
   background: 'rgba(239, 68, 68, 0.08)'
 };
@@ -615,8 +615,8 @@ const trendTrackStyle = {
   display: 'flex',
   alignItems: 'flex-end',
   justifyContent: 'center',
-  background: 'rgba(15, 23, 42, 0.38)',
-  border: '1px solid rgba(148, 163, 184, 0.12)',
+  background: 'var(--surface-3)',
+  border: '1px solid var(--border-soft)',
   padding: '6px'
 };
 
@@ -641,8 +641,8 @@ const roleGridStyle = {
 const roleCardStyle = {
   padding: '16px',
   borderRadius: '18px',
-  border: '1px solid rgba(148, 163, 184, 0.14)',
-  background: 'rgba(15, 23, 42, 0.28)',
+  border: '1px solid var(--border-muted)',
+  background: 'var(--surface-1)',
   display: 'flex',
   flexDirection: 'column',
   gap: '8px'

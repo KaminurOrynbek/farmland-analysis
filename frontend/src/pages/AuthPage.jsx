@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Lock, Mail, UserRound, ShieldCheck } from 'lucide-react';
 import { loginUser, registerUser } from '../api/client';
-import { APP_PAGES } from '../constants/appPages';
+import ThemeToggleButton from '../components/common/ThemeToggleButton.jsx';
 
 const DEFAULT_LOGIN = {
   email: '',
@@ -17,7 +17,7 @@ const DEFAULT_REGISTER = {
 
 
 
-export default function AuthPage({ onBack, onLogin, onRegistered }) {
+export default function AuthPage({ onBack, onLogin, onRegistered, theme, onToggleTheme }) {
   const [mode, setMode] = useState('login');
   const [loginForm, setLoginForm] = useState(DEFAULT_LOGIN);
   const [registerForm, setRegisterForm] = useState(DEFAULT_REGISTER);
@@ -73,10 +73,14 @@ export default function AuthPage({ onBack, onLogin, onRegistered }) {
   return (
     <main className="auth-page">
       <div className="auth-shell">
-        <button type="button" className="auth-back" onClick={onBack}>
-          <ArrowLeft size={18} />
-          Back to Landing
-        </button>
+        <div className="auth-shell-header">
+          <button type="button" className="auth-back" onClick={onBack}>
+            <ArrowLeft size={18} />
+            Back to Landing
+          </button>
+
+          <ThemeToggleButton theme={theme} onToggle={onToggleTheme} />
+        </div>
 
         <section className="auth-layout">
           <div className="auth-card glass-panel">

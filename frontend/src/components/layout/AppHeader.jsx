@@ -1,5 +1,6 @@
 import React from 'react';
 import { APP_PAGES } from '../../constants/appPages';
+import ThemeToggleButton from '../common/ThemeToggleButton.jsx';
 
 const getDisplayName = (user) => {
   return user?.full_name || user?.name || 'AgroVision User';
@@ -14,7 +15,14 @@ const getInitials = (name = 'AgroVision User') => (
     .join('') || 'AG'
 );
 
-export default function AppHeader({ activePage, onNavigate, onOpenGuidedTour, user }) {
+export default function AppHeader({
+  activePage,
+  onNavigate,
+  onOpenGuidedTour,
+  user,
+  theme,
+  onToggleTheme
+}) {
   const displayName = getDisplayName(user);
   const initials = getInitials(displayName);
   const canOpenGuide =
@@ -40,6 +48,8 @@ export default function AppHeader({ activePage, onNavigate, onOpenGuidedTour, us
       </div>
 
       <div className="app-navbar-right" style={{ alignItems: 'center' }}>
+        <ThemeToggleButton theme={theme} onToggle={onToggleTheme} />
+
         {canOpenGuide ? (
           <button
             type="button"

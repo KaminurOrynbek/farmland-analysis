@@ -221,7 +221,7 @@ export default function GuidedTour({ activePage, isOpen, onClose }) {
             height: targetRect.height + 12,
             borderRadius: '16px',
             border: '2px solid rgba(59,130,246,0.85)',
-            boxShadow: '0 0 0 9999px rgba(2, 6, 23, 0.28)',
+            boxShadow: '0 0 0 9999px var(--surface-contrast-soft)',
             background: 'transparent'
           }}
         />
@@ -233,7 +233,7 @@ export default function GuidedTour({ activePage, isOpen, onClose }) {
           top: tooltipPosition.top,
           left: tooltipPosition.left,
           width: `${TOOLTIP_WIDTH}px`,
-          background: 'rgba(15, 23, 42, 0.96)',
+          background: 'var(--surface-elevated-strong)',
           border: '1px solid rgba(59,130,246,0.35)',
           borderRadius: '16px',
           padding: '18px',
@@ -292,7 +292,7 @@ export default function GuidedTour({ activePage, isOpen, onClose }) {
                 background:
                   i <= stepIndex
                     ? 'var(--accent-color)'
-                    : 'rgba(255,255,255,0.12)'
+                    : 'var(--border-soft)'
               }}
             />
           ))}
@@ -343,7 +343,7 @@ export default function GuidedTour({ activePage, isOpen, onClose }) {
               top: '32px',
               width: '16px',
               height: '16px',
-              background: 'rgba(15, 23, 42, 0.96)',
+              background: 'var(--surface-elevated-strong)',
               borderLeft: '1px solid rgba(59,130,246,0.35)',
               borderBottom: '1px solid rgba(59,130,246,0.35)',
               transform: 'rotate(45deg)'
@@ -359,7 +359,7 @@ export default function GuidedTour({ activePage, isOpen, onClose }) {
               top: '32px',
               width: '16px',
               height: '16px',
-              background: 'rgba(15, 23, 42, 0.96)',
+              background: 'var(--surface-elevated-strong)',
               borderRight: '1px solid rgba(59,130,246,0.35)',
               borderTop: '1px solid rgba(59,130,246,0.35)',
               transform: 'rotate(45deg)'
@@ -375,7 +375,7 @@ export default function GuidedTour({ activePage, isOpen, onClose }) {
               left: '32px',
               width: '16px',
               height: '16px',
-              background: 'rgba(15, 23, 42, 0.96)',
+              background: 'var(--surface-elevated-strong)',
               borderLeft: '1px solid rgba(59,130,246,0.35)',
               borderTop: '1px solid rgba(59,130,246,0.35)',
               transform: 'rotate(45deg)'

@@ -334,7 +334,7 @@ const fieldCardStyle = {
   padding: '14px',
   borderRadius: '14px',
   border: '1px solid var(--border-color)',
-  background: 'rgba(255,255,255,0.035)',
+  background: 'var(--surface-highlight-2)',
   color: 'var(--text-primary)',
   cursor: 'pointer'
 };
@@ -347,7 +347,7 @@ const teamRowStyle = {
   padding: '14px',
   borderRadius: '14px',
   border: '1px solid var(--border-color)',
-  background: 'rgba(255,255,255,0.035)'
+  background: 'var(--surface-highlight-2)'
 };
 
 const roleBadgeStyle = {
@@ -367,7 +367,7 @@ const inputStyle = {
   padding: '12px',
   borderRadius: '12px',
   border: '1px solid var(--border-color)',
-  background: 'rgba(0,0,0,0.18)',
+  background: 'var(--surface-1)',
   color: 'var(--text-primary)',
   outline: 'none'
 };
@@ -376,7 +376,7 @@ const noticeStyle = {
   padding: '14px',
   borderRadius: '14px',
   border: '1px solid var(--border-color)',
-  background: 'rgba(148,163,184,0.08)',
+  background: 'var(--surface-neutral-soft)',
   color: 'var(--text-secondary)',
   marginBottom: '16px'
 };
@@ -401,7 +401,7 @@ const dangerButtonStyle = {
   borderRadius: '10px',
   border: '1px solid rgba(239,68,68,0.45)',
   background: 'rgba(239,68,68,0.08)',
-  color: '#fca5a5',
+  color: 'var(--status-critical-muted)',
   cursor: 'pointer',
   fontWeight: 700
 };
