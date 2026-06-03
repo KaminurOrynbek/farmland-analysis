@@ -2865,3 +2865,390 @@ button {
   font-weight: 650;
   font-size: 0.9rem;
 }
+
+/* ================================
+   Farmer-readable Analysis Results
+   Replace old report-* result page duplicates with this block.
+   Keep general/global styles above it.
+================================ */
+
+.farmer-report-page {
+  gap: 18px;
+}
+
+.farmer-report-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+  gap: 20px;
+  align-items: start;
+  padding: 22px;
+  border-radius: 24px;
+}
+
+.farmer-report-hero-copy {
+  min-width: 0;
+}
+
+.farmer-report-hero-side {
+  display: grid;
+  gap: 14px;
+}
+
+.farmer-report-hero-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.farmer-report-hero-metric {
+  min-width: 0;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.36);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.farmer-report-hero-metric > span:first-child {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+}
+
+.farmer-report-hero-metric strong {
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.farmer-decision-card {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(420px, 1.05fr);
+  gap: 18px;
+  padding: 20px;
+  border-radius: 24px;
+  border-color: rgba(148, 163, 184, 0.14);
+}
+
+.farmer-decision-card-healthy {
+  background:
+    radial-gradient(circle at top left, rgba(34, 197, 94, 0.14), transparent 28%),
+    rgba(30, 41, 59, 0.72);
+}
+
+.farmer-decision-card-warning {
+  background:
+    radial-gradient(circle at top left, rgba(234, 179, 8, 0.14), transparent 28%),
+    rgba(30, 41, 59, 0.72);
+}
+
+.farmer-decision-card-critical {
+  background:
+    radial-gradient(circle at top left, rgba(239, 68, 68, 0.14), transparent 28%),
+    rgba(30, 41, 59, 0.72);
+}
+
+.farmer-decision-card-neutral {
+  background:
+    radial-gradient(circle at top left, rgba(148, 163, 184, 0.12), transparent 28%),
+    rgba(30, 41, 59, 0.72);
+}
+
+.farmer-decision-main {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.farmer-decision-label {
+  color: var(--accent-color);
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.farmer-decision-main h2 {
+  font-size: clamp(1.35rem, 2vw, 1.9rem);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+.farmer-decision-main p {
+  color: var(--text-secondary);
+  line-height: 1.65;
+  max-width: 720px;
+}
+
+.farmer-decision-main strong {
+  width: fit-content;
+  padding: 10px 12px;
+  border-radius: 14px;
+  color: #dbeafe;
+  background: rgba(15, 23, 42, 0.42);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.farmer-decision-details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.farmer-result-card {
+  min-width: 0;
+  padding: 15px;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.36);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.farmer-result-card-healthy {
+  border-color: rgba(34, 197, 94, 0.22);
+}
+
+.farmer-result-card-warning {
+  border-color: rgba(234, 179, 8, 0.22);
+}
+
+.farmer-result-card-critical {
+  border-color: rgba(239, 68, 68, 0.22);
+}
+
+.farmer-result-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.farmer-result-card-head span:first-child {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.farmer-result-card-icon {
+  color: var(--accent-color);
+}
+
+.farmer-result-card strong {
+  font-size: 1.08rem;
+  line-height: 1.25;
+}
+
+.farmer-result-card p {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.farmer-limitation-note {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(96, 165, 250, 0.16);
+  color: var(--text-secondary);
+  line-height: 1.55;
+  font-size: 0.84rem;
+}
+
+.farmer-limitation-note svg {
+  color: var(--accent-color);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.farmer-report-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.report-map-panel,
+.farmer-report-side-panel,
+.report-section-card {
+  padding: 18px;
+  border-radius: 24px;
+  min-width: 0;
+}
+
+.report-map-panel,
+.farmer-report-side-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.farmer-report-map-stage {
+  min-height: 500px;
+  display: flex;
+}
+
+.farmer-report-side-panel {
+  align-content: start;
+}
+
+.farmer-context-list {
+  display: grid;
+  gap: 10px;
+}
+
+.farmer-context-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 15px;
+  background: rgba(15, 23, 42, 0.34);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.farmer-context-row span {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.farmer-context-row strong {
+  max-width: 55%;
+  text-align: right;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.farmer-technical-section {
+  gap: 16px;
+}
+
+.report-indicator-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.report-technical-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.report-indicator-card {
+  padding: 16px;
+  border-radius: 20px;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.report-indicator-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.report-indicator-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.report-indicator-level {
+  font-size: 1.28rem;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+}
+
+.report-indicator-raw {
+  color: #dbeafe;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.report-indicator-scale {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.report-indicator-scale-step {
+  min-height: 36px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.32);
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.report-indicator-scale-step.active.healthy {
+  color: var(--status-healthy);
+  border-color: rgba(34, 197, 94, 0.24);
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.report-indicator-scale-step.active.warning {
+  color: var(--status-warning);
+  border-color: rgba(234, 179, 8, 0.24);
+  background: rgba(234, 179, 8, 0.12);
+}
+
+.report-indicator-scale-step.active.critical {
+  color: var(--status-critical);
+  border-color: rgba(239, 68, 68, 0.24);
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.report-indicator-scale-step.active.neutral {
+  color: #dbeafe;
+  border-color: rgba(148, 163, 184, 0.24);
+  background: rgba(148, 163, 184, 0.12);
+}
+
+/* Hide old result-page blocks if older JSX/CSS remains somewhere */
+.report-field-context-grid {
+  display: none !important;
+}
+
+@media (max-width: 1280px) {
+  .farmer-report-hero,
+  .farmer-decision-card,
+  .farmer-report-main-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .farmer-decision-details,
+  .farmer-report-hero-metrics,
+  .report-technical-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .report-indicator-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .farmer-report-map-stage {
+    min-height: 420px;
+  }
+}

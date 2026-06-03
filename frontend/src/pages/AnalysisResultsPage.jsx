@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
+  AlertTriangle,
   BrainCircuit,
   CalendarClock,
+  CheckCircle2,
   FileText,
+  Info,
   MapPinned,
   ShieldAlert,
   Sprout
@@ -23,10 +26,8 @@ import {
   filterAnalysesBySeason,
   formatWorkspaceDate,
   formatWorkspaceDateTime,
-  getConditionSummaryDisplay,
   getFieldSelectionId,
   getFieldSelectionName,
-  getInspectionMessage,
   getRiskTone,
   getVegetationIndexLevelDisplay,
   getVegetationLevelDisplay,
@@ -56,12 +57,101 @@ const buildGeoJsonFromSelection = (selectedField, fieldId, fieldName) => {
   };
 };
 
-function SummaryCard({ label, value, helper, tone = 'neutral' }) {
+const getFarmerStatus = (riskLevel) => {
+  if (riskLevel === 'Low') {
+    return {
+      value: 'Stable',
+      tone: 'healthy',
+      title: 'The field looks stable',
+      action: 'Continue routine monitoring.',
+      helper:
+        'The current satellite indicators do not show a strong reason for urgent inspection.',
+      icon: <CheckCircle2 size={18} />
+    };
+  }
+
+  if (riskLevel === 'Medium') {
+    return {
+      value: 'Monitor',
+      tone: 'warning',
+      title: 'The field needs monitoring',
+      action: 'Check this field when possible.',
+      helper:
+        'The satellite indicators show mixed vegetation signals. This does not confirm crop damage, but it is worth reviewing.',
+      icon: <Info size={18} />
+    };
+  }
+
+  if (riskLevel === 'High') {
+    return {
+      value: 'Needs attention',
+      tone: 'critical',
+      title: 'The field needs attention',
+      action: 'Field inspection is recommended.',
+      helper:
+        'The satellite indicators show weak vegetation signals. A field visit can help confirm the cause.',
+      icon: <AlertTriangle size={18} />
+    };
+  }
+
+  return {
+    value: 'Not analyzed',
+    tone: 'neutral',
+    title: 'No land status available',
+    action: 'Run an analysis to generate a field report.',
+    helper: 'After analysis, this page will show vegetation indicators and land-cover output.',
+    icon: <Info size={18} />
+  };
+};
+
+const getVegetationFarmerText = (ndviValue) => {
+  const display = getVegetationLevelDisplay(ndviValue);
+
+  if (display.value === 'High') {
+    return {
+      ...display,
+      action: 'Vegetation signal is strong for the selected image period.'
+    };
+  }
+
+  if (display.value === 'Moderate') {
+    return {
+      ...display,
+      action: 'Vegetation signal is acceptable but should be monitored.'
+    };
+  }
+
+  if (display.value === 'Low') {
+    return {
+      ...display,
+      action: 'Vegetation signal is low. Inspecting the parcel is recommended.'
+    };
+  }
+
+  return {
+    ...display,
+    action: 'Vegetation signal will appear after analysis.'
+  };
+};
+
+function ResultHeroMetric({ label, value, children }) {
   return (
-    <div className={`report-summary-item report-summary-item-${tone}`}>
-      <span className="report-summary-label">{label}</span>
-      <strong className="report-summary-value">{value}</strong>
-      {helper ? <p className="workspace-helper-text">{helper}</p> : null}
+    <div className="farmer-report-hero-metric">
+      <span>{label}</span>
+      {children || <strong>{value}</strong>}
+    </div>
+  );
+}
+
+function FarmerResultCard({ label, value, helper, tone = 'neutral', icon }) {
+  return (
+    <div className={`farmer-result-card farmer-result-card-${tone}`}>
+      <div className="farmer-result-card-head">
+        <span>{label}</span>
+        {icon ? <span className="farmer-result-card-icon">{icon}</span> : null}
+      </div>
+      <strong>{value}</strong>
+      {helper ? <p>{helper}</p> : null}
     </div>
   );
 }
@@ -141,6 +231,7 @@ export default function AnalysisResultsPage({
 
   const selectedFieldId = getFieldSelectionId(selectedField);
   const selectedFieldName = getFieldSelectionName(selectedField);
+
   const fieldRecord = useMemo(
     () => createFieldFallbackRecord(selectedField, selectedFieldId),
     [selectedField, selectedFieldId]
@@ -216,9 +307,9 @@ export default function AnalysisResultsPage({
 
   const currentSessionAnalysis = analysisStarted
     ? normalizeAnalysisRecord({
-        ...analysisResults,
-        analysisDate: latestAnalysisAt || analysisResults.analysisDate
-      })
+      ...analysisResults,
+      analysisDate: latestAnalysisAt || analysisResults.analysisDate
+    })
     : null;
 
   const activeReport = (
@@ -228,8 +319,8 @@ export default function AnalysisResultsPage({
     ? currentSessionAnalysis
     : latestSeasonAnalysis;
 
-  const conditionSummary = getConditionSummaryDisplay(activeReport);
-  const vegetationLevel = getVegetationLevelDisplay(activeReport?.ndviValue);
+  const landStatus = getFarmerStatus(activeReport?.riskLevel);
+  const vegetationStatus = getVegetationFarmerText(activeReport?.ndviValue);
   const ndviLevel = getVegetationIndexLevelDisplay('ndvi', activeReport?.ndviValue);
   const eviLevel = getVegetationIndexLevelDisplay('evi', activeReport?.eviValue);
 
@@ -267,6 +358,10 @@ export default function AnalysisResultsPage({
       ? `${formatWorkspaceDate(activeReport.startDate)} to ${formatWorkspaceDate(activeReport.endDate)}`
       : 'Not available';
 
+  const latestRunLabel = activeReport?.analysisDate
+    ? formatWorkspaceDateTime(activeReport.analysisDate, 'Not available')
+    : 'Not available';
+
   if (!selectedField && !activeReport) {
     return (
       <div className="content-page">
@@ -287,35 +382,29 @@ export default function AnalysisResultsPage({
   }
 
   return (
-    <div className="content-page analysis-results-page">
-      <section className="page-hero glass-panel report-header">
-        <div>
-          <div className="page-kicker">{APP_PAGES.ANALYSIS_RESULTS}</div>
+    <div className="content-page analysis-results-page farmer-report-page">
+      <section className="farmer-report-hero glass-panel">
+        <div className="farmer-report-hero-copy">
+          <div className="page-kicker">Land health report</div>
           <h1 className="page-title">{selectedFieldName}</h1>
           <p className="page-subtitle">
-            Review the satellite-based screening priority, vegetation indicators, and model-assisted land-cover result.
+            Satellite-based summary for the selected parcel. The report shows what the imagery suggests and what action is recommended next.
           </p>
         </div>
 
-        <div className="report-header-side">
-          <div className="report-header-meta-grid">
-            <div className="page-hero-meta-card">
-              <span className="page-hero-meta-label">Area</span>
-              <strong>{fieldArea}</strong>
-            </div>
-
-            <div className="page-hero-meta-card">
-              <span className="page-hero-meta-label">Analysis period</span>
-              <strong>{selectedSeason ? `Season ${selectedSeason}` : 'Not selected'}</strong>
-            </div>
-
-            <div className="page-hero-meta-card report-risk-card">
-              <span className="page-hero-meta-label">Screening priority</span>
-              <span className={`status-pill ${getRiskTone(activeReport?.riskLevel)}`}>
-                <ShieldAlert size={14} />
-                {conditionSummary.value}
+        <div className="farmer-report-hero-side">
+          <div className="farmer-report-hero-metrics">
+            <ResultHeroMetric label="Area" value={fieldArea} />
+            <ResultHeroMetric
+              label="Analysis period"
+              value={selectedSeason ? `Season ${selectedSeason}` : 'Not selected'}
+            />
+            <ResultHeroMetric label="Land status">
+              <span className={`status-pill ${landStatus.tone}`}>
+                {landStatus.icon}
+                {landStatus.value}
               </span>
-            </div>
+            </ResultHeroMetric>
           </div>
 
           <div className="page-hero-actions">
@@ -336,77 +425,60 @@ export default function AnalysisResultsPage({
 
       {notice ? <div className="workspace-notice-banner">{notice}</div> : null}
 
-      <section className="workspace-panel-section glass-panel report-section-card">
-        <div className="workspace-section-heading">
-          <div className="workspace-section-icon">
-            <FileText size={16} />
+      {activeReport ? (
+        <section className={`farmer-decision-card glass-panel farmer-decision-card-${landStatus.tone}`}>
+          <div className="farmer-decision-main">
+            <span className="farmer-decision-label">Recommended action</span>
+            <h2>{landStatus.title}</h2>
+            <p>{landStatus.helper}</p>
+            <strong>{landStatus.action}</strong>
           </div>
-          <div>
-            <strong style={{ fontSize: '1rem' }}>Remote-sensing screening result</strong>
-            <p className="workspace-helper-text">
-              Summary of the latest satellite-based analysis for this field.
-            </p>
+
+          <div className="farmer-decision-details">
+            <FarmerResultCard
+              label="Vegetation condition"
+              value={vegetationStatus.value}
+              helper={vegetationStatus.action}
+              tone={getRiskTone(activeReport.riskLevel)}
+              icon={<Activity size={16} />}
+            />
+
+            <FarmerResultCard
+              label="Detected land cover"
+              value={activeReport.predictedClass || 'Not analyzed'}
+              helper="Model-assisted EuroSAT land-cover class."
+              icon={<FileText size={16} />}
+            />
+
+            <FarmerResultCard
+              label="Model confidence"
+              value={activeReport.confidenceLabel}
+              helper="Confidence of the land-cover classification."
+              icon={<ShieldAlert size={16} />}
+            />
           </div>
-        </div>
 
-        {activeReport ? (
-          <>
-            <div className="workspace-note-card">
-              <strong>{getInspectionMessage(activeReport)}</strong>
-              <p className="workspace-helper-text">{ANALYSIS_LIMITATION_NOTE}</p>
-            </div>
+          <div className="farmer-limitation-note">
+            <Info size={16} />
+            <span>{ANALYSIS_LIMITATION_NOTE}</span>
+          </div>
+        </section>
+      ) : (
+        <NoAnalysisState
+          title={`No analysis available for Season ${selectedSeason}`}
+          description="Choose another season or run a new analysis for this field."
+          primaryAction={{
+            label: 'Run new analysis',
+            onClick: () => onRunNewAnalysis?.()
+          }}
+          secondaryAction={{
+            label: 'Open Workspace',
+            onClick: () => onNavigate(APP_PAGES.WORKSPACE)
+          }}
+        />
+      )}
 
-            <div className="report-summary-grid">
-              <SummaryCard
-                label="Screening priority"
-                value={conditionSummary.value}
-                helper={conditionSummary.helper}
-                tone={getRiskTone(activeReport.riskLevel)}
-              />
-              <SummaryCard
-                label="Vegetation signal"
-                value={vegetationLevel.value}
-                helper={vegetationLevel.helper}
-              />
-              <SummaryCard
-                label="Detected land cover"
-                value={activeReport.predictedClass || 'Not analyzed'}
-                helper="ResNet-50-assisted EuroSAT land-cover classification."
-              />
-              <SummaryCard
-                label="Confidence"
-                value={activeReport.confidenceLabel}
-                helper="Model confidence for the land-cover classification."
-              />
-              <SummaryCard
-                label="Analysis date"
-                value={formatWorkspaceDateTime(activeReport.analysisDate, 'Not available')}
-                helper="Time when this analysis run was recorded."
-              />
-              <SummaryCard
-                label="Satellite image date"
-                value={satelliteDateLabel}
-                helper="Acquisition date when available, otherwise the requested image window."
-              />
-            </div>
-          </>
-        ) : (
-          <NoAnalysisState
-            title={`No analysis available for Season ${selectedSeason}`}
-            description="Choose another season or run a new analysis for this field."
-            primaryAction={{
-              label: 'Run new analysis',
-              onClick: () => onRunNewAnalysis?.()
-            }}
-            secondaryAction={{
-              label: 'Open Workspace',
-              onClick: () => onNavigate(APP_PAGES.WORKSPACE)
-            }}
-          />
-        )}
-      </section>
-
-      <section className="report-main-layout">
+      <section className="farmer-report-main-grid">
         <div className="glass-panel report-map-panel">
           <div className="workspace-section-heading">
             <div className="workspace-section-icon">
@@ -415,12 +487,12 @@ export default function AnalysisResultsPage({
             <div>
               <strong style={{ fontSize: '1rem' }}>Field map</strong>
               <p className="workspace-helper-text">
-                Selected boundary with the latest screening priority overlay.
+                Boundary colored by the latest land status from the analysis.
               </p>
             </div>
           </div>
 
-          <div className="workspace-map-stage report-map-stage">
+          <div className="workspace-map-stage report-map-stage farmer-report-map-stage">
             <FieldMap
               user={user}
               backendHealthy={backendHealthy}
@@ -440,15 +512,15 @@ export default function AnalysisResultsPage({
           </div>
         </div>
 
-        <aside className="glass-panel report-summary-panel">
+        <aside className="glass-panel farmer-report-side-panel">
           <div className="workspace-section-heading">
             <div className="workspace-section-icon">
               <CalendarClock size={16} />
             </div>
             <div>
-              <strong style={{ fontSize: '1rem' }}>Analysis history</strong>
+              <strong style={{ fontSize: '1rem' }}>Analysis context</strong>
               <p className="workspace-helper-text">
-                Review stored runs for the selected analysis period.
+                Review the latest run and switch between stored seasons.
               </p>
             </div>
           </div>
@@ -460,17 +532,32 @@ export default function AnalysisResultsPage({
             compact
           />
 
+          <div className="farmer-context-list">
+            <div className="farmer-context-row">
+              <span>Latest run</span>
+              <strong>{latestRunLabel}</strong>
+            </div>
+
+            <div className="farmer-context-row">
+              <span>Satellite image date</span>
+              <strong>{satelliteDateLabel}</strong>
+            </div>
+
+            <div className="farmer-context-row">
+              <span>Land-cover class</span>
+              <strong>{activeReport?.predictedClass || 'Not available'}</strong>
+            </div>
+
+            <div className="farmer-context-row">
+              <span>Confidence</span>
+              <strong>{activeReport?.confidenceLabel || '—'}</strong>
+            </div>
+          </div>
+
           {loadingHistory ? (
             <div className="empty-state compact">Loading field history...</div>
           ) : seasonHistory.length ? (
             <>
-              <div className="workspace-note-card">
-                <strong>Latest run</strong>
-                <p className="workspace-helper-text">
-                  {`${formatWorkspaceDateTime(seasonHistory[0].analysisDate, 'Analysis date pending')} · ${seasonHistory[0].predictedClass || 'Land cover unavailable'} · ${seasonHistory[0].confidenceLabel}`}
-                </p>
-              </div>
-
               {previousSeasonRuns.length ? (
                 <AnalysisHistoryList
                   items={previousSeasonRuns}
@@ -493,7 +580,7 @@ export default function AnalysisResultsPage({
       </section>
 
       {activeReport ? (
-        <section className="workspace-panel-section glass-panel report-section-card">
+        <section className="workspace-panel-section glass-panel report-section-card farmer-technical-section">
           <div className="workspace-section-heading">
             <div className="workspace-section-icon">
               <BrainCircuit size={16} />
@@ -501,7 +588,7 @@ export default function AnalysisResultsPage({
             <div>
               <strong style={{ fontSize: '1rem' }}>Technical details</strong>
               <p className="workspace-helper-text">
-                NDVI and EVI are vegetation indicators. Land-cover output is a model-assisted EuroSAT classification intended for monitoring support.
+                These values explain how the land status was formed. NDVI and EVI describe vegetation signal; ResNet-50 provides land-cover classification.
               </p>
             </div>
           </div>
@@ -526,7 +613,7 @@ export default function AnalysisResultsPage({
               level={eviLevel.value}
               tone={eviLevel.tone}
               helper={eviLevel.helper}
-              explanation="EVI is used as a supporting vegetation indicator when background brightness may affect the image."
+              explanation="EVI is a supporting vegetation indicator that can reduce some background effects."
               icon={<Sprout />}
               accentColor="var(--accent-color)"
             />
@@ -536,24 +623,27 @@ export default function AnalysisResultsPage({
             <FieldMetricCard
               label="Land-cover workflow"
               value="ResNet-50-assisted"
-              helper="Model-assisted classification workflow used for EuroSAT land-cover labels."
+              helper="Transfer-learning-based classification using EuroSAT land-cover labels."
               icon={<BrainCircuit />}
               accentColor="var(--accent-color)"
             />
+
             <FieldMetricCard
               label="EuroSAT class"
               value={activeReport.euroSatClass || activeReport.predictedClass || 'Not available'}
-              helper="Predicted land-cover label from the latest stored run."
+              helper="Predicted broad land-cover class, not crop disease or yield diagnosis."
               icon={<FileText />}
               accentColor="var(--status-warning)"
             />
+
             <FieldMetricCard
               label="Model confidence"
               value={activeReport.confidenceLabel}
-              helper="Confidence score returned by the land-cover classifier."
+              helper="Confidence score returned by the classifier."
               icon={<ShieldAlert />}
               accentColor="var(--status-healthy)"
             />
+
             <FieldMetricCard
               label="Satellite source"
               value={activeReport.satelliteSource || 'Not available'}
@@ -561,6 +651,7 @@ export default function AnalysisResultsPage({
               icon={<MapPinned />}
               accentColor="var(--status-warning)"
             />
+
             <FieldMetricCard
               label="Cloud coverage"
               value={activeReport.cloudCoverage === null ? 'Unknown' : `${activeReport.cloudCoverage}%`}
@@ -568,10 +659,11 @@ export default function AnalysisResultsPage({
               icon={<CalendarClock />}
               accentColor="var(--accent-color)"
             />
+
             <FieldMetricCard
               label="Quality flags"
               value={activeReport.qualityFlags?.length ? activeReport.qualityFlags.join(', ') : 'None'}
-              helper="Transparent processing notes such as unavailable EVI or low classification confidence."
+              helper="Processing notes such as unavailable EVI or low classification confidence."
               icon={<ShieldAlert />}
               accentColor="var(--status-critical)"
             />
