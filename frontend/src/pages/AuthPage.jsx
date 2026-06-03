@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, Lock, Mail, UserRound, ShieldCheck } from 'lucide-react';
 import { loginUser, registerUser } from '../api/client';
 import ThemeToggleButton from '../components/common/ThemeToggleButton.jsx';
+import { APP_PAGES } from '../constants/appPages';
 
 const DEFAULT_LOGIN = {
   email: '',

@@ -1,12 +1,67 @@
-import React, { useEffect, useEffectEvent, useMemo, useState } from 'react';
-import { Users, Share2, ShieldCheck, Trash2, RefreshCw, MapPin } from 'lucide-react';
+import React, { useEffect, useCallback, useMemo, useState } from 'react';
+import {
+  MapPin,
+  RefreshCw,
+  Search,
+  Share2,
+  ShieldCheck,
+  Trash2,
+  Users
+} from 'lucide-react';
 import { APP_PAGES } from '../constants/appPages';
+import PaginationControls from '../components/common/PaginationControls';
 import {
   fetchAllFields,
   fetchFieldTeam,
-  shareField,
-  revokeFieldAccess
+  revokeFieldAccess,
+  shareField
 } from '../api/client';
+
+const PAGE_SIZE = 8;
+
+const ROLE_OPTIONS = [
+  { value: 'ALL', label: 'All roles' },
+  { value: 'OWNER', label: 'Owner' },
+  { value: 'EDITOR', label: 'Editor' },
+  { value: 'VIEWER', label: 'Viewer' },
+  { value: 'ADMIN', label: 'Admin' }
+];
+
+const SHARE_ROLE_OPTIONS = [
+  {
+    value: 'VIEWER',
+    label: 'VIEWER — view only',
+    helper: 'Can view field data and reports.'
+  },
+  {
+    value: 'EDITOR',
+    label: 'EDITOR — analyze and edit',
+    helper: 'Can update field data and run analysis.'
+  },
+  {
+    value: 'OWNER',
+    label: 'OWNER — full access',
+    helper: 'Can manage field sharing and permissions.'
+  }
+];
+
+const formatArea = (value) => (
+  value ? `${Number(value).toFixed(2)} ha` : 'Area unknown'
+);
+
+const getRoleTone = (role) => {
+  if (role === 'OWNER' || role === 'ADMIN') return 'healthy';
+  if (role === 'EDITOR') return 'warning';
+  return 'neutral';
+};
+
+const getRoleDescription = (role) => {
+  if (role === 'OWNER') return 'Full access and sharing management';
+  if (role === 'EDITOR') return 'Can analyze and edit this field';
+  if (role === 'VIEWER') return 'Can view this field only';
+  if (role === 'ADMIN') return 'Administrative access';
+  return 'Access role unavailable';
+};
 
 export default function FieldSharingPage({ user, onNavigate }) {
   const [fields, setFields] = useState([]);
@@ -17,23 +72,70 @@ export default function FieldSharingPage({ user, onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [teamLoading, setTeamLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const selectedField = useMemo(
-    () => fields.find((field) => field.id === selectedFieldId),
-    [fields, selectedFieldId]
-  );
   const isAgronomist = user?.role === 'AGRONOMIST';
   const isFarmer = user?.role === 'FARMER';
 
-  const canManageSelectedField = selectedField?.role === 'OWNER' || user?.role === 'ADMIN';
+  const selectedField = useMemo(
+    () => fields.find((field) => String(field.id) === String(selectedFieldId)),
+    [fields, selectedFieldId]
+  );
 
-  const loadFields = async () => {
+  const canManageSelectedField =
+    selectedField?.role === 'OWNER' || user?.role === 'ADMIN';
+
+  const filteredFields = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    return fields
+      .filter((field) => {
+        if (roleFilter !== 'ALL' && field.role !== roleFilter) {
+          return false;
+        }
+
+        if (!query) {
+          return true;
+        }
+
+        return [
+          field.name,
+          field.owner_name,
+          field.owner_email,
+          field.role
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .includes(query);
+      })
+      .sort((left, right) => {
+        const leftName = left.name || 'Unnamed Field';
+        const rightName = right.name || 'Unnamed Field';
+        return leftName.localeCompare(rightName);
+      });
+  }, [fields, roleFilter, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredFields.length / PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedFields = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
+    return filteredFields.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredFields, safeCurrentPage]);
+
+  const selectedRoleOption = SHARE_ROLE_OPTIONS.find((option) => option.value === role);
+
+  const loadFields = useCallback(async () => {
     setLoading(true);
     setMessage('');
 
     try {
       const response = await fetchAllFields();
       const fieldList = response.data || [];
+
       setFields(fieldList);
 
       if (fieldList.length > 0) {
@@ -47,9 +149,9 @@ export default function FieldSharingPage({ user, onNavigate }) {
     } finally {
       setLoading(false);
     }
-  };
+  },[])
 
-  const loadTeam = async (fieldId) => {
+  const loadTeam = useCallback(async (fieldId) => {
     if (!fieldId) {
       setTeam([]);
       return;
@@ -70,38 +172,37 @@ export default function FieldSharingPage({ user, onNavigate }) {
     } finally {
       setTeamLoading(false);
     }
-  };
-
-  const handleInitialLoad = useEffectEvent(async () => {
-    await loadFields();
-  });
-
-  const handleSelectedFieldLoad = useEffectEvent(async (fieldId) => {
-    await loadTeam(fieldId);
-  });
+  },[]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      void handleInitialLoad();
+      void loadFields();
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, []);
+  }, [loadFields]);
 
   useEffect(() => {
-    if (selectedFieldId) {
-      const timeoutId = window.setTimeout(() => {
-        void handleSelectedFieldLoad(selectedFieldId);
-      }, 0);
-
-      return () => window.clearTimeout(timeoutId);
+    if (!selectedFieldId) {
+      return undefined;
     }
 
-    return undefined;
-  }, [selectedFieldId]);
+    const timeoutId = window.setTimeout(() => {
+      void loadTeam(selectedFieldId);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [selectedFieldId, loadTeam]);
+
+  const handleSelectField = (fieldId) => {
+    setSelectedFieldId(fieldId);
+    setMessage('');
+  };
 
   const handleShare = async () => {
-    if (!selectedFieldId || !email.trim()) return;
+    if (!selectedFieldId || !email.trim()) {
+      return;
+    }
 
     setMessage('');
 
@@ -122,7 +223,9 @@ export default function FieldSharingPage({ user, onNavigate }) {
   };
 
   const handleRevoke = async (userId) => {
-    if (!selectedFieldId) return;
+    if (!selectedFieldId) {
+      return;
+    }
 
     try {
       await revokeFieldAccess({
@@ -138,13 +241,15 @@ export default function FieldSharingPage({ user, onNavigate }) {
 
   return (
     <div className="content-page">
+      <style>{fieldSharingCss}</style>
+
       <section className="page-hero glass-panel">
         <div>
           <div className="page-kicker">{APP_PAGES.FIELD_SHARING}</div>
           <h1 className="page-title">{APP_PAGES.FIELD_SHARING}</h1>
           <p className="page-subtitle">
             {isAgronomist
-              ? 'Review shared ownership context and see which collaborators currently have access.'
+              ? 'Review field access and collaborator permissions.'
               : 'Manage who can view, analyze, or edit your fields.'}
           </p>
         </div>
@@ -155,98 +260,166 @@ export default function FieldSharingPage({ user, onNavigate }) {
         </button>
       </section>
 
-      {message && (
-        <div style={noticeStyle}>
-          {message}
-        </div>
-      )}
+      {message ? <div className="workspace-notice-banner">{message}</div> : null}
 
       {loading ? (
-        <div style={emptyStyle}>Loading fields...</div>
+        <div className="empty-state">Loading fields...</div>
       ) : fields.length === 0 ? (
-        <div style={emptyStyle}>
+        <div className="empty-state">
           No fields available yet. Create or upload a field in Workspace first.
         </div>
       ) : (
-        <div style={gridStyle}>
-          <section className="glass-panel" style={panelStyle}>
-            <div style={sectionHeaderStyle}>
-              <MapPin color="var(--accent-color)" />
-              <h2 style={{ margin: 0 }}>Your accessible fields</h2>
+        <div className="field-sharing-grid">
+          <section className="glass-panel field-sharing-panel">
+            <div className="field-sharing-section-head">
+              <MapPin size={18} color="var(--accent-color)" />
+              <div>
+                <h2>Your accessible fields</h2>
+                <p className="workspace-helper-text">
+                  Choose a field to review or manage access.
+                </p>
+              </div>
             </div>
 
-            <div style={{ display: 'grid', gap: '10px' }}>
-              {fields.map((field) => (
-                <button
-                  key={field.id}
-                  type="button"
-                  onClick={() => setSelectedFieldId(field.id)}
-                  style={{
-                    ...fieldCardStyle,
-                    borderColor:
-                      selectedFieldId === field.id
-                        ? 'var(--accent-color)'
-                        : 'var(--border-color)'
+            <div className="field-sharing-toolbar">
+              <label className="field-sharing-search">
+                <Search size={15} />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(event) => {
+                    setSearchQuery(event.target.value);
+                    setCurrentPage(1);
                   }}
-                >
-                  <div>
-                    <strong>{field.name || 'Unnamed Field'}</strong>
-                    <p style={mutedTextStyle}>
-                      {field.area_ha ? `${Number(field.area_ha).toFixed(2)} ha` : 'Area unknown'}
-                    </p>
-                  </div>
+                  placeholder="Search fields or owners"
+                />
+              </label>
 
-                  <span style={roleBadgeStyle}>{field.role || 'VIEWER'}</span>
-                </button>
-              ))}
+              <select
+                value={roleFilter}
+                onChange={(event) => {
+                  setRoleFilter(event.target.value);
+                  setCurrentPage(1);
+                }}
+                className="field-sharing-select"
+              >
+                {ROLE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
+
+            {filteredFields.length === 0 ? (
+              <div className="empty-state compact">
+                No fields match your search or role filter.
+              </div>
+            ) : (
+              <>
+                <div className="field-sharing-field-list">
+                  {paginatedFields.map((field) => {
+                    const isSelected = String(selectedFieldId) === String(field.id);
+
+                    return (
+                      <button
+                        key={field.id}
+                        type="button"
+                        onClick={() => handleSelectField(field.id)}
+                        className={`field-sharing-field-card ${isSelected ? 'active' : ''}`}
+                      >
+                        <div>
+                          <strong>{field.name || 'Unnamed Field'}</strong>
+                          <p>{formatArea(field.area_ha)}</p>
+                          <small>{field.owner_name || field.owner_email || 'Owner unavailable'}</small>
+                        </div>
+
+                        <span className={`status-pill ${getRoleTone(field.role)}`}>
+                          {field.role || 'VIEWER'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <PaginationControls
+                  currentPage={safeCurrentPage}
+                  totalItems={filteredFields.length}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setCurrentPage}
+                  itemLabel="fields"
+                />
+              </>
+            )}
 
             <button
               type="button"
-              className="secondary-btn"
-              style={{ marginTop: '16px' }}
+              className="secondary-btn field-sharing-workspace-btn"
               onClick={() => onNavigate?.(APP_PAGES.WORKSPACE)}
             >
               Open Workspace
             </button>
           </section>
 
-          <section className="glass-panel" style={panelStyle}>
-            <div style={sectionHeaderStyle}>
-              <Share2 color="var(--accent-color)" />
-              <h2 style={{ margin: 0 }}>{isFarmer ? 'Share selected field' : 'Selected field access'}</h2>
+          <section className="glass-panel field-sharing-panel">
+            <div className="field-sharing-section-head">
+              <Share2 size={18} color="var(--accent-color)" />
+              <div>
+                <h2>{isFarmer ? 'Share selected field' : 'Selected field access'}</h2>
+                <p className="workspace-helper-text">
+                  Selected field: <strong>{selectedField?.name || '—'}</strong>
+                </p>
+              </div>
             </div>
 
-            <p style={{ ...mutedTextStyle, marginBottom: '14px' }}>
-                Selected field: <strong>{selectedField?.name || '—'}</strong>
-            </p>
+            {selectedField ? (
+              <div className="field-sharing-summary">
+                <div>
+                  <span>Current role</span>
+                  <strong>{selectedField.role || 'VIEWER'}</strong>
+                  <p>{getRoleDescription(selectedField.role)}</p>
+                </div>
 
-             
+                <div>
+                  <span>Area</span>
+                  <strong>{formatArea(selectedField.area_ha)}</strong>
+                  <p>{selectedField.owner_name || selectedField.owner_email || 'Owner unavailable'}</p>
+                </div>
+              </div>
+            ) : null}
+
             {!canManageSelectedField ? (
-            <div style={{ ...noticeStyle, marginTop: '0' }}>
+              <div className="workspace-note-card">
                 {isAgronomist
-                  ? 'You can review who is on the field, but only the OWNER can grant or revoke access.'
+                  ? 'You can review this field access, but only the OWNER can grant or revoke permissions.'
                   : 'You can view this field, but only OWNER can manage team access.'}
               </div>
             ) : (
-              <div style={{ display: 'grid', gap: '12px' }}>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="User email"
-                  style={inputStyle}
-                />
+              <div className="field-sharing-form">
+                <label>
+                  <span>User email</span>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="example@email.com"
+                  />
+                </label>
 
-                <select
-                  value={role}
-                  onChange={(event) => setRole(event.target.value)}
-                  style={inputStyle}
-                >
-                  <option value="VIEWER">VIEWER — view only</option>
-                  <option value="EDITOR">EDITOR — analyze and edit</option>
-                  <option value="OWNER">OWNER — full access</option>
-                </select>
+                <label>
+                  <span>Access role</span>
+                  <select
+                    value={role}
+                    onChange={(event) => setRole(event.target.value)}
+                  >
+                    {SHARE_ROLE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <small>{selectedRoleOption?.helper}</small>
+                </label>
 
                 <button
                   type="button"
@@ -259,43 +432,48 @@ export default function FieldSharingPage({ user, onNavigate }) {
               </div>
             )}
 
-            <div style={{ marginTop: '24px' }}>
-              <div style={sectionHeaderStyle}>
-                <Users color="var(--status-healthy)" />
-                <h2 style={{ margin: 0 }}>Current team</h2>
+            <div className="field-sharing-team-section">
+              <div className="field-sharing-section-head">
+                <Users size={18} color="var(--status-healthy)" />
+                <div>
+                  <h2>Current team</h2>
+                  <p className="workspace-helper-text">
+                    People who currently have access to this field.
+                  </p>
+                </div>
               </div>
 
               {teamLoading ? (
-                <div style={emptyStyle}>Loading team...</div>
+                <div className="empty-state compact">Loading team...</div>
               ) : team.length === 0 ? (
-                <div style={emptyStyle}>No team data available.</div>
+                <div className="empty-state compact">No team data available.</div>
               ) : (
-                <div style={{ display: 'grid', gap: '10px' }}>
+                <div className="field-sharing-team-list">
                   {team.map((member) => (
-                    <div key={member.user_id} style={teamRowStyle}>
+                    <article key={member.user_id} className="field-sharing-team-row">
                       <div>
                         <strong>{member.full_name || member.email}</strong>
-                        <p style={mutedTextStyle}>{member.email}</p>
+                        <p>{member.email}</p>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={roleBadgeStyle}>
+                      <div className="field-sharing-team-actions">
+                        <span className={`status-pill ${getRoleTone(member.role)}`}>
                           <ShieldCheck size={13} />
                           {member.role}
                         </span>
 
-                        {canManageSelectedField && member.role !== 'OWNER' && (
+                        {canManageSelectedField && member.role !== 'OWNER' ? (
                           <button
                             type="button"
                             onClick={() => handleRevoke(member.user_id)}
-                            style={dangerButtonStyle}
+                            className="field-sharing-danger-btn"
                           >
                             <Trash2 size={14} />
                             Remove
                           </button>
-                        )}
+                        ) : null}
                       </div>
-                    </div>
+                    </article>
                   ))}
                 </div>
               )}
@@ -307,101 +485,214 @@ export default function FieldSharingPage({ user, onNavigate }) {
   );
 }
 
-const gridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(280px, 420px) 1fr',
-  gap: '22px'
-};
+const fieldSharingCss = `
+  .field-sharing-grid {
+    display: grid;
+    grid-template-columns: minmax(320px, 430px) minmax(0, 1fr);
+    gap: 22px;
+    align-items: start;
+  }
 
-const panelStyle = {
-  padding: '24px',
-  borderRadius: '22px'
-};
+  .field-sharing-panel {
+    padding: 24px;
+    border-radius: 22px;
+    min-width: 0;
+  }
 
-const sectionHeaderStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '10px',
-  marginBottom: '16px'
-};
+  .field-sharing-section-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
 
-const fieldCardStyle = {
-  width: '100%',
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  textAlign: 'left',
-  padding: '14px',
-  borderRadius: '14px',
-  border: '1px solid var(--border-color)',
-  background: 'var(--surface-highlight-2)',
-  color: 'var(--text-primary)',
-  cursor: 'pointer'
-};
+  .field-sharing-section-head h2 {
+    margin: 0;
+    font-size: 1.1rem;
+  }
 
-const teamRowStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: '12px',
-  padding: '14px',
-  borderRadius: '14px',
-  border: '1px solid var(--border-color)',
-  background: 'var(--surface-highlight-2)'
-};
+  .field-sharing-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 150px;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
 
-const roleBadgeStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '5px',
-  padding: '6px 9px',
-  borderRadius: '999px',
-  background: 'rgba(59,130,246,0.12)',
-  color: 'var(--accent-color)',
-  fontSize: '0.72rem',
-  fontWeight: 800
-};
+  .field-sharing-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: var(--surface-4);
+    color: var(--text-secondary);
+  }
 
-const inputStyle = {
-  width: '100%',
-  padding: '12px',
-  borderRadius: '12px',
-  border: '1px solid var(--border-color)',
-  background: 'var(--surface-1)',
-  color: 'var(--text-primary)',
-  outline: 'none'
-};
+  .field-sharing-search input,
+  .field-sharing-select,
+  .field-sharing-form input,
+  .field-sharing-form select {
+    width: 100%;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+  }
 
-const noticeStyle = {
-  padding: '14px',
-  borderRadius: '14px',
-  border: '1px solid var(--border-color)',
-  background: 'var(--surface-neutral-soft)',
-  color: 'var(--text-secondary)',
-  marginBottom: '16px'
-};
+  .field-sharing-search input {
+    padding: 11px 0;
+  }
 
-const emptyStyle = {
-  padding: '24px',
-  color: 'var(--text-secondary)',
-  textAlign: 'center'
-};
+  .field-sharing-select,
+  .field-sharing-form input,
+  .field-sharing-form select {
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: var(--surface-4);
+  }
 
-const mutedTextStyle = {
-  margin: '4px 0 0',
-  color: 'var(--text-secondary)',
-  fontSize: '0.85rem'
-};
+  .field-sharing-field-list {
+    display: grid;
+    gap: 10px;
+  }
 
-const dangerButtonStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '6px',
-  padding: '7px 10px',
-  borderRadius: '10px',
-  border: '1px solid rgba(239,68,68,0.45)',
-  background: 'rgba(239,68,68,0.08)',
-  color: 'var(--status-critical-muted)',
-  cursor: 'pointer',
-  fontWeight: 700
-};
+  .field-sharing-field-card {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid var(--border-color);
+    background: var(--surface-highlight-2);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+  }
+
+  .field-sharing-field-card:hover {
+    background: var(--surface-highlight-1);
+    transform: translateY(-1px);
+  }
+
+  .field-sharing-field-card.active {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.35);
+  }
+
+  .field-sharing-field-card p,
+  .field-sharing-field-card small,
+  .field-sharing-team-row p,
+  .field-sharing-summary p,
+  .field-sharing-form small {
+    margin: 4px 0 0;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+  }
+
+  .field-sharing-workspace-btn {
+    margin-top: 16px;
+  }
+
+  .field-sharing-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .field-sharing-summary > div {
+    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    background: var(--surface-highlight-2);
+  }
+
+  .field-sharing-summary span,
+  .field-sharing-form span {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 800;
+  }
+
+  .field-sharing-summary strong {
+    display: block;
+    color: var(--text-primary);
+  }
+
+  .field-sharing-form {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+
+  .field-sharing-team-section {
+    margin-top: 24px;
+  }
+
+  .field-sharing-team-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .field-sharing-team-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid var(--border-color);
+    background: var(--surface-highlight-2);
+  }
+
+  .field-sharing-team-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .field-sharing-danger-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(239,68,68,0.45);
+    background: rgba(239,68,68,0.08);
+    color: var(--status-critical-muted);
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  @media (max-width: 1180px) {
+    .field-sharing-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .field-sharing-toolbar,
+    .field-sharing-summary {
+      grid-template-columns: 1fr;
+    }
+
+    .field-sharing-team-row {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .field-sharing-team-actions {
+      justify-content: flex-start;
+    }
+  }
+`;
