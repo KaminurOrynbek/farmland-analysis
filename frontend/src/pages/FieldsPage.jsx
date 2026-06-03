@@ -34,7 +34,7 @@ const ACCESS_ROLE_OPTIONS = [
 
 const SORT_OPTIONS = [
   { value: 'latest', label: 'Latest analysis' },
-  { value: 'risk', label: 'Screening priority' },
+  { value: 'risk', label: 'Priority' },
   { value: 'area', label: 'Area' },
   { value: 'name', label: 'Name' }
 ];
@@ -42,9 +42,9 @@ const SORT_OPTIONS = [
 const PAGE_SIZE = 10;
 const FIELD_TABLE_COLUMNS = [
   { key: 'field', label: 'Field', align: 'left' },
-  { key: 'status', label: 'Screening', align: 'left' },
+  { key: 'priority', label: 'Priority', align: 'left' },
   { key: 'area', label: 'Area', align: 'left' },
-  { key: 'lastAnalysis', label: 'Last Analysis', align: 'left' },
+  { key: 'lastAnalysis', label: 'Last analysis', align: 'left' },
   { key: 'runs', label: 'Runs', align: 'left' },
   { key: 'owner', label: 'Owner', align: 'left' },
   { key: 'actions', label: 'Actions', align: 'right' }
@@ -281,7 +281,7 @@ function FieldRow({ item, onOpenWorkspace, onViewResult }) {
         </div>
       </TableCell>
 
-      <TableCell label="Status">
+      <TableCell label="Priority">
         <span className={`status-pill ${getRiskTone(item.latestRiskLabel)}`}>
           {item.latestRiskLabel}
         </span>
@@ -291,7 +291,7 @@ function FieldRow({ item, onOpenWorkspace, onViewResult }) {
         <strong style={cellValueStyle}>{formatAreaMeasure(item.field.area_ha)}</strong>
       </TableCell>
 
-      <TableCell label="Last Analysis" className="fields-directory-latest-cell">
+      <TableCell label="Last analysis" className="fields-directory-latest-cell">
         <div style={analysisStackStyle}>
           <span
             style={{
@@ -318,14 +318,14 @@ function FieldRow({ item, onOpenWorkspace, onViewResult }) {
       </TableCell>
 
       <TableCell label="Actions" className="fields-directory-actions-cell" align="right">
-        <div style={fieldActionsWrapStyle}>
+        <div className="fields-directory-actions-wrap" style={fieldActionsWrapStyle}>
           <button
             type="button"
             className="secondary-btn fields-directory-action-btn fields-directory-action-btn--workspace"
             onClick={onOpenWorkspace}
             style={compactButtonStyle}
           >
-            Open Workspace
+            Workspace
           </button>
           <button
             type="button"
@@ -334,10 +334,10 @@ function FieldRow({ item, onOpenWorkspace, onViewResult }) {
               : 'secondary-btn fields-directory-action-btn fields-directory-action-btn--disabled'}
             onClick={onViewResult}
             disabled={!hasLatestAnalysis}
-            title={hasLatestAnalysis ? undefined : 'Run an analysis first to view results.'}
+            title={hasLatestAnalysis ? undefined : 'No result'}
             style={compactButtonStyle}
           >
-            {hasLatestAnalysis ? 'View Results' : 'No Results'}
+            {hasLatestAnalysis ? 'Results' : 'No result'}
           </button>
         </div>
       </TableCell>
@@ -503,244 +503,159 @@ export default function FieldsPage({
 
   return (
     <div className="content-page">
-      <style>{fieldDirectoryResponsiveCss}</style>
-
-      <section className="page-hero glass-panel">
-        <div>
-          <div className="page-kicker">{APP_PAGES.FIELDS}</div>
-          <h1 className="page-title">{APP_PAGES.FIELDS}</h1>
-        </div>
-
-        {canCreateField ? (
-          <button
-            type="button"
-            className="primary-btn"
-            onClick={handleAddField}
-          >
-            <Plus size={16} />
-            Add Field
-          </button>
-        ) : null}
-      </section>
-
-      {notice ? (
-        <div className="workspace-notice-banner">{notice}</div>
-      ) : null}
-
-      <section className="glass-panel" style={toolbarPanelStyle}>
-        <div style={tabsRowStyle}>
-          {FIELD_TABS.map((tab) => (
-            <TabButton
-              key={tab.id}
-              item={tab}
-              count={tabCounts[tab.id] || 0}
-              isActive={activeTab === tab.id}
-              onClick={() => {
-                setActiveTab(tab.id);
-                setCurrentPage(1);
-              }}
-            />
-          ))}
-        </div>
-
-        <div style={filtersGridStyle}>
-          <FilterField label="Search">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => {
-                setSearchQuery(event.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="Search by field, owner, crop, or risk"
-              style={controlInputStyle}
-            />
-          </FilterField>
-
-          <FilterField label="Risk">
-            <select
-              value={riskFilter}
-              onChange={(event) => {
-                setRiskFilter(event.target.value);
-                setCurrentPage(1);
-              }}
-              style={controlInputStyle}
-            >
-              {RISK_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </FilterField>
-
-          <FilterField label="Access role">
-            <select
-              value={accessRoleFilter}
-              onChange={(event) => {
-                setAccessRoleFilter(event.target.value);
-                setCurrentPage(1);
-              }}
-              style={controlInputStyle}
-            >
-              {ACCESS_ROLE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </FilterField>
-
-          <FilterField label="Sort by">
-            <select
-              value={sortBy}
-              onChange={(event) => {
-                setSortBy(event.target.value);
-                setCurrentPage(1);
-              }}
-              style={controlInputStyle}
-            >
-              {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </FilterField>
-        </div>
-
-        {loading ? (
-          <div className="workspace-helper-text">Loading field records...</div>
-        ) : null}
-      </section>
-
-      <section className="glass-panel" style={listPanelStyle}>
-        {loading ? (
-          <div className="empty-state">Loading fields...</div>
-        ) : !hasAnyFields ? (
-          <div className="empty-state">
-            No fields are available yet. Open the Workspace to upload or draw a field boundary.
+      <div className="fields-page">
+        <section className="page-hero glass-panel">
+          <div>
+            <div className="page-kicker">FIELD INVENTORY</div>
+            <h1 className="page-title">Your fields</h1>
+            <p className="page-subtitle">
+              Review saved parcels, latest analysis status, and open the next action.
+            </p>
           </div>
-        ) : visibleFieldItems.length === 0 ? (
-          <div className="empty-state">
-            No fields match the current tab, search, or filters.
-          </div>
-        ) : (
-          <>
-            <div style={fieldListStyle}>
-              <TableHeader />
 
-              {paginatedFieldItems.map((item) => (
-                <FieldRow
-                  key={item.field.id}
-                  item={item}
-                  onOpenWorkspace={() => handleOpenWorkspace(item)}
-                  onViewResult={() => handleViewResult(item)}
-                />
-              ))}
+          {canCreateField ? (
+            <button
+              type="button"
+              className="primary-btn"
+              onClick={handleAddField}
+            >
+              <Plus size={16} />
+              Add Field
+            </button>
+          ) : null}
+        </section>
+
+        {notice ? (
+          <div className="workspace-notice-banner">{notice}</div>
+        ) : null}
+
+        <section className="glass-panel" style={toolbarPanelStyle}>
+          <div style={tabsRowStyle}>
+            {FIELD_TABS.map((tab) => (
+              <TabButton
+                key={tab.id}
+                item={tab}
+                count={tabCounts[tab.id] || 0}
+                isActive={activeTab === tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setCurrentPage(1);
+                }}
+              />
+            ))}
+          </div>
+
+          <div style={filtersGridStyle}>
+            <FilterField label="Search">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(event) => {
+                  setSearchQuery(event.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Search by field, owner, crop, or priority"
+                style={controlInputStyle}
+              />
+            </FilterField>
+
+            <FilterField label="Priority">
+              <select
+                value={riskFilter}
+                onChange={(event) => {
+                  setRiskFilter(event.target.value);
+                  setCurrentPage(1);
+                }}
+                style={controlInputStyle}
+              >
+                {RISK_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </FilterField>
+
+            <FilterField label="Access role">
+              <select
+                value={accessRoleFilter}
+                onChange={(event) => {
+                  setAccessRoleFilter(event.target.value);
+                  setCurrentPage(1);
+                }}
+                style={controlInputStyle}
+              >
+                {ACCESS_ROLE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </FilterField>
+
+            <FilterField label="Sort by">
+              <select
+                value={sortBy}
+                onChange={(event) => {
+                  setSortBy(event.target.value);
+                  setCurrentPage(1);
+                }}
+                style={controlInputStyle}
+              >
+                {SORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </FilterField>
+          </div>
+
+          {loading ? (
+            <div className="workspace-helper-text">Loading field records...</div>
+          ) : null}
+        </section>
+
+        <section className="glass-panel fields-directory-list-panel" style={listPanelStyle}>
+          {loading ? (
+            <div className="empty-state">Loading fields...</div>
+          ) : !hasAnyFields ? (
+            <div className="empty-state">
+              No fields are available yet. Open the Workspace to upload or draw a field boundary.
             </div>
+          ) : visibleFieldItems.length === 0 ? (
+            <div className="empty-state">
+              No fields match the current tab, search, or filters.
+            </div>
+          ) : (
+            <>
+              <div className="fields-directory-list" style={fieldListStyle}>
+                <TableHeader />
 
-            <PaginationControls
-              currentPage={safeCurrentPage}
-              totalItems={visibleFieldItems.length}
-              pageSize={PAGE_SIZE}
-              onPageChange={setCurrentPage}
-              itemLabel="fields"
-            />
-          </>
-        )}
-      </section>
+                {paginatedFieldItems.map((item) => (
+                  <FieldRow
+                    key={item.field.id}
+                    item={item}
+                    onOpenWorkspace={() => handleOpenWorkspace(item)}
+                    onViewResult={() => handleViewResult(item)}
+                  />
+                ))}
+              </div>
+
+              <PaginationControls
+                currentPage={safeCurrentPage}
+                totalItems={visibleFieldItems.length}
+                pageSize={PAGE_SIZE}
+                onPageChange={setCurrentPage}
+                itemLabel="fields"
+              />
+            </>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
-
-const fieldDirectoryResponsiveCss = `
-  .fields-directory-table-row {
-    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
-  }
-
-  .fields-directory-table-row:hover {
-    background: var(--surface-highlight-2);
-    border-color: var(--border-heavy);
-    transform: translateY(-1px);
-  }
-
-  .fields-directory-mobile-label {
-    display: none;
-  }
-
-  .fields-directory-action-btn {
-    min-width: 102px;
-    justify-content: center;
-    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
-  }
-
-  .fields-directory-action-btn--workspace {
-    background: var(--surface-6);
-    border-color: rgba(96, 165, 250, 0.42);
-    color: var(--text-emphasis);
-    box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.12);
-  }
-
-  .fields-directory-action-btn--workspace:hover:not(:disabled) {
-    background: var(--surface-elevated-strong);
-    border-color: rgba(96, 165, 250, 0.9);
-    box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
-  }
-
-  .fields-directory-action-btn--result {
-    background: linear-gradient(135deg, rgba(37, 99, 235, 0.96), rgba(59, 130, 246, 0.96));
-    border-color: rgba(96, 165, 250, 0.95);
-    color: #eff6ff;
-    box-shadow: 0 10px 22px rgba(37, 99, 235, 0.2);
-  }
-
-  .fields-directory-action-btn--result:hover:not(:disabled) {
-    background: linear-gradient(135deg, rgba(29, 78, 216, 1), rgba(37, 99, 235, 1));
-    border-color: rgba(147, 197, 253, 1);
-    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.24);
-  }
-
-  .fields-directory-action-btn--disabled,
-  .fields-directory-action-btn:disabled {
-    background: var(--border-soft);
-    border-color: var(--border-muted);
-    color: var(--text-disabled);
-    box-shadow: none;
-    cursor: not-allowed;
-  }
-
-  @media (max-width: 1180px) {
-    .fields-directory-table-header {
-      display: none;
-    }
-
-    .fields-directory-table-row {
-      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-      align-items: start;
-    }
-
-    .fields-directory-field-cell,
-    .fields-directory-latest-cell,
-    .fields-directory-actions-cell {
-      grid-column: 1 / -1;
-    }
-
-    .fields-directory-actions-cell {
-      justify-self: start;
-    }
-
-    .fields-directory-mobile-label {
-      display: inline-flex;
-    }
-  }
-
-  @media (max-width: 720px) {
-    .fields-directory-table-row {
-      grid-template-columns: minmax(0, 1fr) !important;
-    }
-  }
-`;
 
 const toolbarPanelStyle = {
   padding: '18px',
@@ -821,14 +736,24 @@ const listPanelStyle = {
 
 const fieldListStyle = {
   display: 'grid',
-  gap: '10px'
+  gap: '10px',
+  minWidth: 0
 };
 
 const tableGridStyle = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(220px, 1.8fr) 120px 120px minmax(190px, 1.4fr) 80px minmax(160px, 1fr) 220px',
+  gridTemplateColumns: [
+    'minmax(180px, 1.9fr)',
+    'minmax(96px, 0.85fr)',
+    'minmax(92px, 0.8fr)',
+    'minmax(136px, 1.15fr)',
+    'minmax(72px, 0.65fr)',
+    'minmax(140px, 0.95fr)',
+    'minmax(172px, 1.1fr)'
+  ].join(' '),
   alignItems: 'center',
-  gap: '16px'
+  gap: '12px',
+  minWidth: 0
 };
 
 const tableHeaderRowStyle = {
@@ -878,7 +803,8 @@ const fieldIdentityStackStyle = {
 const fieldTitleStyle = {
   fontSize: '1.02rem',
   display: 'block',
-  minWidth: 0
+  minWidth: 0,
+  overflowWrap: 'anywhere'
 };
 
 const accessRoleBadgeStyle = {
@@ -895,7 +821,8 @@ const accessRoleBadgeStyle = {
 
 const cellValueStyle = {
   fontSize: '0.9rem',
-  lineHeight: 1.25
+  lineHeight: 1.25,
+  overflowWrap: 'anywhere'
 };
 
 const analysisStackStyle = {
@@ -906,21 +833,23 @@ const analysisStackStyle = {
 const analysisSublineStyle = {
   fontSize: '0.82rem',
   lineHeight: 1.2,
-  color: 'var(--text-secondary)'
+  color: 'var(--text-secondary)',
+  overflowWrap: 'anywhere'
 };
 
 const fieldActionsWrapStyle = {
-  display: 'flex',
-  alignItems: 'center',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap: '8px',
-  flexWrap: 'nowrap',
   width: '100%',
-  justifyContent: 'flex-end'
+  minWidth: 0
 };
 
 const compactButtonStyle = {
-  padding: '7px 11px',
-  fontSize: '0.82rem',
+  width: '100%',
+  minWidth: 0,
+  padding: '7px 10px',
+  fontSize: '0.78rem',
   lineHeight: 1.1,
   whiteSpace: 'nowrap'
 };
