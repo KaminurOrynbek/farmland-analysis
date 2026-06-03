@@ -1,5 +1,6 @@
 import React, { useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { Users, Share2, ShieldCheck, Trash2, RefreshCw, MapPin } from 'lucide-react';
+import { APP_PAGES } from '../constants/appPages';
 import {
   fetchAllFields,
   fetchFieldTeam,
@@ -7,7 +8,7 @@ import {
   revokeFieldAccess
 } from '../api/client';
 
-export default function TeamAccessPage({ user, onNavigate }) {
+export default function FieldSharingPage({ user, onNavigate }) {
   const [fields, setFields] = useState([]);
   const [selectedFieldId, setSelectedFieldId] = useState('');
   const [team, setTeam] = useState([]);
@@ -139,8 +140,8 @@ export default function TeamAccessPage({ user, onNavigate }) {
     <div className="content-page">
       <section className="page-hero glass-panel">
         <div>
-          <div className="page-kicker">{isFarmer ? 'Field Sharing' : 'Field Access'}</div>
-          <h1 className="page-title">{isAgronomist ? 'Collaboration Overview' : 'Field Access Management'}</h1>
+          <div className="page-kicker">{APP_PAGES.FIELD_SHARING}</div>
+          <h1 className="page-title">{APP_PAGES.FIELD_SHARING}</h1>
           <p className="page-subtitle">
             {isAgronomist
               ? 'Review shared ownership context and see which collaborators currently have access.'
@@ -204,7 +205,7 @@ export default function TeamAccessPage({ user, onNavigate }) {
               type="button"
               className="secondary-btn"
               style={{ marginTop: '16px' }}
-              onClick={() => onNavigate?.('Workspace')}
+              onClick={() => onNavigate?.(APP_PAGES.WORKSPACE)}
             >
               Open Workspace
             </button>

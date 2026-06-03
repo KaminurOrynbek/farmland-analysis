@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import AgroVisionLogo from '../common/AgroVisionLogo';
+import { APP_PAGES } from '../../constants/appPages';
 import {
   LayoutDashboard,
   FolderOpen,
@@ -12,11 +13,11 @@ import {
 } from 'lucide-react';
 
 const ADMIN_NAV = [
-  { id: 'Admin Panel', label: 'Admin Panel', icon: <ShieldCheck size={16} /> }
+  { id: APP_PAGES.ADMIN_PANEL, label: APP_PAGES.ADMIN_PANEL, icon: <ShieldCheck size={16} /> }
 ];
 
 const ACCOUNT_NAV = [
-  { id: 'Settings', label: 'Settings', icon: <Settings size={16} /> }
+  { id: APP_PAGES.SETTINGS, label: APP_PAGES.SETTINGS, icon: <Settings size={16} /> }
 ];
 
 const LOGOUT_NAV = {
@@ -62,14 +63,18 @@ export default function AppSidebar({ activePage, onNavigate, onLogout, user }) {
     const items = [];
 
     if (isAdmin) {
-      items.push({ id: 'Dashboard', label: 'Dashboard', icon: <LayoutDashboard size={16} /> });
+      items.push({ id: APP_PAGES.DASHBOARD, label: APP_PAGES.DASHBOARD, icon: <LayoutDashboard size={16} /> });
     }
 
     items.push(
-      { id: 'Fields', label: 'Fields', icon: <FolderOpen size={16} /> },
-      { id: 'Workspace', label: 'Workspace', icon: <MapIcon size={16} /> },
-      { id: 'Analysis Results', label: 'Analysis Results', icon: <LineChart size={16} /> },
-      { id: 'Field Sharing', label: 'Field Sharing', icon: <Users size={16} /> }
+      { id: APP_PAGES.FIELDS, label: APP_PAGES.FIELDS, icon: <FolderOpen size={16} /> },
+      { id: APP_PAGES.WORKSPACE, label: APP_PAGES.WORKSPACE, icon: <MapIcon size={16} /> },
+      {
+        id: APP_PAGES.ANALYSIS_RESULTS,
+        label: APP_PAGES.ANALYSIS_RESULTS,
+        icon: <LineChart size={16} />
+      },
+      { id: APP_PAGES.FIELD_SHARING, label: APP_PAGES.FIELD_SHARING, icon: <Users size={16} /> }
     );
 
     return items;
@@ -99,7 +104,7 @@ export default function AppSidebar({ activePage, onNavigate, onLogout, user }) {
           gap: '9px',
           cursor: 'pointer'
         }}
-        onClick={() => onNavigate(isAdmin ? 'Dashboard' : 'Fields')}
+        onClick={() => onNavigate(isAdmin ? APP_PAGES.DASHBOARD : APP_PAGES.FIELDS)}
       >
         <AgroVisionLogo size={32} showText />
       </div>

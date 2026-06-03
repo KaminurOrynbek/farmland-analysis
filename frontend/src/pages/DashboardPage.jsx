@@ -14,6 +14,7 @@ import {
   fetchAllFields,
   fetchAnalysisHistory
 } from '../api/client';
+import { APP_PAGES } from '../constants/appPages';
 
 const formatDateTime = (value) => {
   if (!value) {
@@ -150,7 +151,7 @@ const TrendChartCard = ({ kicker, title, helper, icon, series = [] }) => {
   );
 };
 
-export default function HomePage({
+export default function DashboardPage({
   user,
   backendHealthy,
   onNavigate,
@@ -302,19 +303,19 @@ export default function HomePage({
       title: 'Open Admin Panel',
       text: 'Manage users, update roles, block accounts, and handle platform administration.',
       icon: <ShieldCheck size={18} color="var(--accent-color)" />,
-      onClick: () => onNavigate('Admin')
+      onClick: () => onNavigate(APP_PAGES.ADMIN_PANEL)
     },
     {
       title: 'Review fields',
       text: 'Open the fields workspace to inspect what has been created and analyzed across the platform.',
       icon: <Database size={18} color="var(--status-healthy)" />,
-      onClick: () => onNavigate('Fields')
+      onClick: () => onNavigate(APP_PAGES.FIELDS)
     },
     {
       title: 'Review audit logs',
       text: 'Inspect recent account, field, comment, and analysis events captured across the platform.',
       icon: <Clock3 size={18} color="#8b5cf6" />,
-      onClick: () => onNavigate('Admin')
+      onClick: () => onNavigate(APP_PAGES.ADMIN_PANEL)
     }
   ];
 
@@ -346,14 +347,14 @@ export default function HomePage({
             <button
               type="button"
               className="primary-btn"
-              onClick={() => onNavigate('Admin')}
+              onClick={() => onNavigate(APP_PAGES.ADMIN_PANEL)}
             >
               Open Admin Panel
             </button>
             <button
               type="button"
               className="secondary-btn"
-              onClick={() => onNavigate('Fields')}
+              onClick={() => onNavigate(APP_PAGES.FIELDS)}
             >
               Review fields
             </button>
@@ -516,7 +517,7 @@ export default function HomePage({
 
           {primaryAttentionFields.length === 0 ? (
             <div className="empty-state">
-              No platform project data is available yet.
+              No platform field data is available yet.
             </div>
           ) : (
             <div className="stack-list">

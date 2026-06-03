@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import Navbar from './components/layout/AppHeader';
+import AppHeader from './components/layout/AppHeader';
 import FieldsPage from './pages/FieldsPage.jsx';
 import LandingPage from './pages/LandingPage';
-import AnalysisDetailsPage from './pages/FieldReportPage.jsx';
+import AnalysisResultsPage from './pages/FieldReportPage.jsx';
 import AuthPage from './pages/AuthPage';
-import HomePage from './pages/DashboardPage';
-import ProfilePage from './pages/ProfilePage';
+import DashboardPage from './pages/DashboardPage';
+import SettingsPage from './pages/ProfilePage';
 import WorkspacePage from './pages/WorkspacePage';
 import AdminPanelPage from './pages/AdminPanelPage';
-import TeamAccessPage from './pages/FieldAccessPage';
+import FieldSharingPage from './pages/FieldAccessPage';
 
 import {
   checkHealth,
@@ -23,6 +23,12 @@ import {
 } from './api/client';
 import './styles.css';
 import AppSidebar from './components/layout/AppSidebar';
+import {
+  APP_PAGES,
+  getAccessiblePage,
+  getDefaultPrivatePage,
+  isAdminUser
+} from './constants/appPages';
 import { computeBboxFromGeoJson } from './utils/geoUtils.js';
 import { getSavedFieldId } from './utils/fieldIdentity';
 
@@ -70,16 +76,13 @@ const enrichFeatureCollection = (featureCollection, metadata) => {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const buildAssessmentMessage = (assessment, fallbackMessage = '') => {
-  const parts = [
-    assessment?.summary,
-    assessment?.vegetation_description,
-    assessment?.stress_assessment,
-    fallbackMessage
-  ].filter(Boolean);
-
-  return parts[0] || '';
-};
+const buildAssessmentMessage = (assessment, fallbackMessage = '') => (
+  assessment?.summary ||
+  assessment?.vegetation_description ||
+  assessment?.stress_assessment ||
+  fallbackMessage ||
+  ''
+);
 
 const applyAnalysisStatusUpdate = (setAnalysisResults, analysisId, statusResponse) => {
   setAnalysisResults((current) => ({
@@ -209,24 +212,6 @@ const buildWorkspaceFieldKey = ({
 };
 
 const WORKSPACE_GUIDE_PENDING_KEY = 'workspaceGuidePendingAfterRegistration';
-const isAdminUser = (user) => user?.role === 'ADMIN';
-
-
-const getDefaultPrivatePage = (user) => (
-  isAdminUser(user) ? 'Dashboard' : 'Fields'
-);
-
-const getAccessiblePage = (page, user) => {
-  if (page === 'Dashboard' && !isAdminUser(user)) {
-    return 'Fields';
-  }
-
-  if (page === 'Admin Panel' && !isAdminUser(user)) {
-    return getDefaultPrivatePage(user);
-  }
-
-  return page;
-};
 
 function App() {
   const [geoJsonUploadResponse, setGeoJsonUploadResponse] = useState(null);
@@ -252,7 +237,7 @@ function App() {
   const [fieldLayerVisible, setFieldLayerVisible] = useState(true);
 
   const [appView, setAppView] = useState('landing');
-  const [activePage, setActivePage] = useState('Dashboard');
+  const [activePage, setActivePage] = useState(APP_PAGES.DASHBOARD);
   const [sessionUser, setSessionUser] = useState(null);
   const [dataRefreshKey, setDataRefreshKey] = useState(0);
   const [isSessionReady, setIsSessionReady] = useState(false);
@@ -288,7 +273,9 @@ function App() {
     localStorage.setItem('user', JSON.stringify(user));
     setSessionUser(user);
     setAppView('app');
-    setActivePage(shouldOpenGuidedTour ? 'Workspace' : getDefaultPrivatePage(user));
+    setActivePage(
+      shouldOpenGuidedTour ? APP_PAGES.WORKSPACE : getDefaultPrivatePage(user)
+    );
     setIsGuidedTourOpen(false);
   };
 
@@ -307,7 +294,7 @@ function App() {
     sessionStorage.removeItem(WORKSPACE_GUIDE_PENDING_KEY);
     setSessionUser(null);
     setAppView('landing');
-    setActivePage('Dashboard');
+    setActivePage(APP_PAGES.DASHBOARD);
     setIsGuidedTourOpen(false);
   };
 
@@ -317,7 +304,7 @@ function App() {
     setLatestAnalysisAt(null);
   };
 
-  const handleCreateProject = () => {
+  const handleCreateField = () => {
     setGeoJsonData(null);
     setGeoJsonMeta(null);
     setGeoJsonUploadResponse(null);
@@ -326,17 +313,17 @@ function App() {
     setPendingDrawnField(null);
     setFieldNameDraft('');
     resetAnalysisState();
-    handleNavigate('Workspace');
+    handleNavigate(APP_PAGES.WORKSPACE);
   };
 
   const handleNavigate = (page) => {
-    if (page === 'Admin Panel' && !isAdminUser(sessionUser)) {
+    if (page === APP_PAGES.ADMIN_PANEL && !isAdminUser(sessionUser)) {
       return;
     }
 
     const nextPage = getAccessiblePage(page, sessionUser);
 
-    if (nextPage !== 'Workspace') {
+    if (nextPage !== APP_PAGES.WORKSPACE) {
       setIsGuidedTourOpen(false);
     }
 
@@ -344,7 +331,7 @@ function App() {
   };
 
   const handleOpenGuidedTour = () => {
-    setActivePage('Workspace');
+    setActivePage(APP_PAGES.WORKSPACE);
     setIsGuidedTourOpen(true);
   };
 
@@ -430,7 +417,7 @@ function App() {
       }
 
       if (!isAnalysisFinished(finalStatus)) {
-        throw new Error('Analysis is still processing. Please check the report history later.');
+        throw new Error('Analysis is still processing. Please check the results history later.');
       }
 
       const historyResponse = await fetchAnalysisHistory();
@@ -630,7 +617,7 @@ function App() {
     }
 
     if (navigate) {
-      handleNavigate('Workspace');
+      handleNavigate(APP_PAGES.WORKSPACE);
     }
   };
 
@@ -664,11 +651,11 @@ function App() {
       setFieldNameDraft('');
     }
 
-    handleNavigate('Analysis Results');
+    handleNavigate(APP_PAGES.ANALYSIS_RESULTS);
   };
 
-  const handleRunNewAnalysisFromReport = async () => {
-    handleNavigate('Workspace');
+  const handleRunNewAnalysisFromResults = async () => {
+    handleNavigate(APP_PAGES.WORKSPACE);
     await handleRunAnalysis();
   };
 
@@ -790,13 +777,34 @@ function App() {
     );
   }
 
+  const renderFieldsPage = () => (
+    <FieldsPage
+      user={sessionUser}
+      backendHealthy={backendHealthy}
+      onNavigate={handleNavigate}
+      refreshKey={dataRefreshKey}
+      onOpenField={handleOpenField}
+      onOpenAnalysis={handleOpenAnalysis}
+      onCreateField={handleCreateField}
+    />
+  );
+
+  const renderDashboardPage = () => (
+    <DashboardPage
+      user={sessionUser}
+      backendHealthy={backendHealthy}
+      onNavigate={handleNavigate}
+      refreshKey={dataRefreshKey}
+      latestAnalysisAt={latestAnalysisAt}
+    />
+  );
+
   const renderPrivatePage = () => {
     switch (effectiveActivePage) {
-      case 'Workspace':
+      case APP_PAGES.WORKSPACE:
         return (
           <WorkspacePage
             user={sessionUser}
-            activePage={effectiveActivePage}
             refreshKey={dataRefreshKey}
             backendHealthy={backendHealthy}
             isAnalyzing={isAnalyzing}
@@ -829,18 +837,16 @@ function App() {
             analysisResults={analysisResults}
             analysisStarted={analysisStarted}
             latestAnalysisAt={latestAnalysisAt}
-            selectedSeason={selectedSeason}
-            onChangeSeason={setSelectedSeason}
             onOpenField={handleOpenField}
             onOpenAnalysis={handleOpenAnalysis}
-            onOpenReport={() => handleNavigate('Analysis Results')}
+            onOpenResults={() => handleNavigate(APP_PAGES.ANALYSIS_RESULTS)}
             isGuidedTourOpen={isGuidedTourOpen}
             onCloseGuidedTour={handleCloseGuidedTour}
           />
         );
-      case 'Analysis Results':
+      case APP_PAGES.ANALYSIS_RESULTS:
         return (
-          <AnalysisDetailsPage
+          <AnalysisResultsPage
             user={sessionUser}
             backendHealthy={backendHealthy}
             analysisResults={analysisResults}
@@ -853,87 +859,37 @@ function App() {
             selectedSeason={selectedSeason}
             onChangeSeason={setSelectedSeason}
             onNavigate={handleNavigate}
-            onRunNewAnalysis={handleRunNewAnalysisFromReport}
+            onRunNewAnalysis={handleRunNewAnalysisFromResults}
             onOpenAnalysis={handleOpenAnalysis}
             refreshKey={dataRefreshKey}
           />
         );
-      case 'Fields':
+      case APP_PAGES.FIELDS:
+        return renderFieldsPage();
+      case APP_PAGES.SETTINGS:
         return (
-          <FieldsPage
+          <SettingsPage
             user={sessionUser}
-            backendHealthy={backendHealthy}
-            selectedSeason={selectedSeason}
-            onChangeSeason={setSelectedSeason}
-            onNavigate={handleNavigate}
-            refreshKey={dataRefreshKey}
-            onOpenField={handleOpenField}
-            onOpenAnalysis={handleOpenAnalysis}
-            onCreateProject={handleCreateProject}
-          />
-        );
-      case 'Settings':
-      case 'Profile':
-        return (
-          <ProfilePage
-            user={sessionUser}
-            onNavigate={handleNavigate}
-            onLogout={handleLogout}
             onUpdateUser={handleUpdateUser}
-            onOpenAdmin={sessionUser?.role === 'ADMIN' ? () => handleNavigate('Admin Panel') : null}
-            backendHealthy={backendHealthy}
           />
         );
-      case 'Field Sharing':
+      case APP_PAGES.FIELD_SHARING:
         return (
-          <TeamAccessPage
+          <FieldSharingPage
             user={sessionUser}
             onNavigate={handleNavigate}
           />
         );
-      case 'Admin Panel':
+      case APP_PAGES.ADMIN_PANEL:
         return (
           <AdminPanelPage
             refreshKey={dataRefreshKey}
-            onNavigate={handleNavigate}
-            backendHealthy={backendHealthy}
           />
         );
-      case 'Dashboard':
-      case 'Home':
-        return (
-          <HomePage
-            user={sessionUser}
-            backendHealthy={backendHealthy}
-            onNavigate={handleNavigate}
-            refreshKey={dataRefreshKey}
-            analysisResults={analysisResults}
-            latestAnalysisAt={latestAnalysisAt}
-          />
-        );
+      case APP_PAGES.DASHBOARD:
+        return renderDashboardPage();
       default:
-        return isAdminUser(sessionUser) ? (
-          <HomePage
-            user={sessionUser}
-            backendHealthy={backendHealthy}
-            onNavigate={handleNavigate}
-            refreshKey={dataRefreshKey}
-            analysisResults={analysisResults}
-            latestAnalysisAt={latestAnalysisAt}
-          />
-        ) : (
-          <FieldsPage
-            user={sessionUser}
-            backendHealthy={backendHealthy}
-            selectedSeason={selectedSeason}
-            onChangeSeason={setSelectedSeason}
-            onNavigate={handleNavigate}
-            refreshKey={dataRefreshKey}
-            onOpenField={handleOpenField}
-            onOpenAnalysis={handleOpenAnalysis}
-            onCreateProject={handleCreateProject}
-          />
-        );
+        return isAdminUser(sessionUser) ? renderDashboardPage() : renderFieldsPage();
     }
   };
 
@@ -946,11 +902,10 @@ function App() {
         user={sessionUser}
       />
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-        <Navbar
+        <AppHeader
           activePage={effectiveActivePage}
           onNavigate={handleNavigate}
           onOpenGuidedTour={handleOpenGuidedTour}
-          onLogout={handleLogout}
           user={sessionUser}
         />
         {renderPrivatePage()}

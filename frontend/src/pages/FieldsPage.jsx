@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { fetchAllFields, fetchAnalysisHistory } from '../api/client';
 import PaginationControls from '../components/common/PaginationControls';
+import { APP_PAGES } from '../constants/appPages';
 import { formatAreaMeasure } from '../utils/analysisFormatters';
 import {
   buildFieldWorkspaceSummaries,
@@ -336,7 +337,7 @@ function FieldRow({ item, onOpenWorkspace, onViewResult }) {
             title={hasLatestAnalysis ? undefined : 'Run an analysis first to view results.'}
             style={compactButtonStyle}
           >
-            {hasLatestAnalysis ? 'View Result' : 'No Result'}
+            {hasLatestAnalysis ? 'View Results' : 'No Results'}
           </button>
         </div>
       </TableCell>
@@ -351,7 +352,7 @@ export default function FieldsPage({
   refreshKey,
   onOpenField,
   onOpenAnalysis,
-  onCreateProject
+  onCreateField
 }) {
   const [fields, setFields] = useState([]);
   const [history, setHistory] = useState([]);
@@ -474,12 +475,12 @@ export default function FieldsPage({
   }, [safeCurrentPage, visibleFieldItems]);
 
   const handleAddField = () => {
-    if (typeof onCreateProject === 'function') {
-      onCreateProject();
+    if (typeof onCreateField === 'function') {
+      onCreateField();
       return;
     }
 
-    onNavigate('Workspace');
+    onNavigate(APP_PAGES.WORKSPACE);
   };
 
   const handleOpenWorkspace = (item) => {
@@ -495,7 +496,7 @@ export default function FieldsPage({
     }
 
     onOpenField(item.field, null, { navigate: false });
-    onNavigate('Analysis Results');
+    onNavigate(APP_PAGES.ANALYSIS_RESULTS);
   };
 
   const hasAnyFields = fieldItems.length > 0;
@@ -506,8 +507,8 @@ export default function FieldsPage({
 
       <section className="page-hero glass-panel">
         <div>
-          <div className="page-kicker">Field Directory</div>
-          <h1 className="page-title">Fields</h1>
+          <div className="page-kicker">{APP_PAGES.FIELDS}</div>
+          <h1 className="page-title">{APP_PAGES.FIELDS}</h1>
         </div>
 
         {canCreateField ? (
@@ -618,7 +619,7 @@ export default function FieldsPage({
           <div className="empty-state">Loading fields...</div>
         ) : !hasAnyFields ? (
           <div className="empty-state">
-            No fields are available yet. Open Workspace to upload or draw a field boundary.
+            No fields are available yet. Open the Workspace to upload or draw a field boundary.
           </div>
         ) : visibleFieldItems.length === 0 ? (
           <div className="empty-state">

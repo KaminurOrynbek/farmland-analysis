@@ -9,11 +9,12 @@ import {
   Sprout
 } from 'lucide-react';
 import { fetchAnalysisHistory } from '../api/client';
-import AnalysisTimeline from '../components/workspace/AnalysisHistoryList';
+import AnalysisHistoryList from '../components/workspace/AnalysisHistoryList';
 import FieldMap from '../components/workspace/FieldMap';
 import NoAnalysisState from '../components/workspace/NoAnalysisState';
-import FieldSummaryCard from '../components/workspace/FieldMetricCard';
-import SeasonSelector from '../components/workspace/MonitoringSeasonSelector';
+import FieldMetricCard from '../components/workspace/FieldMetricCard';
+import MonitoringSeasonSelector from '../components/workspace/MonitoringSeasonSelector';
+import { APP_PAGES } from '../constants/appPages';
 import { formatAreaMeasure, formatIndex } from '../utils/analysisFormatters';
 import {
   createFieldFallbackRecord,
@@ -52,7 +53,7 @@ const buildGeoJsonFromSelection = (selectedField, fieldId, fieldName) => {
   };
 };
 
-function ReportSummaryItem({ label, value, helper }) {
+function ResultsSummaryItem({ label, value, helper }) {
   return (
     <div className="report-summary-item">
       <span className="report-summary-label">{label}</span>
@@ -118,7 +119,7 @@ function IndicatorLevelCard({
   );
 }
 
-export default function AnalysisDetailsPage({
+export default function AnalysisResultsPage({
   user,
   backendHealthy,
   analysisResults,
@@ -169,8 +170,8 @@ export default function AnalysisDetailsPage({
         setHistory([]);
         setNotice(
           backendHealthy
-            ? 'Field history could not be refreshed. Showing the latest available report context.'
-            : 'Backend is not connected. Demo report context is shown where possible.'
+            ? 'Field history could not be refreshed. Showing the latest available results context.'
+            : 'Backend is not connected. Demo results context is shown where possible.'
         );
       } finally {
         if (isActive) {
@@ -216,7 +217,7 @@ export default function AnalysisDetailsPage({
   const ndviLevel = getVegetationIndexLevelDisplay('ndvi', activeReport?.ndviValue);
   const eviLevel = getVegetationIndexLevelDisplay('evi', activeReport?.eviValue);
 
-  const reportGeoJsonData = useMemo(() => (
+  const analysisGeoJsonData = useMemo(() => (
     geoJsonData?.features?.length
       ? geoJsonData
       : buildGeoJsonFromSelection(selectedField, selectedFieldId, selectedFieldName)
@@ -226,8 +227,8 @@ export default function AnalysisDetailsPage({
     ? formatAreaMeasure(fieldRecord.area_ha)
     : activeReport?.analyzedArea || 'Area pending';
 
-  const reportFieldContext = useMemo(() => {
-    if (!reportGeoJsonData?.features?.[0]?.geometry) {
+  const analysisFieldContext = useMemo(() => {
+    if (!analysisGeoJsonData?.features?.[0]?.geometry) {
       return null;
     }
 
@@ -238,9 +239,9 @@ export default function AnalysisDetailsPage({
       role: fieldRecord?.role || null,
       owner_name: fieldRecord?.owner_name || null,
       owner_email: fieldRecord?.owner_email || null,
-      geometry: reportGeoJsonData.features[0].geometry
+      geometry: analysisGeoJsonData.features[0].geometry
     };
-  }, [fieldRecord, reportGeoJsonData, selectedFieldId, selectedFieldName]);
+  }, [analysisGeoJsonData, fieldRecord, selectedFieldId, selectedFieldName]);
 
   if (!activeReport) {
     return (
@@ -251,12 +252,12 @@ export default function AnalysisDetailsPage({
           title={selectedField ? `No analysis available for ${selectedFieldName} yet` : 'No analysis available yet'}
           description="Select or save a field, fetch satellite data, then run analysis."
           primaryAction={{
-            label: 'Back to Workspace',
-            onClick: () => onNavigate('Workspace')
+            label: `Open ${APP_PAGES.WORKSPACE}`,
+            onClick: () => onNavigate(APP_PAGES.WORKSPACE)
           }}
           secondaryAction={{
-            label: 'Open Fields',
-            onClick: () => onNavigate('Fields')
+            label: `Open ${APP_PAGES.FIELDS}`,
+            onClick: () => onNavigate(APP_PAGES.FIELDS)
           }}
         />
       </div>
@@ -267,7 +268,7 @@ export default function AnalysisDetailsPage({
     <div className="content-page">
       <section className="page-hero glass-panel report-header">
         <div>
-          <div className="page-kicker">Field Report</div>
+          <div className="page-kicker">{APP_PAGES.ANALYSIS_RESULTS}</div>
           <h1 className="page-title">{selectedFieldName}</h1>
           <p className="page-subtitle">
             Map context and screening results stay together here so the field boundary, status, and recommended next steps can be reviewed in one place.
@@ -294,8 +295,12 @@ export default function AnalysisDetailsPage({
           </div>
 
           <div className="page-hero-actions">
-            <button type="button" className="secondary-btn" onClick={() => onNavigate('Workspace')}>
-              Back to Workspace
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => onNavigate(APP_PAGES.WORKSPACE)}
+            >
+              Open Workspace
             </button>
             <button type="button" className="primary-btn" onClick={() => onRunNewAnalysis?.()}>
               Run New Analysis
@@ -326,10 +331,10 @@ export default function AnalysisDetailsPage({
               backendHealthy={backendHealthy}
               analysisStarted={analysisStarted}
               isAnalyzing={false}
-              geoJsonData={reportGeoJsonData}
+              geoJsonData={analysisGeoJsonData}
               selectedField={selectedField}
               setSelectedField={setSelectedField}
-              fieldLayerVisible={Boolean(reportGeoJsonData) || fieldLayerVisible}
+              fieldLayerVisible={Boolean(analysisGeoJsonData) || fieldLayerVisible}
               analysisResults={analysisResults}
               fieldRiskLevel={activeReport.riskLevel}
               fieldName={selectedFieldName}
@@ -361,27 +366,27 @@ export default function AnalysisDetailsPage({
           </div>
 
           <div className="report-summary-list">
-            <ReportSummaryItem
+            <ResultsSummaryItem
               label="Field condition"
               value={conditionSummary.value}
               helper={conditionSummary.helper}
             />
-            <ReportSummaryItem
+            <ResultsSummaryItem
               label="Vegetation level"
               value={vegetationLevel.value}
               helper={vegetationLevel.helper}
             />
-            <ReportSummaryItem
+            <ResultsSummaryItem
               label="Risk level"
               value={activeReport.riskLevel || 'Unknown'}
               helper="Use this as a screening signal to prioritize field inspection."
             />
-            <ReportSummaryItem
+            <ResultsSummaryItem
               label="Land cover"
               value={activeReport.cropType}
               helper="Model-assisted land-cover label from the latest analysis run."
             />
-            <ReportSummaryItem
+            <ResultsSummaryItem
               label="Recommended action"
               value={recommendedAction}
               helper={`Updated ${formatWorkspaceDateTime(activeReport.analysisDate, 'Current session')}`}
@@ -422,12 +427,12 @@ export default function AnalysisDetailsPage({
             <div>
               <strong style={{ fontSize: '1rem' }}>Analysis history</strong>
               <p className="workspace-helper-text">
-                Stored runs for this field. Open an earlier run to inspect that report context.
+                Stored runs for this field. Open an earlier run to inspect that result context.
               </p>
             </div>
           </div>
 
-          <SeasonSelector
+          <MonitoringSeasonSelector
             value={selectedSeason}
             onChange={onChangeSeason}
             compact
@@ -436,11 +441,11 @@ export default function AnalysisDetailsPage({
           {loadingHistory ? (
             <div className="empty-state compact">Loading field history...</div>
           ) : (
-            <AnalysisTimeline
+            <AnalysisHistoryList
               items={fieldHistory}
               selectedSeason={selectedSeason}
               emptyText={`No stored analyses for ${selectedFieldName} in Season ${selectedSeason}.`}
-              onItemClick={(analysisItem) => onOpenAnalysis?.(analysisItem, reportFieldContext)}
+              onItemClick={(analysisItem) => onOpenAnalysis?.(analysisItem, analysisFieldContext)}
             />
           )}
 
@@ -491,17 +496,17 @@ export default function AnalysisDetailsPage({
         </div>
 
         <div className="report-technical-grid">
-          <FieldSummaryCard
+          <FieldMetricCard
             label="Screening confidence"
             value={activeReport.confidenceLabel}
             helper="Model confidence for the current land-cover screening result."
             icon={<BrainCircuit />}
             accentColor="#a855f7"
           />
-          <FieldSummaryCard
+          <FieldMetricCard
             label="Technical detail"
             value="ResNet50-assisted screening"
-            helper="Technical classification detail for report review; not a disease or yield diagnosis."
+            helper="Technical classification detail for results review; not a disease or yield diagnosis."
             icon={<FileText />}
             accentColor="var(--status-warning)"
           />

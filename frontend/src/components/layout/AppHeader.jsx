@@ -1,4 +1,5 @@
 import React from 'react';
+import { APP_PAGES } from '../../constants/appPages';
 
 const getDisplayName = (user) => {
   return user?.full_name || user?.name || 'AgroVision User';
@@ -13,11 +14,12 @@ const getInitials = (name = 'AgroVision User') => (
     .join('') || 'AG'
 );
 
-export default function Navbar({ activePage, onNavigate, onOpenGuidedTour, user }) {
+export default function AppHeader({ activePage, onNavigate, onOpenGuidedTour, user }) {
   const displayName = getDisplayName(user);
   const initials = getInitials(displayName);
-  const pageLabel = activePage;
-  const canOpenGuide = activePage === 'Workspace' && typeof onOpenGuidedTour === 'function';
+  const canOpenGuide =
+    activePage === APP_PAGES.WORKSPACE &&
+    typeof onOpenGuidedTour === 'function';
 
   return (
     <nav
@@ -33,7 +35,7 @@ export default function Navbar({ activePage, onNavigate, onOpenGuidedTour, user 
     >
       <div className="app-navbar-right" style={{ alignItems: 'center' }}>
         <strong style={{ color: 'var(--text-primary)', fontSize: '0.95rem' }}>
-          {pageLabel}
+          {activePage}
         </strong>
       </div>
 
@@ -51,7 +53,7 @@ export default function Navbar({ activePage, onNavigate, onOpenGuidedTour, user 
         <button
           type="button"
           className="app-user-chip"
-          onClick={() => onNavigate('Settings')}
+          onClick={() => onNavigate(APP_PAGES.SETTINGS)}
           style={{
             cursor: 'pointer',
             background: 'transparent',

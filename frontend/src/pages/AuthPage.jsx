@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Lock, Mail, UserRound, ShieldCheck } from 'lucide-react';
 import { loginUser, registerUser } from '../api/client';
+import { APP_PAGES } from '../constants/appPages';
 
 const DEFAULT_LOGIN = {
   email: '',
@@ -87,7 +88,7 @@ export default function AuthPage({ onBack, onLogin, onRegistered }) {
             <h1 className="auth-title">{isLogin ? 'Welcome back' : 'Create your account'}</h1>
             <p className="auth-subtitle">
               {isLogin
-                ? 'Sign in to access your farmland monitoring dashboard, workspace map, and analysis reports.'
+                ? 'Sign in to access your fields, workspace, and analysis results.'
                 : 'Create an account to save fields, run analysis, and manage your farmland monitoring history.'}
             </p>
 
@@ -255,17 +256,17 @@ export default function AuthPage({ onBack, onLogin, onRegistered }) {
 
             <div className="auth-info-list">
               <div className="auth-info-item">
-                <span className="auth-info-kicker">Home Dashboard</span>
+                <span className="auth-info-kicker">{APP_PAGES.FIELDS}</span>
                 <p>Track saved fields, recent analyses, and key vegetation metrics at a glance.</p>
               </div>
 
               <div className="auth-info-item">
-                <span className="auth-info-kicker">Workspace Map</span>
+                <span className="auth-info-kicker">{APP_PAGES.WORKSPACE}</span>
                 <p>Upload boundaries, draw parcels, prepare imagery, and run field analysis.</p>
               </div>
 
               <div className="auth-info-item">
-                <span className="auth-info-kicker">Reports</span>
+                <span className="auth-info-kicker">{APP_PAGES.ANALYSIS_RESULTS}</span>
                 <p>Review field health, crop classification, stress zones, and risk interpretation.</p>
               </div>
             </div>

@@ -7,7 +7,7 @@ import {
   getRiskTone
 } from '../../utils/fieldAnalysisUtils';
 
-export default function AnalysisTimeline({
+export default function AnalysisHistoryList({
   items = [],
   selectedSeason,
   emptyText = 'No analyses are stored for this field in the selected season.',

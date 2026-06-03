@@ -55,8 +55,8 @@ export default function WorkspaceSelectionCard({
   riskLevel,
   latestAnalysisAt,
   analysisHistory = [],
-  canViewReport,
-  onOpenReport
+  canViewResults,
+  onOpenResults
 }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -68,6 +68,16 @@ export default function WorkspaceSelectionCard({
   const statusLabel = riskLevel || 'Not analyzed';
   const hasHistory = analysisHistory.length > 0;
   const currentTab = activeTab === 'history' && !hasHistory ? 'overview' : activeTab;
+  const overviewDetails = [
+    { id: 'area', icon: <MapPinned size={14} />, label: 'Area', value: fieldArea },
+    { id: 'status', icon: <ShieldAlert size={14} />, label: 'Latest status', value: statusLabel },
+    {
+      id: 'analysis',
+      icon: <CalendarClock size={14} />,
+      label: 'Latest analysis',
+      value: formatWorkspaceDateTime(latestAnalysisAt, 'No analysis yet')
+    }
+  ];
 
   const availableTabs = useMemo(() => {
     const tabs = [
@@ -166,13 +176,14 @@ export default function WorkspaceSelectionCard({
             <div className="workspace-selection-panel-content">
               {currentTab === 'overview' ? (
                 <div className="workspace-selection-list">
-                  <DetailRow icon={<MapPinned size={14} />} label="Area" value={fieldArea} />
-                  <DetailRow icon={<ShieldAlert size={14} />} label="Latest status" value={statusLabel} />
-                  <DetailRow
-                    icon={<CalendarClock size={14} />}
-                    label="Latest analysis"
-                    value={formatWorkspaceDateTime(latestAnalysisAt, 'No analysis yet')}
-                  />
+                  {overviewDetails.map((item) => (
+                    <DetailRow
+                      key={item.id}
+                      icon={item.icon}
+                      label={item.label}
+                      value={item.value}
+                    />
+                  ))}
                 </div>
               ) : null}
 
@@ -202,13 +213,13 @@ export default function WorkspaceSelectionCard({
               <button
                 type="button"
                 className="secondary-btn"
-                onClick={() => onOpenReport?.()}
-                disabled={!canViewReport}
-                title={canViewReport ? undefined : 'Run an analysis first to open the report.'}
+                onClick={() => onOpenResults?.()}
+                disabled={!canViewResults}
+                title={canViewResults ? undefined : 'Run an analysis first to open the results.'}
                 data-guide="open-report"
               >
                 <FileText size={16} />
-                Open report
+                Open results
               </button>
             </div>
           </>
