@@ -2,14 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   BarChart3,
-  ChevronRight,
   Clock3,
   Database,
   ShieldCheck,
   Users
 } from 'lucide-react';
 import {
-  fetchAdminAudit,
   fetchAdminStats,
   fetchAllFields,
   fetchAnalysisHistory
@@ -28,29 +26,17 @@ const formatWeekday = (value) => (
   new Date(value).toLocaleDateString(undefined, { weekday: 'short' })
 );
 
-const formatArea = (value) => {
-  const numeric = Number(value || 0);
-  return `${numeric.toFixed(2)} ha`;
-};
-
 const getFieldList = (response) => response?.data || [];
 const getAnalysisList = (response) => response?.data || [];
-const getAuditList = (response) => (Array.isArray(response) ? response : response?.data || []);
 
 const getRiskTone = (riskLevel) => {
-  if (riskLevel === 'High') return 'critical';
+  if (riskLevel === 'Critical' || riskLevel === 'High') return 'critical';
   if (riskLevel === 'Medium') return 'warning';
   if (riskLevel === 'Low') return 'healthy';
   return 'neutral';
 };
 
-const getRoleLabel = (role) => {
-  if (role === 'OWNER') return 'Owned';
-  if (role === 'EDITOR') return 'Shared editor';
-  if (role === 'VIEWER') return 'Shared viewer';
-  if (role === 'ADMIN') return 'Admin view';
-  return role || 'Access granted';
-};
+const isAttentionRisk = (riskLevel) => riskLevel === 'High' || riskLevel === 'Critical';
 
 const buildLatestFieldAnalyses = (history) => {
   const latestByField = new Map();
@@ -67,16 +53,12 @@ const buildLatestFieldAnalyses = (history) => {
   return Array.from(latestByField.values());
 };
 
-const countUniqueBy = (items, keyBuilder) => (
-  new Set(items.map(keyBuilder).filter(Boolean)).size
-);
-
 const sumSeries = (items = []) => (
   items.reduce((sum, item) => sum + Number(item?.count || 0), 0)
 );
 
 const SummaryCard = ({ label, value, helper, icon, tone }) => (
-  <div className="metric-card glass-panel">
+  <div className="metric-card glass-panel dashboard-metric-card">
     <div className="metric-card-top">
       <span className="metric-label">{label}</span>
       {React.cloneElement(icon, { size: 18, color: tone })}
@@ -86,25 +68,8 @@ const SummaryCard = ({ label, value, helper, icon, tone }) => (
   </div>
 );
 
-const QuickAction = ({ title, text, icon, onClick }) => (
-  <button
-    type="button"
-    className="action-card glass-panel"
-    onClick={onClick}
-  >
-    <div className="action-card-icon">
-      {icon}
-    </div>
-    <div className="action-card-copy">
-      <h3>{title}</h3>
-      <p>{text}</p>
-    </div>
-    <ChevronRight size={18} color="var(--text-secondary)" />
-  </button>
-);
-
-const AnalyticsCard = ({ kicker, title, helper, icon, children }) => (
-  <div className="analytics-card glass-panel">
+const AnalyticsCard = ({ kicker, title, helper, icon, children, className = '' }) => (
+  <div className={`analytics-card glass-panel ${className}`.trim()}>
     <div className="analytics-card-head">
       <div>
         <div className="section-kicker">{kicker}</div>
@@ -126,22 +91,23 @@ const TrendChartCard = ({ kicker, title, helper, icon, series = [] }) => {
       title={title}
       helper={helper}
       icon={icon}
+      className="dashboard-chart-card"
     >
       {series.length === 0 ? (
         <div className="empty-state compact">No activity yet.</div>
       ) : (
-        <div style={trendChartStyle}>
+        <div className="dashboard-trend-chart">
           {series.map((item) => {
             const count = Number(item?.count || 0);
             const height = Math.max((count / maxValue) * 100, count > 0 ? 16 : 8);
 
             return (
-              <div key={item.date} style={trendBarColumnStyle}>
-                <span style={trendValueStyle}>{count}</span>
-                <div style={trendTrackStyle}>
-                  <div style={{ ...trendFillStyle, height: `${height}%` }} />
+              <div key={item.date} className="dashboard-trend-column">
+                <span className="dashboard-trend-value">{count}</span>
+                <div className="dashboard-trend-track">
+                  <div className="dashboard-trend-fill" style={{ height: `${height}%` }} />
                 </div>
-                <span style={trendLabelStyle}>{formatWeekday(item.date)}</span>
+                <span className="dashboard-trend-label">{formatWeekday(item.date)}</span>
               </div>
             );
           })}
@@ -161,7 +127,6 @@ export default function DashboardPage({
   const [fields, setFields] = useState([]);
   const [history, setHistory] = useState([]);
   const [adminStats, setAdminStats] = useState(null);
-  const [auditLogs, setAuditLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -172,11 +137,10 @@ export default function DashboardPage({
       setLoading(true);
       setError('');
 
-      const [fieldsResult, historyResult, statsResult, auditResult] = await Promise.allSettled([
+      const [fieldsResult, historyResult, statsResult] = await Promise.allSettled([
         fetchAllFields(),
         fetchAnalysisHistory(),
-        fetchAdminStats(),
-        fetchAdminAudit()
+        fetchAdminStats()
       ]);
 
       if (!isActive) {
@@ -204,13 +168,7 @@ export default function DashboardPage({
         setAdminStats(null);
       }
 
-      if (auditResult.status === 'fulfilled') {
-        setAuditLogs(getAuditList(auditResult.value));
-      } else {
-        setAuditLogs([]);
-      }
-
-      const firstRejected = [fieldsResult, historyResult, statsResult, auditResult].find(
+      const firstRejected = [fieldsResult, historyResult, statsResult].find(
         (result) => result.status === 'rejected'
       );
 
@@ -230,33 +188,31 @@ export default function DashboardPage({
 
   const derivedData = useMemo(() => {
     const fieldById = Object.fromEntries(fields.map((field) => [field.id, field]));
-    const accessibleTotalArea = fields.reduce((sum, field) => sum + Number(field?.area_ha || 0), 0);
     const latestHistoryItem = history[0] || null;
     const latestFieldAnalyses = buildLatestFieldAnalyses(history).map((item) => ({
       ...item,
       field: fieldById[item.field_id] || null
     }));
-    const highRiskFields = latestFieldAnalyses.filter((item) => item?.risk_level === 'High');
-    const largestFields = [...fields]
-      .sort((left, right) => Number(right?.area_ha || 0) - Number(left?.area_ha || 0))
+    const attentionQueue = latestFieldAnalyses
+      .filter((item) => isAttentionRisk(item?.risk_level))
+      .sort((left, right) => {
+        const leftRank = left?.risk_level === 'Critical' ? 2 : 1;
+        const rightRank = right?.risk_level === 'Critical' ? 2 : 1;
+
+        if (rightRank !== leftRank) {
+          return rightRank - leftRank;
+        }
+
+        return new Date(right.analysis_date) - new Date(left.analysis_date);
+      })
       .slice(0, 6);
-    const analyzedFieldCount = countUniqueBy(
-      latestFieldAnalyses,
-      (item) => item?.field_id || item?.field_name
-    );
 
     return {
-      accessibleTotalArea,
-      averageFieldArea: fields.length > 0 ? accessibleTotalArea / fields.length : 0,
       latestHistoryItem,
-      latestFieldAnalyses,
-      highRiskFields,
-      largestFields,
-      analyzedFieldCount,
-      recentHistory: history.slice(0, 6),
-      recentAudit: auditLogs.slice(0, 6)
+      attentionQueue,
+      recentHistory: history.slice(0, 6)
     };
-  }, [auditLogs, fields, history]);
+  }, [fields, history]);
 
   const weeklyStats = adminStats?.weekly || {
     field_creations: [],
@@ -264,86 +220,67 @@ export default function DashboardPage({
     user_registrations: []
   };
 
-  const roleBreakdown = adminStats?.role_breakdown || {};
   const latestPlatformDate = latestAnalysisAt || derivedData.latestHistoryItem?.analysis_date;
 
   const summaryCards = [
     {
       label: 'System Users',
       value: loading ? '...' : adminStats?.summary?.users ?? 0,
-      helper: `+${sumSeries(weeklyStats.user_registrations)} registered in the last 7 days`,
+      helper: `${sumSeries(weeklyStats.user_registrations)} registered in the last 7 days`,
       icon: <Users />,
       tone: 'var(--accent-color)'
     },
     {
       label: 'Fields Created',
       value: loading ? '...' : adminStats?.summary?.fields ?? fields.length,
-      helper: `+${sumSeries(weeklyStats.field_creations)} created this week`,
+      helper: `${sumSeries(weeklyStats.field_creations)} created in the last 7 days`,
       icon: <Database />,
       tone: 'var(--status-healthy)'
     },
     {
       label: 'Analyses Run',
       value: loading ? '...' : adminStats?.summary?.analyses ?? history.length,
-      helper: `+${sumSeries(weeklyStats.analysis_runs)} started this week`,
+      helper: `${sumSeries(weeklyStats.analysis_runs)} launched this week`,
       icon: <BarChart3 />,
       tone: '#8b5cf6'
     },
     {
       label: 'Blocked Users',
       value: loading ? '...' : adminStats?.summary?.blocked_users ?? 0,
-      helper: 'Accounts currently disabled by administrators',
+      helper: 'Accounts currently blocked by administrators',
       icon: <ShieldCheck />,
-      tone: 'var(--status-warning)'
+      tone: 'var(--status-critical)'
     }
   ];
-
-  const quickActions = [
-    {
-      title: 'Open Admin Panel',
-      text: 'Manage users, update roles, block accounts, and handle platform administration.',
-      icon: <ShieldCheck size={18} color="var(--accent-color)" />,
-      onClick: () => onNavigate(APP_PAGES.ADMIN_PANEL)
-    },
-    {
-      title: 'Review fields',
-      text: 'Open the fields workspace to inspect what has been created and analyzed across the platform.',
-      icon: <Database size={18} color="var(--status-healthy)" />,
-      onClick: () => onNavigate(APP_PAGES.FIELDS)
-    },
-    {
-      title: 'Review audit logs',
-      text: 'Inspect recent account, field, comment, and analysis events captured across the platform.',
-      icon: <Clock3 size={18} color="#8b5cf6" />,
-      onClick: () => onNavigate(APP_PAGES.ADMIN_PANEL)
-    }
-  ];
-
-  const primaryAttentionFields = derivedData.highRiskFields.length > 0
-    ? derivedData.highRiskFields
-    : derivedData.largestFields;
 
   return (
-    <div className="content-page">
-      <section className="page-hero glass-panel">
-        <div>
-          <div className="page-kicker">System Dashboard</div>
+    <div className="content-page dashboard-page">
+      <style>{dashboardPageCss}</style>
+
+      <section className="page-hero glass-panel dashboard-hero">
+        <div className="dashboard-hero-copy">
+          <div className="page-kicker">SYSTEM DASHBOARD</div>
           <h1 className="page-title">{`Welcome back, ${user?.full_name || user?.name || 'Admin'}`}</h1>
           <p className="page-subtitle">
-            Review platform growth, user operations, and the analysis pipeline from one admin-only dashboard.
+            Review platform activity and the analysis pipeline.
           </p>
         </div>
 
-        <div className="page-hero-meta">
-          <div className="page-hero-meta-card">
-            <span className="page-hero-meta-label">Latest analysis</span>
-            <strong>{formatDateTime(latestPlatformDate)}</strong>
+        <div className="dashboard-hero-side">
+          <div className="dashboard-hero-status-grid">
+            <div className="dashboard-hero-status-card">
+              <span className="dashboard-hero-status-label">Latest analysis</span>
+              <strong>{formatDateTime(latestPlatformDate)}</strong>
+            </div>
+            <div className="dashboard-hero-status-card">
+              <span className="dashboard-hero-status-label">Backend status</span>
+              <strong className={backendHealthy ? 'tone-healthy' : 'tone-critical'}>
+                {backendHealthy ? 'Connected' : 'Unavailable'}
+              </strong>
+            </div>
           </div>
-          <div className="page-hero-meta-card">
-            <span className="page-hero-meta-label">Backend status</span>
-            <strong>{backendHealthy ? 'Connected' : 'Unavailable'}</strong>
-          </div>
-          <div className="page-hero-actions">
+
+          <div className="page-hero-actions dashboard-hero-actions">
             <button
               type="button"
               className="primary-btn"
@@ -363,183 +300,77 @@ export default function DashboardPage({
       </section>
 
       {error ? (
-        <div className="glass-panel" style={errorStyle}>
+        <div className="glass-panel dashboard-error-banner">
           {error}
         </div>
       ) : null}
 
-      <section className="metric-grid">
+      <section className="metric-grid dashboard-metric-grid">
         {summaryCards.map((card) => (
           <SummaryCard key={card.label} {...card} />
         ))}
       </section>
 
-      <section className="dashboard-analytics-grid">
+      <section className="dashboard-analytics-grid dashboard-chart-grid">
         <TrendChartCard
-          kicker="Weekly Growth"
-          title="Fields created over the last 7 days"
-          helper="Daily field creation volume visible to the full platform."
+          kicker="Fields"
+          title="Fields created over last 7 days"
+          helper="Daily field creation volume across the platform."
           icon={<Database size={18} color="var(--accent-color)" />}
           series={weeklyStats.field_creations}
         />
 
         <TrendChartCard
-          kicker="Pipeline Activity"
+          kicker="Pipeline"
           title="Analyses launched this week"
-          helper="These counts track new analysis jobs started by day."
+          helper="New analysis jobs started by day."
           icon={<BarChart3 size={18} color="#8b5cf6" />}
           series={weeklyStats.analysis_runs}
         />
 
         <TrendChartCard
-          kicker="User Growth"
+          kicker="Users"
           title="Registrations in the last 7 days"
-          helper="New user accounts entering the system each day."
+          helper="New accounts created each day."
           icon={<Users size={18} color="var(--status-healthy)" />}
           series={weeklyStats.user_registrations}
         />
       </section>
 
-      <section className="split-panel-grid">
-        <div className="section-card glass-panel">
-          <div className="section-card-header">
-            <div>
-              <div className="section-kicker">Role Distribution</div>
-              <h2>Who is using the platform</h2>
-            </div>
-          </div>
-
-          <div style={roleGridStyle}>
-            {[
-              { label: 'Admins', value: roleBreakdown.ADMIN ?? 0 },
-              { label: 'Farmers', value: roleBreakdown.FARMER ?? 0 },
-              { label: 'Agronomists', value: roleBreakdown.AGRONOMIST ?? 0 }
-            ].map((item) => (
-              <div key={item.label} style={roleCardStyle}>
-                <span style={roleCardLabelStyle}>{item.label}</span>
-                <strong style={roleCardValueStyle}>{loading ? '...' : item.value}</strong>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="section-card glass-panel">
-          <div className="section-card-header">
-            <div>
-              <div className="section-kicker">Audit Logs</div>
-              <h2>Latest platform activity</h2>
-            </div>
-          </div>
-
-          {derivedData.recentAudit.length === 0 && !loading ? (
-            <div className="empty-state">
-              Audit entries will appear here after admin actions, field updates, comments, or analysis runs.
-            </div>
-          ) : (
-            <div className="stack-list">
-              {derivedData.recentAudit.map((log) => (
-                <div key={log.id} className="list-row">
-                  <div>
-                    <strong>{log.action || 'Unknown action'}</strong>
-                    <p>
-                      {(log.entity_type || 'entity').toUpperCase()} · {formatDateTime(log.created_at)}
-                    </p>
-                  </div>
-                  <Clock3 size={16} color="var(--text-secondary)" />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="split-panel-grid">
-        <div className="section-card glass-panel">
-          <div className="section-card-header">
-            <div>
-              <div className="section-kicker">Quick Actions</div>
-              <h2>Operations shortcuts</h2>
-            </div>
-          </div>
-
-          <div className="action-grid">
-            {quickActions.map((action) => (
-              <QuickAction key={action.title} {...action} />
-            ))}
-          </div>
-        </div>
-
-        <div className="section-card glass-panel">
-          <div className="section-card-header">
-            <div>
-              <div className="section-kicker">Platform Snapshot</div>
-              <h2>What the system says right now</h2>
-            </div>
-          </div>
-
-          <div className="stack-list">
-            <div className="stack-row">
-              <span>Platform field area</span>
-              <strong>{loading ? '...' : formatArea(derivedData.accessibleTotalArea)}</strong>
-            </div>
-            <div className="stack-row">
-              <span>Fields with recent analyses</span>
-              <strong>{loading ? '...' : derivedData.analyzedFieldCount}</strong>
-            </div>
-            <div className="stack-row">
-              <span>Average field area</span>
-              <strong>{loading ? '...' : formatArea(derivedData.averageFieldArea)}</strong>
-            </div>
-            <div className="stack-row">
-              <span>Recent audit entries</span>
-              <strong>{loading ? '...' : derivedData.recentAudit.length}</strong>
-            </div>
-            <div className="stack-row">
-              <span>Admins on platform</span>
-              <strong>{loading ? '...' : roleBreakdown.ADMIN ?? 0}</strong>
-            </div>
-            <div className="stack-row">
-              <span>Backend</span>
-              <strong>{backendHealthy ? 'Connected' : 'Unavailable'}</strong>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="split-panel-grid">
-        <div className="section-card glass-panel">
-          <div className="section-card-header">
-            <div>
+      <section className="dashboard-bottom-grid">
+        <div className="section-card glass-panel dashboard-section-card">
+          <div className="dashboard-section-header">
+            <div className="dashboard-section-heading">
               <div className="section-kicker">Attention Queue</div>
-              <h2>Fields that need attention</h2>
+              <h2>Fields with High/Critical inspection priority</h2>
             </div>
+            <AlertTriangle size={18} color="var(--status-critical)" />
           </div>
 
-          {primaryAttentionFields.length === 0 ? (
+          {derivedData.attentionQueue.length === 0 ? (
             <div className="empty-state">
-              No platform field data is available yet.
+              No fields are currently marked High or Critical.
             </div>
           ) : (
-            <div className="stack-list">
-              {primaryAttentionFields.map((item) => {
-                const fieldName =
-                  item.field_name ||
-                  item.name ||
-                  item.field?.name ||
-                  'Unnamed field';
-                const detailLine = item.risk_level
-                  ? `${item.crop_type || 'Unknown crop'} · NDVI ${item.ndvi_value !== null && item.ndvi_value !== undefined ? Number(item.ndvi_value).toFixed(3) : '—'} · ${formatDateTime(item.analysis_date)}`
-                  : `${formatArea(item.area_ha)} · ${getRoleLabel(item.role)}`;
-                const badgeLabel = item.risk_level || (item.role === 'ADMIN' ? 'Admin view' : 'View');
-                const tone = item.risk_level ? getRiskTone(item.risk_level) : 'neutral';
+            <div className="dashboard-list">
+              {derivedData.attentionQueue.map((item) => {
+                const fieldName = item.field_name || item.field?.name || 'Unnamed field';
 
                 return (
-                  <div key={item.analysis_id || item.id || fieldName} className="list-row">
-                    <div>
+                  <div key={item.analysis_id || fieldName} className="dashboard-list-row">
+                    <div className="dashboard-list-copy">
                       <strong>{fieldName}</strong>
-                      <p>{detailLine}</p>
+                      <p>
+                        {item.crop_type || 'Unknown crop'} · NDVI{' '}
+                        {item.ndvi_value !== null && item.ndvi_value !== undefined
+                          ? Number(item.ndvi_value).toFixed(3)
+                          : '—'}{' '}
+                        · {formatDateTime(item.analysis_date)}
+                      </p>
                     </div>
-                    <span className={`status-pill ${tone}`}>{badgeLabel}</span>
+                    <span className={`status-pill ${getRiskTone(item.risk_level)}`}>
+                      {item.risk_level}
+                    </span>
                   </div>
                 );
               })}
@@ -547,26 +378,28 @@ export default function DashboardPage({
           )}
         </div>
 
-        <div className="section-card glass-panel">
-          <div className="section-card-header">
-            <div>
-              <div className="section-kicker">Platform Activity</div>
+        <div className="section-card glass-panel dashboard-section-card">
+          <div className="dashboard-section-header">
+            <div className="dashboard-section-heading">
+              <div className="section-kicker">Latest Analyses</div>
               <h2>Latest completed analyses</h2>
             </div>
+            <Clock3 size={18} color="var(--text-secondary)" />
           </div>
 
           {derivedData.recentHistory.length === 0 ? (
             <div className="empty-state">
-              No completed analyses yet. Run or review an analysis to populate this activity feed.
+              No completed analyses yet.
             </div>
           ) : (
-            <div className="stack-list">
+            <div className="dashboard-list">
               {derivedData.recentHistory.map((item) => (
-                <div key={item.analysis_id} className="list-row">
-                  <div>
+                <div key={item.analysis_id} className="dashboard-list-row">
+                  <div className="dashboard-list-copy">
                     <strong>{item.field_name || 'Unnamed field'}</strong>
                     <p>
-                      {item.crop_type || 'Unknown crop'} · {item.risk_level || 'Unknown risk'} · {formatDateTime(item.analysis_date)}
+                      {item.crop_type || 'Unknown crop'} · {item.risk_level || 'Unknown risk'}{' '}
+                      · {formatDateTime(item.analysis_date)}
                     </p>
                   </div>
                   <Clock3 size={16} color="var(--text-secondary)" />
@@ -580,82 +413,263 @@ export default function DashboardPage({
   );
 }
 
-const errorStyle = {
-  padding: '14px 16px',
-  borderRadius: '14px',
-  color: 'var(--status-critical-soft)',
-  border: '1px solid rgba(239, 68, 68, 0.3)',
-  background: 'rgba(239, 68, 68, 0.08)'
-};
+const dashboardPageCss = `
+  .dashboard-page {
+    overflow-x: hidden;
+  }
 
-const trendChartStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-  gap: '10px',
-  alignItems: 'end',
-  minHeight: '180px'
-};
+  .dashboard-hero {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
 
-const trendBarColumnStyle = {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  gap: '8px'
-};
+  .dashboard-hero-copy {
+    flex: 1 1 420px;
+    min-width: 0;
+  }
 
-const trendValueStyle = {
-  fontSize: '0.78rem',
-  color: 'var(--text-secondary)'
-};
+  .dashboard-hero-side {
+    display: grid;
+    gap: 14px;
+    min-width: min(100%, 360px);
+  }
 
-const trendTrackStyle = {
-  width: '100%',
-  height: '120px',
-  borderRadius: '999px',
-  display: 'flex',
-  alignItems: 'flex-end',
-  justifyContent: 'center',
-  background: 'var(--surface-3)',
-  border: '1px solid var(--border-soft)',
-  padding: '6px'
-};
+  .dashboard-hero-status-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
 
-const trendFillStyle = {
-  width: '100%',
-  borderRadius: '999px',
-  background: 'linear-gradient(180deg, rgba(96, 165, 250, 0.95), rgba(59, 130, 246, 0.45))',
-  minHeight: '8px'
-};
+  .dashboard-hero-status-card {
+    min-width: 0;
+    padding: 16px 18px;
+    border-radius: 18px;
+    border: 1px solid var(--border-soft);
+    background: var(--surface-2);
+    display: grid;
+    gap: 8px;
+  }
 
-const trendLabelStyle = {
-  fontSize: '0.74rem',
-  color: 'var(--text-secondary)'
-};
+  .dashboard-hero-status-label {
+    color: var(--text-secondary);
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
 
-const roleGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-  gap: '12px'
-};
+  .dashboard-hero-status-card strong {
+    font-size: 0.98rem;
+    line-height: 1.45;
+    word-break: break-word;
+  }
 
-const roleCardStyle = {
-  padding: '16px',
-  borderRadius: '18px',
-  border: '1px solid var(--border-muted)',
-  background: 'var(--surface-1)',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px'
-};
+  .dashboard-hero-actions {
+    justify-content: flex-start;
+  }
 
-const roleCardLabelStyle = {
-  color: 'var(--text-secondary)',
-  fontSize: '0.74rem',
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em'
-};
+  .dashboard-error-banner {
+    padding: 14px 16px;
+    border-radius: 14px;
+    color: var(--status-critical-soft);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.08);
+  }
 
-const roleCardValueStyle = {
-  fontSize: '1.45rem',
-  lineHeight: 1
-};
+  .dashboard-metric-grid,
+  .dashboard-chart-grid,
+  .dashboard-bottom-grid {
+    min-width: 0;
+  }
+
+  .dashboard-metric-grid {
+    gap: 14px;
+  }
+
+  .dashboard-metric-card {
+    padding: 18px 20px;
+    min-width: 0;
+  }
+
+  .dashboard-metric-card .metric-value {
+    margin-top: 16px;
+    font-size: 1.85rem;
+  }
+
+  .dashboard-metric-card .metric-helper {
+    line-height: 1.5;
+  }
+
+  .dashboard-chart-grid {
+    gap: 14px;
+  }
+
+  .dashboard-chart-card {
+    padding: 18px;
+    min-width: 0;
+  }
+
+  .dashboard-chart-card .analytics-card-head {
+    margin-bottom: 14px;
+  }
+
+  .dashboard-chart-card .analytics-card-title {
+    margin-top: 8px;
+    font-size: 1rem;
+  }
+
+  .dashboard-chart-card .analytics-card-copy {
+    line-height: 1.55;
+  }
+
+  .dashboard-trend-chart {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 10px;
+    align-items: end;
+    min-height: 152px;
+    min-width: 0;
+  }
+
+  .dashboard-trend-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .dashboard-trend-value,
+  .dashboard-trend-label {
+    color: var(--text-secondary);
+    font-size: 0.74rem;
+  }
+
+  .dashboard-trend-track {
+    width: 100%;
+    height: 104px;
+    padding: 6px;
+    border-radius: 999px;
+    border: 1px solid var(--border-soft);
+    background: var(--surface-3);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .dashboard-trend-fill {
+    width: 100%;
+    min-height: 8px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(96, 165, 250, 0.95), rgba(59, 130, 246, 0.45));
+  }
+
+  .dashboard-bottom-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    align-items: start;
+  }
+
+  .dashboard-section-card {
+    min-width: 0;
+    padding: 18px 20px;
+    border-color: var(--border-muted);
+    background:
+      linear-gradient(180deg, var(--surface-elevated-strong), var(--surface-7)),
+      var(--glass-bg);
+    overflow: hidden;
+  }
+
+  .dashboard-section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 16px;
+    min-width: 0;
+  }
+
+  .dashboard-section-heading {
+    min-width: 0;
+  }
+
+  .dashboard-section-heading h2 {
+    margin-top: 8px;
+    font-size: 1.08rem;
+    letter-spacing: -0.02em;
+    word-break: break-word;
+  }
+
+  .dashboard-list {
+    display: grid;
+    min-width: 0;
+  }
+
+  .dashboard-list-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border-soft);
+    min-width: 0;
+  }
+
+  .dashboard-list-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .dashboard-list-copy {
+    min-width: 0;
+  }
+
+  .dashboard-list-copy strong,
+  .dashboard-list-copy p {
+    word-break: break-word;
+  }
+
+  .dashboard-list-copy strong {
+    font-size: 0.94rem;
+  }
+
+  .dashboard-list-copy p {
+    margin-top: 4px;
+    color: var(--text-secondary);
+    font-size: 0.86rem;
+    line-height: 1.55;
+  }
+
+  @media (max-width: 1120px) {
+    .dashboard-hero-status-grid,
+    .dashboard-bottom-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .dashboard-hero-actions {
+      width: 100%;
+    }
+
+    .dashboard-hero-actions > button {
+      width: 100%;
+    }
+
+    .dashboard-metric-card,
+    .dashboard-chart-card,
+    .dashboard-section-card {
+      padding: 16px;
+    }
+
+    .dashboard-trend-chart,
+    .dashboard-list-row {
+      gap: 8px;
+    }
+
+    .dashboard-list-row {
+      grid-template-columns: 1fr;
+    }
+  }
+`;
