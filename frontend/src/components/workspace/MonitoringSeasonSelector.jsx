@@ -101,6 +101,7 @@ export default function MonitoringSeasonSelector({
             value={selectedMode}
             onChange={handleModeChange}
             className="analysis-period-native-select"
+            data-guide="season-mode-select"
           >
             {options.map((option) => {
               const optionValue = String(option.value || option);
@@ -125,13 +126,14 @@ export default function MonitoringSeasonSelector({
       ) : null}
 
       {isCustom && !compact ? (
-        <div className="analysis-period-date-grid">
+        <div className="analysis-period-date-grid" data-guide="season-custom-range">
           <label className="analysis-period-field">
             <span>Start date</span>
             <input
               type="date"
               value={selection.startDate || ''}
               onChange={(event) => handleDateChange('startDate', event.target.value)}
+              data-guide="season-start-date"
             />
           </label>
 
@@ -141,6 +143,7 @@ export default function MonitoringSeasonSelector({
               type="date"
               value={selection.endDate || ''}
               onChange={(event) => handleDateChange('endDate', event.target.value)}
+              data-guide="season-end-date"
             />
           </label>
         </div>

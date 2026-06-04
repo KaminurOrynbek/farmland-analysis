@@ -199,7 +199,7 @@ export default function FieldControlPanel({
 
       <SidebarSection title="Field boundary" guideId="field-upload-section">
         <p className="workspace-helper-text" style={{ margin: 0 }}>
-          Upload a GeoJSON boundary or draw one directly on the map.
+          Upload a GeoJSON boundary or draw a new one from the map toolbar.
         </p>
 
         <div className="workspace-boundary-methods">
@@ -215,7 +215,7 @@ export default function FieldControlPanel({
             </span>
             <span>
               <strong>Upload GeoJSON</strong>
-              <small>Use an existing .geojson or .json field boundary.</small>
+              <small>Choose an existing .geojson or .json field boundary file.</small>
             </span>
           </button>
 
@@ -231,7 +231,7 @@ export default function FieldControlPanel({
             </span>
             <span>
               <strong>Draw on map</strong>
-              <small>Use the map tools to sketch a new field boundary.</small>
+              <small>Use the polygon tool in the top-left corner of the map.</small>
             </span>
           </button>
         </div>

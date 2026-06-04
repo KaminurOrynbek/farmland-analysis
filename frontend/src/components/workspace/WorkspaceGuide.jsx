@@ -2,62 +2,97 @@ import React, { useEffect, useMemo, useState } from 'react';
 
 const steps = [
   {
-    title: 'Step 1 — Analysis period',
-    text: 'Choose the season or custom date range used to search satellite imagery.',
-    selectors: ['[data-guide="season-date-selection"]'],
+    title: 'Step 1 — Season',
+    text: 'Start here. Open the Period dropdown and choose the current season, previous season, or a custom date range. If you choose custom dates, set the start and end date below.',
+    targetGroups: [
+      ['[data-guide="season-mode-select"]'],
+      ['[data-guide="season-date-selection"]']
+    ],
     placement: 'right',
     button: 'OK, next'
   },
   {
-    title: 'Step 2 — Field boundary',
-    text: 'Upload a GeoJSON boundary or draw a new field directly on the map.',
-    selectors: ['[data-guide="field-upload-section"]', '[data-guide="upload-geojson"]'],
+    title: 'Step 2 — Upload boundary',
+    text: 'If you already have a field file, click Upload GeoJSON here and choose a .geojson or .json boundary.',
+    targetGroups: [['[data-guide="upload-geojson"]']],
     placement: 'right',
     button: 'OK, next'
   },
   {
-    title: 'Step 3 — Field details',
-    text: 'Enter the required field name, then save the boundary. Optional metadata can stay collapsed.',
-    selectors: ['[data-guide="field-name"]', '[data-guide="save-field"]', '[data-guide="field-details-section"]'],
-    placement: 'right',
+    title: 'Step 3 — Draw boundary',
+    text: 'If you want to draw instead, use the polygon or rectangle tools in the top-left corner of the map. These are the exact drawing controls for creating a new field boundary.',
+    targetGroups: [
+      ['[data-guide="draw-polygon-control"]', '[data-guide="draw-rectangle-control"]'],
+      ['[data-guide="draw-toolbar"]'],
+      ['[data-guide="draw-on-map"]']
+    ],
+    placement: 'bottom',
     button: 'OK, next'
   },
   {
-    title: 'Step 4 — Satellite data',
-    text: 'Fetch satellite metadata for the selected field and analysis period before running analysis.',
-    selectors: ['[data-guide="satellite-data-section"]', '[data-guide="fetch-satellite"]'],
-    placement: 'right',
-    button: 'OK, next'
-  },
-  {
-    title: 'Step 5 — Run analysis',
-    text: 'Run the analysis after the field is saved and satellite metadata is ready.',
-    selectors: ['[data-guide="run-analysis"]', '[data-guide="run-analysis-section"]'],
-    placement: 'right',
-    button: 'OK, next'
-  },
-  {
-    title: 'Step 6 — Selected field',
-    text: 'Use this card to review the saved field, switch tabs, and follow the next action.',
-    selectors: ['[data-guide="selected-field-section"]'],
-    placement: 'right',
-    button: 'OK, next'
-  },
-  {
-    title: 'Step 7 — Field comments',
-    text: 'Open the Comments tab in the selected-field panel to review or add saved-field notes.',
-    selectors: ['[data-guide="field-comments"]', '[data-guide="selected-field-section"]'],
+    title: 'Step 4 — Field details',
+    text: 'Give the field a name, then save it. Uploaded boundaries are saved here, while drawn boundaries ask for the name right after drawing.',
+    targetGroups: [
+      ['[data-guide="field-name"]', '[data-guide="save-field"]'],
+      ['[data-guide="field-details-section"]']
+    ],
     placement: 'right',
     button: 'OK, next',
-    targetTab: 'comments'
+    forceScroll: true
   },
   {
-    title: 'Step 8 — View results',
+    title: 'Step 5 — Satellite data',
+    text: 'Fetch satellite metadata for the selected field and analysis period before running analysis.',
+    targetGroups: [
+      ['[data-guide="satellite-source"]', '[data-guide="fetch-satellite"]'],
+      ['[data-guide="fetch-satellite"]'],
+      ['[data-guide="satellite-data-section"]']
+    ],
+    placement: 'right',
+    button: 'OK, next',
+    forceScroll: true
+  },
+  {
+    title: 'Step 6 — Run analysis',
+    text: 'Run the analysis after the field is saved and satellite metadata is ready.',
+    targetGroups: [
+      ['[data-guide="run-analysis"]'],
+      ['[data-guide="run-analysis-section"]']
+    ],
+    placement: 'right',
+    button: 'OK, next'
+  },
+  {
+    title: 'Step 7 — Selected field',
+    text: 'Use this card to review the saved field, switch tabs, and follow the next action.',
+    targetGroups: [['[data-guide="selected-field-section"]']],
+    placement: 'right',
+    button: 'OK, next'
+  },
+  {
+    title: 'Step 8 — Field comments',
+    text: 'Open the Comments tab in the selected-field panel to review or add saved-field notes.',
+    targetGroups: [
+      ['[data-guide="field-comments"]'],
+      ['[data-guide="selected-field-section"]']
+    ],
+    placement: 'right',
+    button: 'OK, next',
+    targetTab: 'comments',
+    forceScroll: true
+  },
+  {
+    title: 'Step 9 — View results',
     text: 'Return to Overview and open Analysis Results when a field result is ready.',
-    selectors: ['[data-guide="open-report"]'],
+    targetGroups: [
+      ['[data-guide="open-report"]'],
+      ['[data-guide="run-analysis-section"]'],
+      ['[data-guide="selected-field-section"]']
+    ],
     placement: 'right',
     button: 'Finish guide',
-    targetTab: 'overview'
+    targetTab: 'overview',
+    forceScroll: true
   }
 ];
 
@@ -66,15 +101,57 @@ const TOOLTIP_GAP = 18;
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
-const getTargetElement = (selectors = []) => {
-  for (const selector of selectors) {
-    const element = document.querySelector(selector);
-    if (element) {
-      return element;
+const getStepTargetElements = (stepConfig) => {
+  const targetGroups = Array.isArray(stepConfig?.targetGroups) && stepConfig.targetGroups.length
+    ? stepConfig.targetGroups
+    : [stepConfig?.selectors || []];
+
+  for (const selectors of targetGroups) {
+    const elements = selectors
+      .map((selector) => document.querySelector(selector))
+      .filter(Boolean);
+
+    if (elements.length === selectors.length && elements.length > 0) {
+      return elements;
     }
   }
 
-  return null;
+  return [];
+};
+
+const getCombinedRect = (elements = []) => {
+  if (!elements.length) {
+    return null;
+  }
+
+  return elements.reduce((combinedRect, element) => {
+    const rect = element.getBoundingClientRect();
+
+    if (!combinedRect) {
+      return {
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+        right: rect.right,
+        bottom: rect.bottom
+      };
+    }
+
+    const top = Math.min(combinedRect.top, rect.top);
+    const left = Math.min(combinedRect.left, rect.left);
+    const right = Math.max(combinedRect.right, rect.right);
+    const bottom = Math.max(combinedRect.bottom, rect.bottom);
+
+    return {
+      top,
+      left,
+      width: right - left,
+      height: bottom - top,
+      right,
+      bottom
+    };
+  }, null);
 };
 
 const getTooltipPosition = (rect, placement) => {
@@ -108,6 +185,19 @@ const getTooltipPosition = (rect, placement) => {
   };
 };
 
+const isRectVisible = (rect, margin = 24) => {
+  if (!rect) {
+    return false;
+  }
+
+  return (
+    rect.top >= margin &&
+    rect.bottom <= window.innerHeight - margin &&
+    rect.left >= margin &&
+    rect.right <= window.innerWidth - margin
+  );
+};
+
 export default function GuidedTour({ activePage, isOpen, onClose }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState(null);
@@ -132,21 +222,15 @@ export default function GuidedTour({ activePage, isOpen, onClose }) {
     }
 
     const updateTargetRect = () => {
-      const target = getTargetElement(step?.selectors);
-      if (!target) {
+      const targets = getStepTargetElements(step);
+      const rect = getCombinedRect(targets);
+
+      if (!rect) {
         setTargetRect(null);
         return;
       }
 
-      const rect = target.getBoundingClientRect();
-      setTargetRect({
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height,
-        right: rect.right,
-        bottom: rect.bottom
-      });
+      setTargetRect(rect);
     };
 
     updateTargetRect();
@@ -158,6 +242,57 @@ export default function GuidedTour({ activePage, isOpen, onClose }) {
       window.removeEventListener('scroll', updateTargetRect, true);
     };
   }, [activePage, isOpen, step]);
+
+  useEffect(() => {
+    if (!isOpen || activePage !== 'Workspace') {
+      return undefined;
+    }
+
+    let isCancelled = false;
+    let animationFrameId = 0;
+    let timeoutId = 0;
+
+    const syncTarget = (attempt = 0) => {
+      if (isCancelled) {
+        return;
+      }
+
+      const targets = getStepTargetElements(step);
+      const rect = getCombinedRect(targets);
+      const visibilityMargin = step?.forceScroll ? 120 : 24;
+
+      if (!targets.length || !rect) {
+        if (attempt < 10) {
+          animationFrameId = window.requestAnimationFrame(() => syncTarget(attempt + 1));
+        }
+        return;
+      }
+
+      setTargetRect(rect);
+
+      if (!isRectVisible(rect, visibilityMargin)) {
+        const scrollTarget = targets[targets.length - 1];
+
+        scrollTarget?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'nearest'
+        });
+
+        if (attempt < 4) {
+          timeoutId = window.setTimeout(() => syncTarget(attempt + 1), 180);
+        }
+      }
+    };
+
+    syncTarget();
+
+    return () => {
+      isCancelled = true;
+      window.cancelAnimationFrame(animationFrameId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [activePage, isOpen, step, stepIndex]);
 
   const tooltipPosition = useMemo(() => {
     if (!targetRect) {

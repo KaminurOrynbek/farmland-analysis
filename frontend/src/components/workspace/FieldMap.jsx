@@ -76,13 +76,24 @@ function GeomanDrawControl({ onDrawn }) {
     });
 
     const markGuideToolbar = () => {
-      const toolbar = map.getContainer().querySelector('.leaflet-pm-toolbar');
+      const mapContainer = map.getContainer();
+      const toolbar = mapContainer.querySelector('.leaflet-pm-toolbar');
       if (toolbar) {
-        toolbar.setAttribute('data-guide', 'draw-on-map');
+        toolbar.setAttribute('data-guide', 'draw-toolbar');
       }
+
+      [
+        ['.leaflet-pm-icon-polygon', 'draw-polygon-control'],
+        ['.leaflet-pm-icon-rectangle', 'draw-rectangle-control']
+      ].forEach(([selector, guideId]) => {
+        const control = mapContainer.querySelector(selector);
+        const guideTarget = control?.closest('a, .button-container') || control;
+        guideTarget?.setAttribute('data-guide', guideId);
+      });
     };
 
-    window.setTimeout(markGuideToolbar, 0);
+    markGuideToolbar();
+    const toolbarMarkTimeout = window.setTimeout(markGuideToolbar, 0);
 
     const handleCreate = (event) => {
       if (event.shape === 'Polygon' || event.shape === 'Rectangle') {
@@ -105,6 +116,8 @@ function GeomanDrawControl({ onDrawn }) {
     map.on('pm:create', handleCreate);
 
     return () => {
+      window.clearTimeout(toolbarMarkTimeout);
+
       if (map.pm) {
         map.pm.removeControls();
       }

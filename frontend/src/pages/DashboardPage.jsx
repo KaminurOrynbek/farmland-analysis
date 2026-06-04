@@ -209,6 +209,7 @@ export default function DashboardPage({
 
     return {
       latestHistoryItem,
+      priorityFieldCount: attentionQueue.length,
       attentionQueue,
       recentHistory: history.slice(0, 6)
     };
@@ -245,10 +246,10 @@ export default function DashboardPage({
       tone: '#8b5cf6'
     },
     {
-      label: 'Blocked Users',
-      value: loading ? '...' : adminStats?.summary?.blocked_users ?? 0,
-      helper: 'Accounts currently blocked by administrators',
-      icon: <ShieldCheck />,
+      label: 'Priority Fields',
+      value: loading ? '...' : derivedData.priorityFieldCount,
+      helper: 'Latest analyses marked High or Critical',
+      icon: <AlertTriangle />,
       tone: 'var(--status-critical)'
     }
   ];
