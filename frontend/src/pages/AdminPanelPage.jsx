@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Ban,  
   ClipboardList,
   RefreshCw,
   Trash2,
@@ -7,7 +8,7 @@ import {
 } from 'lucide-react';
 import {
   createAdminUser,
-  deleteAdminUser,
+  deactivateAdminUser,
   fetchAdminAudit,
   fetchAdminUsers,
   updateAdminUser
@@ -70,26 +71,24 @@ export default function AdminPanelPage({ refreshKey }) {
     return () => window.clearTimeout(timeoutId);
   }, [loadAdminData, refreshKey]);
 
-  const handleDeleteUser = async (userId) => {
-    const confirmed = window.confirm('Delete this user account? This action cannot be undone.');
+  const handleDeleteUser = async (user) => {
+    const confirmed = window.confirm('Deactivate this user account? The account will be kept in the system but disabled.');
     if (!confirmed) {
       return;
     }
 
-    setDeletingUserId(userId);
+    setDeletingUserId(user.id);
     setError('');
 
     try {
-      await deleteAdminUser(userId);
+      await deactivateAdminUser(user);
       await loadAdminData();
     } catch (requestError) {
-      setError(requestError.response?.data?.detail || 'Failed to delete user.');
+      setError(requestError.response?.data?.detail || 'Failed to deactivate user.');
     } finally {
       setDeletingUserId(null);
     }
   };
-
-  
 
   const handleSaveRole = async (user) => {
     const nextRole = roleDrafts[user.id] || user.role;
@@ -117,6 +116,17 @@ export default function AdminPanelPage({ refreshKey }) {
   };
 
   
+  const deactivateButtonStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '9px 12px',
+    borderRadius: '12px',
+    border: '1px solid rgba(245, 158, 11, 0.35)',
+    background: 'rgba(245, 158, 11, 0.08)',
+    color: 'var(--status-warning)',
+    fontWeight: 700
+  };
 
   return (
     <div className="content-page">
@@ -209,6 +219,7 @@ export default function AdminPanelPage({ refreshKey }) {
                   <th style={thStyle}>Role</th>
                   <th style={thStyle}>Created</th>
                   <th style={thStyle}>Actions</th>
+                  <th style={thStyle}>Status</th>
                 </tr>
               </thead>
 
@@ -272,20 +283,26 @@ export default function AdminPanelPage({ refreshKey }) {
                       </td>
 
                       <td style={tdStyle}>
+                        <span className={`status-pill ${user.is_active ? 'healthy' : 'warning'}`}>
+                          {user.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+
+                      <td style={tdStyle}>
                         <div style={actionsCellStyle}>
 
                           <button
                             type="button"
-                            onClick={() => void handleDeleteUser(user.id)}
-                            disabled={deletingUserId === user.id || isSaving}
+                            onClick={() => void handleDeleteUser(user)}
+                            disabled={!user.is_active || deletingUserId === user.id || isSaving}
                             style={{
-                              ...dangerButtonStyle,
-                              opacity: deletingUserId === user.id || isSaving ? 0.6 : 1,
-                              cursor: deletingUserId === user.id || isSaving ? 'not-allowed' : 'pointer'
+                              ...deactivateButtonStyle,
+                              opacity: !user.is_active || deletingUserId === user.id || isSaving ? 0.6 : 1,
+                              cursor: !user.is_active || deletingUserId === user.id || isSaving ? 'not-allowed' : 'pointer'
                             }}
                           >
-                            <Trash2 size={15} />
-                            {deletingUserId === user.id ? 'Deleting...' : 'Delete'}
+                            <Ban size={15} />
+                            {user.is_active ? 'Deactivate' : 'Inactive'}
                           </button>
                         </div>
                       </td>
@@ -295,7 +312,7 @@ export default function AdminPanelPage({ refreshKey }) {
 
                 {!isLoading && users.length === 0 && (
                   <tr>
-                    <td colSpan="5" style={emptyStyle}>
+                    <td colSpan="6" style={emptyStyle}>
                       No users found.
                     </td>
                   </tr>
@@ -568,17 +585,17 @@ const inlineSelectStyle = {
   minWidth: '140px'
 };
 
-const dangerButtonStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '8px',
-  padding: '9px 12px',
-  borderRadius: '12px',
-  border: '1px solid rgba(239, 68, 68, 0.35)',
-  background: 'rgba(239, 68, 68, 0.08)',
-  color: 'var(--status-critical-soft)',
-  fontWeight: 700
-};
+// const dangerButtonStyle = {
+//   display: 'inline-flex',
+//   alignItems: 'center',
+//   gap: '8px',
+//   padding: '9px 12px',
+//   borderRadius: '12px',
+//   border: '1px solid rgba(239, 68, 68, 0.35)',
+//   background: 'rgba(239, 68, 68, 0.08)',
+//   color: 'var(--status-critical-soft)',
+//   fontWeight: 700
+// };
 
 const modalOverlayStyle = {
   position: 'fixed',

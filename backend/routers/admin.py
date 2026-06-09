@@ -412,34 +412,46 @@ def create_user_by_admin(
     return _serialize_user(created_user)
 
 
-@router.delete("/users/{user_id}")
+@router.patch("/users/{user_id}/deactivate")
 def delete_user_by_admin(
     user_id: uuid.UUID,
     db: Session = Depends(get_db),
     current_admin: User = Depends(admin_only)
 ):
     if user_id == current_admin.id:
-        raise HTTPException(status_code=400, detail="Admin cannot delete own account")
+        raise HTTPException(status_code=400, detail="Admin cannot deactivate own account")
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    deleted_user_payload = _serialize_user(user)
+    if not user.is_active:
+        return {"status": "success", "message": "User is already deactivated"}
 
-    db.delete(user)
+    old_values = _serialize_user(user)
+
+    db.query(User).filter(User.id == user_id).update(
+        {
+            User.is_active: False,
+            User.updated_at: datetime.utcnow()
+        },
+        synchronize_session=False
+    )
+
     db.commit()
+
+    db.refresh(user)
 
     AuditService(db).log_action(
         user_id=current_admin.id,
-        action="ADMIN_USER_DELETED",
+        action="ADMIN_USER_DEACTIVATED",
         entity_type="user",
-        entity_id=user_id,
-        old_values=deleted_user_payload
+        entity_id=user.id,
+        old_values=old_values,
+        new_values=_serialize_user(user)
     )
 
-    return {"status": "success", "message": "User deleted"}
-
+    return {"status": "success", "message": "User deactivated"}
 
 @router.get("/audit")
 def get_audit_logs(

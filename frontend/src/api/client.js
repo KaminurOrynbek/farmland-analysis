@@ -241,8 +241,14 @@ export const createAdminUser = async ({ email, fullName, password, role }) => {
   return response.data;
 };
 
-export const deleteAdminUser = async (userId) => {
-  const response = await api.delete(`/admin/users/${userId}`);
+export const deactivateAdminUser = async (user) => {
+  const response = await api.patch(`/admin/users/${user.id}`, {
+    email: user.email,
+    full_name: user.full_name,
+    role: user.role,
+    is_active: false
+  });
+
   return response.data;
 };
 
