@@ -119,7 +119,6 @@ const TrendChartCard = ({ kicker, title, helper, icon, series = [] }) => {
 
 export default function DashboardPage({
   user,
-  backendHealthy,
   onNavigate,
   refreshKey,
   latestAnalysisAt
@@ -268,17 +267,12 @@ export default function DashboardPage({
         </div>
 
         <div className="dashboard-hero-side">
-          <div className="dashboard-hero-status-grid">
-            <div className="dashboard-hero-status-card">
+          <div className="dashboard-hero-activity-card">
+            <div>
               <span className="dashboard-hero-status-label">Latest analysis</span>
               <strong>{formatDateTime(latestPlatformDate)}</strong>
             </div>
-            <div className="dashboard-hero-status-card">
-              <span className="dashboard-hero-status-label">Backend status</span>
-              <strong className={backendHealthy ? 'tone-healthy' : 'tone-critical'}>
-                {backendHealthy ? 'Connected' : 'Unavailable'}
-              </strong>
-            </div>
+            <Clock3 size={18} color="var(--text-secondary)" />
           </div>
 
           <div className="page-hero-actions dashboard-hero-actions">
@@ -435,10 +429,23 @@ const dashboardPageCss = `
     min-width: min(100%, 360px);
   }
 
-  .dashboard-hero-status-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+  .dashboard-hero-activity-card {
+    min-width: 0;
+    padding: 18px 20px;
+    border-radius: 18px;
+    border: 1px solid var(--border-soft);
+    background: var(--surface-2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  .dashboard-hero-activity-card strong {
+    display: block;
+    margin-top: 8px;
+    font-size: 1rem;
+    line-height: 1.4;
   }
 
   .dashboard-hero-status-card {
@@ -466,7 +473,9 @@ const dashboardPageCss = `
   }
 
   .dashboard-hero-actions {
-    justify-content: flex-start;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
   }
 
   .dashboard-error-banner {
