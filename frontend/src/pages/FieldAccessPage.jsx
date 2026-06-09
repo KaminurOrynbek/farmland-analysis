@@ -8,7 +8,6 @@ import {
   Trash2,
   Users
 } from 'lucide-react';
-import { APP_PAGES } from '../constants/appPages';
 import PaginationControls from '../components/common/PaginationControls';
 import {
   fetchAllFields,
@@ -46,8 +45,7 @@ const ROLE_OPTIONS = [
   { value: 'ALL', label: 'All access levels' },
   { value: 'OWNER', label: ROLE_METADATA.OWNER.label },
   { value: 'EDITOR', label: ROLE_METADATA.EDITOR.label },
-  { value: 'VIEWER', label: ROLE_METADATA.VIEWER.label },
-  { value: 'ADMIN', label: ROLE_METADATA.ADMIN.label }
+  { value: 'VIEWER', label: ROLE_METADATA.VIEWER.label }
 ];
 
 const SHARE_ROLE_OPTIONS = [
@@ -88,7 +86,8 @@ const getRoleMeta = (role) => (
   }
 );
 
-export default function FieldSharingPage({ user, onNavigate }) {
+export default function FieldSharingPage({ user }) {
+  const isAdminUser = user?.role === 'ADMIN';
   const [fields, setFields] = useState([]);
   const [selectedFieldId, setSelectedFieldId] = useState('');
   const [team, setTeam] = useState([]);
@@ -118,7 +117,7 @@ export default function FieldSharingPage({ user, onNavigate }) {
 
     return fields
       .filter((field) => {
-        if (roleFilter !== 'ALL' && field.role !== roleFilter) {
+        if (!isAdminUser && roleFilter !== 'ALL' && field.role !== roleFilter) {
           return false;
         }
 
@@ -142,7 +141,7 @@ export default function FieldSharingPage({ user, onNavigate }) {
         const rightName = right.name || 'Unnamed Field';
         return leftName.localeCompare(rightName);
       });
-  }, [fields, roleFilter, searchQuery]);
+  }, [fields, isAdminUser, roleFilter, searchQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filteredFields.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -326,20 +325,22 @@ export default function FieldSharingPage({ user, onNavigate }) {
                 />
               </label>
 
-              <select
-                value={roleFilter}
-                onChange={(event) => {
-                  setRoleFilter(event.target.value);
-                  setCurrentPage(1);
-                }}
-                className="field-sharing-select"
-              >
-                {ROLE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              {!isAdminUser ? (
+                <select
+                  value={roleFilter}
+                  onChange={(event) => {
+                    setRoleFilter(event.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="field-sharing-select"
+                >
+                  {ROLE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
             </div>
 
             {filteredFields.length === 0 ? (
@@ -367,16 +368,13 @@ export default function FieldSharingPage({ user, onNavigate }) {
                             ) : null}
                           </div>
                           <p>{formatArea(field.area_ha)}</p>
-                          <small>
-                            {field.owner_name || field.owner_email || 'Owner unavailable'}
-                          </small>
                         </div>
 
+                        
+
                         <div className="field-sharing-field-card-side">
-                          <span className={`status-pill ${getRoleTone(field.role)}`}>
-                            {getRoleMeta(field.role).label}
-                          </span>
-                          <small>{getRoleMeta(field.role).description}</small>
+                          <small>Owner</small>
+                          <strong>{field.owner_name || field.owner_email || 'Unknown'}</strong>
                         </div>
                       </button>
                     );
@@ -392,47 +390,6 @@ export default function FieldSharingPage({ user, onNavigate }) {
                 />
               </>
             )}
-
-            {selectedField ? (
-              <div className="field-sharing-selected-summary">
-                <div className="field-sharing-selected-summary-head">
-                  <span className="field-sharing-summary-kicker">Selected field</span>
-                  <h3>{selectedField.name || 'Unnamed Field'}</h3>
-                </div>
-
-                <div className="field-sharing-summary-grid">
-                  <article className="field-sharing-detail-card">
-                    <span>Your access</span>
-                    <strong>{selectedFieldRoleMeta.label}</strong>
-                    <p>{selectedFieldRoleMeta.description}</p>
-                  </article>
-
-                  <article className="field-sharing-detail-card">
-                    <span>Sharing permissions</span>
-                    <strong>{canManageSelectedField ? 'Can manage sharing' : 'Read only'}</strong>
-                    <p>
-                      {canManageSelectedField
-                        ? 'You can invite people and remove access for this field.'
-                        : 'Only a field Owner or platform Admin can invite people or remove access.'}
-                    </p>
-                  </article>
-
-                  <article className="field-sharing-detail-card">
-                    <span>Field details</span>
-                    <strong>{formatArea(selectedField.area_ha)}</strong>
-                    <p>{selectedField.owner_name || selectedField.owner_email || 'Owner unavailable'}</p>
-                  </article>
-                </div>
-              </div>
-            ) : null}
-
-            <button
-              type="button"
-              className="secondary-btn field-sharing-workspace-btn"
-              onClick={() => onNavigate?.(APP_PAGES.WORKSPACE)}
-            >
-              Open Workspace
-            </button>
           </section>
 
           <section className="glass-panel field-sharing-panel field-sharing-panel--main">
@@ -573,7 +530,7 @@ const fieldSharingCss = `
 
   .field-sharing-grid {
     display: grid;
-    grid-template-columns: minmax(320px, 430px) minmax(0, 1fr);
+    grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
     gap: 22px;
     align-items: start;
     min-width: 0;
@@ -610,7 +567,7 @@ const fieldSharingCss = `
 
   .field-sharing-toolbar {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 150px;
+    grid-template-columns: 1fr;
     gap: 10px;
   }
 
@@ -657,11 +614,11 @@ const fieldSharingCss = `
   .field-sharing-field-card {
     width: 100%;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(92px, auto);
     align-items: flex-start;
     gap: 12px;
     text-align: left;
-    padding: 16px;
+    padding: 14px;
     border-radius: 18px;
     border: 1px solid var(--border-color);
     background: var(--surface-3);
@@ -738,71 +695,15 @@ const fieldSharingCss = `
     color: var(--text-secondary);
     font-size: 0.85rem;
     word-break: break-word;
-  }
-
-  .field-sharing-selected-summary {
-    display: grid;
-    gap: 14px;
-    padding: 18px;
-    border-radius: 18px;
-    border: 1px solid rgba(59, 130, 246, 0.18);
-    background:
-      linear-gradient(180deg, rgba(59, 130, 246, 0.12), transparent),
-      var(--surface-highlight-2);
-  }
-
-  .field-sharing-selected-summary-head {
-    display: grid;
-    gap: 6px;
-  }
-
-  .field-sharing-selected-summary-head h3 {
-    font-size: 1.2rem;
-    letter-spacing: -0.02em;
-  }
-
-  .field-sharing-summary-kicker {
-    color: var(--accent-color);
-    font-size: 0.76rem;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-
-  .field-sharing-summary-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-  }
-
-  .field-sharing-detail-card {
-    padding: 14px;
-    border-radius: 16px;
-    border: 1px solid var(--border-color);
-    background: var(--surface-highlight-3);
-    min-width: 0;
-  }
-
-  .field-sharing-detail-card span,
-  .field-sharing-form-field > span {
-    display: block;
-    margin-bottom: 6px;
-    color: var(--text-secondary);
-    font-size: 0.78rem;
-    font-weight: 800;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-  }
-
-  .field-sharing-detail-card strong {
-    display: block;
-    color: var(--text-primary);
-  }
-
-  .field-sharing-workspace-btn {
-    width: 100%;
-  }
-
+  }.field-sharing-form-field > span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
   .field-sharing-form {
     display: grid;
     gap: 16px;
