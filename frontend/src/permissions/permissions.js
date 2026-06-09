@@ -31,15 +31,21 @@ export const getFieldPermissions = (field, user) => {
 
   const role = field?.role;
 
+  const hasFieldAccess = 
+    role === FIELD_ROLES.OWNER || 
+    role === FIELD_ROLES.EDITOR || 
+    role === FIELD_ROLES.VIEWER;
+
+
   return {
-    canView: Boolean(role),
+    canView: hasFieldAccess,
     canCreateField: isFarmer(user),
     canEditField: role === FIELD_ROLES.OWNER || role === FIELD_ROLES.EDITOR,
     canDeleteField: role === FIELD_ROLES.OWNER,
     canAnalyze: role === FIELD_ROLES.OWNER || role === FIELD_ROLES.EDITOR,
     canShare: role === FIELD_ROLES.OWNER,
     canManageTeam: role === FIELD_ROLES.OWNER,
-    canComment: role === FIELD_ROLES.OWNER || role === FIELD_ROLES.EDITOR,
-    canWriteReport: isAgronomist(user) && (role === FIELD_ROLES.EDITOR || role === FIELD_ROLES.OWNER)
+    canComment: hasFieldAccess,
+    canWriteReport: hasFieldAccess
   };
 };

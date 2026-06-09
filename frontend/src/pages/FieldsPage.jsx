@@ -29,7 +29,6 @@ const ACCESS_ROLE_OPTIONS = [
   { value: 'OWNER', label: 'Owner' },
   { value: 'EDITOR', label: 'Editor' },
   { value: 'VIEWER', label: 'Viewer' },
-  { value: 'ADMIN', label: 'Admin' }
 ];
 
 const SORT_OPTIONS = [
@@ -61,7 +60,6 @@ const getAccessRoleLabel = (role) => {
   if (role === 'OWNER') return 'Owner';
   if (role === 'EDITOR') return 'Editor';
   if (role === 'VIEWER') return 'Viewer';
-  if (role === 'ADMIN') return 'Admin';
   return 'Unknown';
 };
 
@@ -366,6 +364,8 @@ export default function FieldsPage({
   const [currentPage, setCurrentPage] = useState(1);
 
   const canCreateField = user?.role === 'ADMIN' || user?.role === 'FARMER';
+  const isAdminUser = user?.role === 'ADMIN';
+  const effectiveAccessRoleFilter = isAdminUser ? 'ALL' : accessRoleFilter;
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
 
   useEffect(() => {
@@ -419,6 +419,7 @@ export default function FieldsPage({
     };
   }, [backendHealthy, refreshKey]);
 
+
   const fieldSummaries = useMemo(
     () => buildFieldWorkspaceSummaries(fields, history),
     [fields, history]
@@ -455,11 +456,11 @@ export default function FieldsPage({
       .filter((item) => matchesTab(item, activeTab))
       .filter((item) => matchesSearch(item, normalizedSearchQuery))
       .filter((item) => matchesRisk(item, riskFilter))
-      .filter((item) => matchesAccessRole(item, accessRoleFilter))
+      .filter((item) => matchesAccessRole(item, effectiveAccessRoleFilter))
       .sort((left, right) => compareBySort(left, right, sortBy))
   ), [
     activeTab,
-    accessRoleFilter,
+    effectiveAccessRoleFilter,
     fieldItems,
     normalizedSearchQuery,
     riskFilter,
@@ -576,22 +577,24 @@ export default function FieldsPage({
               </select>
             </FilterField>
 
-            <FilterField label="Access role">
-              <select
-                value={accessRoleFilter}
-                onChange={(event) => {
-                  setAccessRoleFilter(event.target.value);
-                  setCurrentPage(1);
-                }}
-                style={controlInputStyle}
-              >
-                {ACCESS_ROLE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </FilterField>
+            {!isAdminUser ? (
+              <FilterField label="Access role">
+                <select
+                  value={accessRoleFilter}
+                  onChange={(event) => {
+                    setAccessRoleFilter(event.target.value);
+                    setCurrentPage(1);
+                  }}
+                  style={controlInputStyle}
+                >
+                  {ACCESS_ROLE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </FilterField>
+            ) : null}
 
             <FilterField label="Sort by">
               <select
