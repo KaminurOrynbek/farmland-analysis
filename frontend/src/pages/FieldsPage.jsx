@@ -10,10 +10,16 @@ import {
   sortAnalysesByNewest
 } from '../utils/fieldAnalysisUtils';
 
-const FIELD_TABS = [
+const DEFAULT_FIELD_TABS = [
   { id: 'all', label: 'All Fields' },
   { id: 'owned', label: 'Owned by me' },
   { id: 'shared', label: 'Shared with me' }
+];
+
+const AGRONOMIST_FIELD_TABS = [
+  { id: 'all', label: 'Assigned Fields' },
+  { id: 'attention', label: 'Needs attention' },
+  { id: 'recent', label: 'Recent analyses' }
 ];
 
 const RISK_OPTIONS = [
@@ -111,7 +117,19 @@ const isFieldOwnedByUser = (field, user) => {
   return field?.role === 'OWNER';
 };
 
-const matchesTab = (item, activeTab) => {
+const matchesTab = (item, activeTab, isAgronomistUser) => {
+  if (isAgronomistUser) {
+    if (activeTab === 'attention') {
+      return item.latestRiskLabel === 'High' || item.latestRiskLabel === 'Medium';
+    }
+
+    if (activeTab === 'recent') {
+      return Boolean(item.latestOverallAnalysis);
+    }
+
+    return true;
+  }
+
   if (activeTab === 'owned') {
     return item.isOwned;
   }
@@ -265,15 +283,15 @@ function FieldRow({ item, onOpenWorkspace, onViewResult }) {
     <article
       className="fields-directory-table-row"
       style={{
-        ...tableGridStyle,
-        ...fieldRowStyle,
-        borderLeft: `3px solid ${getRiskAccentColor(item.latestRiskLabel)}`
+       ...tableGridStyle,
+       ...fieldRowStyle,
+       borderLeft: `3px solid ${getRiskAccentColor(item.latestRiskLabel)}`
       }}
     >
       <TableCell label="Field" className="fields-directory-field-cell">
         <div style={fieldIdentityStackStyle}>
           <strong style={fieldTitleStyle}>{getFieldName(item.field)}</strong>
-          {shouldShowAccessRoleBadge(item.accessRole) ? (
+          {!item.isAgronomistUser && shouldShowAccessRoleBadge(item.accessRole) ? (            
             <span style={accessRoleBadgeStyle}>{item.accessRoleLabel}</span>
           ) : null}
         </div>
@@ -325,6 +343,7 @@ function FieldRow({ item, onOpenWorkspace, onViewResult }) {
           >
             Workspace
           </button>
+
           <button
             type="button"
             className={hasLatestAnalysis
@@ -335,7 +354,7 @@ function FieldRow({ item, onOpenWorkspace, onViewResult }) {
             title={hasLatestAnalysis ? undefined : 'No result'}
             style={compactButtonStyle}
           >
-            {hasLatestAnalysis ? 'Results' : 'No result'}
+            {hasLatestAnalysis ? 'View Results' : 'No result'}
           </button>
         </div>
       </TableCell>
@@ -365,7 +384,14 @@ export default function FieldsPage({
 
   const canCreateField = user?.role === 'ADMIN' || user?.role === 'FARMER';
   const isAdminUser = user?.role === 'ADMIN';
-  const effectiveAccessRoleFilter = isAdminUser ? 'ALL' : accessRoleFilter;
+  const isAgronomistUser = user?.role === 'AGRONOMIST';
+
+  const fieldTabs = isAgronomistUser ? AGRONOMIST_FIELD_TABS : DEFAULT_FIELD_TABS;
+
+
+  const effectiveAccessRoleFilter =
+    isAdminUser || isAgronomistUser ? 'ALL' : accessRoleFilter;
+
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
 
   useEffect(() => {
@@ -434,6 +460,7 @@ export default function FieldsPage({
 
       return {
         ...summary,
+        isAgronomistUser,
         isOwned: isFieldOwnedByUser(summary.field, user),
         latestAnalysisDate: getLatestAnalysisDate(summary),
         latestRiskLabel: getLatestRiskLabel(summary),
@@ -443,17 +470,29 @@ export default function FieldsPage({
         ownerDisplay
       };
     })
-  ), [fieldSummaries, user]);
+  ), [fieldSummaries, user, isAgronomistUser]);
 
-  const tabCounts = useMemo(() => ({
-    all: fieldItems.length,
-    owned: fieldItems.filter((item) => item.isOwned).length,
-    shared: fieldItems.filter((item) => !item.isOwned).length
-  }), [fieldItems]);
+  const tabCounts = useMemo(() => {
+    if (isAgronomistUser) {
+      return {
+        all: fieldItems.length,
+        attention: fieldItems.filter(
+          (item) => item.latestRiskLabel === 'High' || item.latestRiskLabel === 'Medium'
+        ).length,
+        recent: fieldItems.filter((item) => Boolean(item.latestOverallAnalysis)).length
+      };
+    }
+
+    return {
+      all: fieldItems.length,
+      owned: fieldItems.filter((item) => item.isOwned).length,
+      shared: fieldItems.filter((item) => !item.isOwned).length
+    };
+  }, [fieldItems, isAgronomistUser]);
 
   const visibleFieldItems = useMemo(() => (
     fieldItems
-      .filter((item) => matchesTab(item, activeTab))
+      .filter((item) => isAgronomistUser ? true : matchesTab(item, activeTab, false))
       .filter((item) => matchesSearch(item, normalizedSearchQuery))
       .filter((item) => matchesRisk(item, riskFilter))
       .filter((item) => matchesAccessRole(item, effectiveAccessRoleFilter))
@@ -462,6 +501,7 @@ export default function FieldsPage({
     activeTab,
     effectiveAccessRoleFilter,
     fieldItems,
+    isAgronomistUser,
     normalizedSearchQuery,
     riskFilter,
     sortBy
@@ -507,10 +547,16 @@ export default function FieldsPage({
       <div className="fields-page">
         <section className="page-hero glass-panel">
           <div>
-            <div className="page-kicker">FIELD INVENTORY</div>
-            <h1 className="page-title">Your fields</h1>
+            <div className="page-kicker">
+              {isAgronomistUser ? 'FIELD REVIEW' : 'FIELD INVENTORY'}
+            </div>
+            <h1 className="page-title">
+              {isAgronomistUser ? 'Assigned fields' : 'Your fields'}
+            </h1>
             <p className="page-subtitle">
-              Review saved parcels, latest analysis status, and open the next action.
+              {isAgronomistUser
+                ? 'Review assigned parcels, crop condition, and latest analysis results.'
+                : 'Review saved parcels, latest analysis status, and open the next action.'}
             </p>
           </div>
 
@@ -531,20 +577,22 @@ export default function FieldsPage({
         ) : null}
 
         <section className="glass-panel" style={toolbarPanelStyle}>
-          <div style={tabsRowStyle}>
-            {FIELD_TABS.map((tab) => (
-              <TabButton
-                key={tab.id}
-                item={tab}
-                count={tabCounts[tab.id] || 0}
-                isActive={activeTab === tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  setCurrentPage(1);
-                }}
-              />
-            ))}
-          </div>
+          {!isAgronomistUser ? (
+            <div style={tabsRowStyle}>
+              {fieldTabs.map((tab) => (
+                <TabButton
+                  key={tab.id}
+                  item={tab}
+                  count={tabCounts[tab.id] || 0}
+                  isActive={activeTab === tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setCurrentPage(1);
+                  }}
+                />
+              ))}
+            </div>
+          ) : null}
 
           <div style={filtersGridStyle}>
             <FilterField label="Search">
@@ -577,7 +625,7 @@ export default function FieldsPage({
               </select>
             </FilterField>
 
-            {!isAdminUser ? (
+            {!isAdminUser && !isAgronomistUser ? (
               <FilterField label="Access role">
                 <select
                   value={accessRoleFilter}
@@ -758,6 +806,7 @@ const tableGridStyle = {
   gap: '12px',
   minWidth: 0
 };
+
 
 const tableHeaderRowStyle = {
   padding: '0 18px 4px',
