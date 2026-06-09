@@ -1,20 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  BarChart3,
   ClipboardList,
   RefreshCw,
-  ShieldCheck,
   Trash2,
   UserPlus,
-  Users,
-  Ban,
-  CheckCircle2
 } from 'lucide-react';
 import {
   createAdminUser,
   deleteAdminUser,
   fetchAdminAudit,
-  fetchAdminStats,
   fetchAdminUsers,
   updateAdminUser
 } from '../api/client';
@@ -25,7 +19,6 @@ const TABS = ['Users', 'Audit Logs'];
 export default function AdminPanelPage({ refreshKey }) {
   const [activeTab, setActiveTab] = useState('Users');
   const [users, setUsers] = useState([]);
-  const [stats, setStats] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -38,9 +31,8 @@ export default function AdminPanelPage({ refreshKey }) {
     setIsLoading(true);
     setError('');
 
-    const [usersResult, statsResult, auditResult] = await Promise.allSettled([
+    const [usersResult, auditResult] = await Promise.allSettled([
       fetchAdminUsers(),
-      fetchAdminStats(),
       fetchAdminAudit()
     ]);
 
@@ -53,19 +45,13 @@ export default function AdminPanelPage({ refreshKey }) {
       setRoleDrafts({});
     }
 
-    if (statsResult.status === 'fulfilled') {
-      setStats(statsResult.value);
-    } else {
-      setStats(null);
-    }
-
     if (auditResult.status === 'fulfilled') {
       setAuditLogs(Array.isArray(auditResult.value) ? auditResult.value : []);
     } else {
       setAuditLogs([]);
     }
 
-    const firstRejected = [usersResult, statsResult, auditResult].find(
+    const firstRejected = [usersResult, auditResult].find(
       (result) => result.status === 'rejected'
     );
 
@@ -103,25 +89,7 @@ export default function AdminPanelPage({ refreshKey }) {
     }
   };
 
-  const handleToggleBlocked = async (user) => {
-    setSavingUserId(user.id);
-    setError('');
-
-    try {
-      await updateAdminUser({
-        userId: user.id,
-        email: user.email,
-        fullName: user.full_name,
-        role: roleDrafts[user.id] || user.role,
-        isActive: !user.is_active
-      });
-      await loadAdminData();
-    } catch (requestError) {
-      setError(requestError.response?.data?.detail || 'Failed to update user status.');
-    } finally {
-      setSavingUserId(null);
-    }
-  };
+  
 
   const handleSaveRole = async (user) => {
     const nextRole = roleDrafts[user.id] || user.role;
@@ -148,36 +116,7 @@ export default function AdminPanelPage({ refreshKey }) {
     }
   };
 
-  const summaryCards = useMemo(() => ([
-    {
-      label: 'Users',
-      value: stats?.summary?.users ?? 0,
-      helper: 'Registered platform accounts',
-      icon: <Users />,
-      tone: 'var(--accent-color)'
-    },
-    {
-      label: 'Fields',
-      value: stats?.summary?.fields ?? 0,
-      helper: 'Saved field records',
-      icon: <ShieldCheck />,
-      tone: 'var(--status-healthy)'
-    },
-    {
-      label: 'Analyses',
-      value: stats?.summary?.analyses ?? 0,
-      helper: 'Analysis jobs tracked by the backend',
-      icon: <BarChart3 />,
-      tone: '#8b5cf6'
-    },
-    {
-      label: 'Blocked Users',
-      value: stats?.summary?.blocked_users ?? 0,
-      helper: 'Accounts currently disabled',
-      icon: <Ban />,
-      tone: 'var(--status-warning)'
-    }
-  ]), [stats]);
+  
 
   return (
     <div className="content-page">
@@ -188,7 +127,7 @@ export default function AdminPanelPage({ refreshKey }) {
             Platform Operations
           </h1>
           <p className="page-subtitle">
-            Manage user accounts and review audit history from one professional admin panel.
+            Manage user accounts, assign roles, and review administrative activity.
           </p>
         </div>
 
@@ -214,19 +153,6 @@ export default function AdminPanelPage({ refreshKey }) {
           {error}
         </div>
       )}
-
-      <section className="metric-grid">
-        {summaryCards.map((card) => (
-          <div key={card.label} className="metric-card glass-panel">
-            <div className="metric-card-top">
-              <span className="metric-label">{card.label}</span>
-              {React.cloneElement(card.icon, { size: 18, color: card.tone })}
-            </div>
-            <div className="metric-value">{isLoading ? '...' : card.value}</div>
-            <div className="metric-helper">{card.helper}</div>
-          </div>
-        ))}
-      </section>
 
       <section className="section-card glass-panel">
         <div className="section-card-header">
@@ -281,7 +207,6 @@ export default function AdminPanelPage({ refreshKey }) {
                   <th style={thStyle}>User</th>
                   <th style={thStyle}>Email</th>
                   <th style={thStyle}>Role</th>
-                  <th style={thStyle}>Status</th>
                   <th style={thStyle}>Created</th>
                   <th style={thStyle}>Actions</th>
                 </tr>
@@ -343,27 +268,11 @@ export default function AdminPanelPage({ refreshKey }) {
                       </td>
 
                       <td style={tdStyle}>
-                        <span className={`status-pill ${user.is_active ? 'healthy' : 'warning'}`}>
-                          {user.is_active ? 'Active' : 'Blocked'}
-                        </span>
-                      </td>
-
-                      <td style={tdStyle}>
                         {user.created_at ? new Date(user.created_at).toLocaleDateString() : '—'}
                       </td>
 
                       <td style={tdStyle}>
                         <div style={actionsCellStyle}>
-                          <button
-                            type="button"
-                            className="secondary-btn"
-                            onClick={() => void handleToggleBlocked(user)}
-                            disabled={isSaving}
-                            style={compactActionButtonStyle}
-                          >
-                            {user.is_active ? <Ban size={15} /> : <CheckCircle2 size={15} />}
-                            {user.is_active ? 'Block' : 'Unblock'}
-                          </button>
 
                           <button
                             type="button"
@@ -386,7 +295,7 @@ export default function AdminPanelPage({ refreshKey }) {
 
                 {!isLoading && users.length === 0 && (
                   <tr>
-                    <td colSpan="6" style={emptyStyle}>
+                    <td colSpan="5" style={emptyStyle}>
                       No users found.
                     </td>
                   </tr>
@@ -486,6 +395,11 @@ function CreateUserModal({ onClose, onCreated, setError }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    if (saving) {
+      return;
+    }
+
     setSaving(true);
     setError('');
 
@@ -507,7 +421,7 @@ function CreateUserModal({ onClose, onCreated, setError }) {
 
   return (
     <div style={modalOverlayStyle}>
-      <form className="glass-panel" style={modalStyle} onSubmit={handleSubmit}>
+      <form className="glass-panel" style={modalStyle} onSubmit={saving ? undefined : handleSubmit}>
         <h2 style={{ marginBottom: '16px' }}>Create User</h2>
 
         <label style={labelStyle}>Full name</label>
