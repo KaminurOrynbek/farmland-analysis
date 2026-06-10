@@ -1,5 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BrainCircuit, CalendarClock, Download, Info, MapPinned } from 'lucide-react';
+import {
+  Activity,
+  BrainCircuit,
+  CalendarClock,
+  Download,
+  Info,
+  Layers3,
+  Leaf,
+  MapPinned,
+  ShieldCheck
+} from 'lucide-react';
 import { fetchAnalysisHistory } from '../api/client';
 import FieldMap from '../components/workspace/FieldMap';
 import NoAnalysisState from '../components/workspace/NoAnalysisState';
@@ -114,15 +124,6 @@ const getInspectionPrioritySummary = ({
   };
 };
 
-function ResultHeroMetric({ label, value, children }) {
-  return (
-    <div className="analysis-results-metric">
-      <span>{label}</span>
-      {children || <strong>{value}</strong>}
-    </div>
-  );
-}
-
 function TechnicalDetail({ label, value, helper }) {
   return (
     <div className="analysis-results-technical-item">
@@ -130,6 +131,33 @@ function TechnicalDetail({ label, value, helper }) {
       <strong>{value}</strong>
       {helper ? <p>{helper}</p> : null}
     </div>
+  );
+}
+
+function ResultHighlightCard({
+  icon,
+  label,
+  value,
+  helper,
+  tone = 'neutral',
+  badge = null
+}) {
+  return (
+    <article className={`analysis-results-highlight-card tone-${tone}`}>
+      <div className="analysis-results-highlight-head">
+        <span className={`analysis-results-highlight-icon tone-${tone}`}>
+          {icon}
+        </span>
+        <span className="analysis-results-highlight-label">{label}</span>
+      </div>
+
+      <div className="analysis-results-highlight-main">
+        <strong>{value}</strong>
+        {badge ? <span className={`status-pill ${tone}`}>{badge}</span> : null}
+      </div>
+
+      <p>{helper}</p>
+    </article>
   );
 }
 
@@ -290,7 +318,11 @@ export default function AnalysisResultsPage({
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const selectedFieldId = getFieldSelectionId(selectedField);
   const selectedFieldName = getFieldSelectionName(selectedField);
-  const selectedSeasonLabel = String(selectedSeason || getCurrentSeasonYear());
+  const selectedSeasonLabel = useMemo(() => (
+    typeof selectedSeason === 'object' && selectedSeason !== null
+      ? String(selectedSeason.seasonYear || getCurrentSeasonYear())
+      : String(selectedSeason || getCurrentSeasonYear())
+  ), [selectedSeason]);
 
   const fieldRecord = useMemo(
     () => createFieldFallbackRecord(selectedField, selectedFieldId),
@@ -414,6 +446,25 @@ export default function AnalysisResultsPage({
   });
   const ndviDisplay = getVegetationIndexLevelDisplay('ndvi', activeReport?.ndviValue);
   const eviDisplay = getVegetationIndexLevelDisplay('evi', activeReport?.eviValue);
+  const confidenceTone = useMemo(() => {
+    const numeric = Number(activeReport?.confidence);
+
+    if (!Number.isFinite(numeric)) {
+      return 'neutral';
+    }
+
+    const percentage = numeric <= 1 ? numeric * 100 : numeric;
+
+    if (percentage >= 75) {
+      return 'healthy';
+    }
+
+    if (percentage >= 55) {
+      return 'warning';
+    }
+
+    return 'critical';
+  }, [activeReport?.confidence]);
 
   const analysisGeoJsonData = useMemo(() => (
     geoJsonData?.features?.length
@@ -453,6 +504,46 @@ export default function AnalysisResultsPage({
     return `${previousSeasonRuns.length} previous run${previousSeasonRuns.length === 1 ? '' : 's'} stored for Season ${selectedSeasonLabel}.`;
   }, [activeReport, loadingHistory, previousSeasonRuns.length, selectedSeasonLabel]);
   const reportToDownload = activeReport || contextReport || null;
+  const technicalDetails = useMemo(() => {
+    if (!activeReport) {
+      return [];
+    }
+
+    return [
+      {
+        label: 'Model workflow',
+        value: 'ResNet-50-assisted',
+        helper: 'Classification support used for the land-cover result.'
+      },
+      activeReport?.satelliteSource
+        ? {
+            label: 'Satellite source',
+            value: activeReport.satelliteSource
+          }
+        : null,
+      activeReport?.cloudCoverage !== null && activeReport?.cloudCoverage !== undefined
+        ? {
+            label: 'Cloud coverage',
+            value: `${activeReport.cloudCoverage}%`
+          }
+        : null,
+      activeReport?.qualityFlags?.length
+        ? {
+            label: 'Quality flags',
+            value: activeReport.qualityFlags.join(', '),
+            helper: 'Processing flags returned with this run.'
+          }
+        : null
+    ].filter(Boolean);
+  }, [activeReport]);
+
+  const handleSeasonChange = (nextSeason) => {
+    const normalizedSeason = typeof nextSeason === 'object' && nextSeason !== null
+      ? String(nextSeason.seasonYear || getCurrentSeasonYear())
+      : String(nextSeason || getCurrentSeasonYear());
+
+    onChangeSeason?.(normalizedSeason);
+  };
 
   const handleDownloadPdf = async () => {
     if (!reportToDownload) {
@@ -526,19 +617,26 @@ export default function AnalysisResultsPage({
           <div className="page-kicker">Land health report</div>
           <h1 className="page-title">{displayFieldName}</h1>
           <p className="page-subtitle">Satellite-based summary for the selected parcel.</p>
+
+          <div className="analysis-results-meta-strip">
+            <div className="analysis-results-meta-pill">
+              <span>Season</span>
+              <strong>{selectedSeasonLabel}</strong>
+            </div>
+
+            <div className="analysis-results-meta-pill">
+              <span>Area</span>
+              <strong>{fieldArea}</strong>
+            </div>
+
+            <div className="analysis-results-meta-pill">
+              <span>Latest run</span>
+              <strong>{latestRunLabel}</strong>
+            </div>
+          </div>
         </div>
 
         <div className="analysis-results-hero-side">
-          <div className="analysis-results-metrics">
-            <ResultHeroMetric label="Area" value={fieldArea} />
-            <ResultHeroMetric label="Analysis period" value={`Season ${selectedSeasonLabel}`} />
-            <ResultHeroMetric label="Inspection priority">
-              <span className={`status-pill ${inspectionSummary.tone}`}>
-                {inspectionSummary.priorityLabel}
-              </span>
-            </ResultHeroMetric>
-          </div>
-
           <div className="page-hero-actions">
             <button
               type="button"
@@ -562,26 +660,22 @@ export default function AnalysisResultsPage({
               Run new analysis
             </button>
           </div>
+
+          <div className={`analysis-results-priority-card tone-${inspectionSummary.tone}`}>
+            <div className="analysis-results-priority-head">
+              <span className="analysis-results-card-kicker">Inspection priority</span>
+              <span className={`status-pill ${inspectionSummary.tone}`}>
+                {inspectionSummary.priorityLabel}
+              </span>
+            </div>
+
+            <h2>{inspectionSummary.headline}</h2>
+            <p>{inspectionSummary.reason}</p>
+          </div>
         </div>
       </section>
 
       {notice ? <div className="workspace-notice-banner">{notice}</div> : null}
-
-      <section className={`analysis-results-action-card glass-panel tone-${inspectionSummary.tone}`}>
-        <div className="analysis-results-action-copy">
-          <span className="analysis-results-card-kicker">Recommended action</span>
-          <h2>{inspectionSummary.headline}</h2>
-          <p>{inspectionSummary.reason}</p>
-          <span className={`analysis-results-action-badge ${inspectionSummary.tone}`}>
-            {inspectionSummary.badge}
-          </span>
-        </div>
-
-        <div className="analysis-results-note">
-          <Info size={16} />
-          <span>{ANALYSIS_LIMITATION_NOTE}</span>
-        </div>
-      </section>
 
       <section className="analysis-results-main-grid">
         <div className="analysis-results-map-panel glass-panel">
@@ -619,57 +713,106 @@ export default function AnalysisResultsPage({
           </div>
         </div>
 
-        <aside className="analysis-results-context-panel glass-panel">
-          <div className="workspace-section-heading">
-            <div className="workspace-section-icon">
-              <CalendarClock size={16} />
-            </div>
-            <div>
-              <strong style={{ fontSize: '1rem' }}>Analysis context</strong>
-              <p className="workspace-helper-text">
-                Choose a monitoring season and review the latest available run details.
-              </p>
-            </div>
-          </div>
-
-          <MonitoringSeasonSelector
-            value={selectedSeasonLabel}
-            onChange={onChangeSeason}
-            options={seasonOptions}
-            label="Analysis period"
-            helperText="Choose the current or previous monitoring season."
-          />
-
-          {showingLatestContextFallback ? (
-            <div className="analysis-results-context-banner">
-              {`No result for Season ${selectedSeasonLabel}. Context below is from the latest available run in Season ${contextReport?.seasonYear}.`}
-            </div>
-          ) : null}
-
-          <div className="analysis-results-context-list">
-            <div className="analysis-results-context-row">
-              <span>Latest run</span>
-              <strong>{latestRunLabel}</strong>
+        <div className="analysis-results-side-stack">
+          <aside className="analysis-results-context-panel glass-panel">
+            <div className="workspace-section-heading">
+              <div className="workspace-section-icon">
+                <CalendarClock size={16} />
+              </div>
+              <div>
+                <strong style={{ fontSize: '1rem' }}>Analysis context</strong>
+                <p className="workspace-helper-text">
+                  Review the selected season and the stored run details.
+                </p>
+              </div>
             </div>
 
-            <div className="analysis-results-context-row">
-              <span>Satellite image date</span>
-              <strong>{satelliteDateLabel}</strong>
+            <div className="analysis-results-season-switcher">
+              <span className="analysis-results-inline-label">Season</span>
+              <MonitoringSeasonSelector
+                value={selectedSeasonLabel}
+                onChange={handleSeasonChange}
+                options={seasonOptions}
+                compact
+                label=""
+              />
             </div>
 
-            <div className="analysis-results-context-row">
-              <span>Land-cover class</span>
-              <strong>{contextReport?.predictedClass || 'Not available'}</strong>
+            {showingLatestContextFallback ? (
+              <div className="analysis-results-context-banner">
+                {`No result for Season ${selectedSeasonLabel}. Context below is from the latest available run in Season ${contextReport?.seasonYear}.`}
+              </div>
+            ) : null}
+
+            <div className="analysis-results-context-list">
+              <div className="analysis-results-context-row">
+                <span>Satellite image date</span>
+                <strong>{satelliteDateLabel}</strong>
+              </div>
+
+              <div className="analysis-results-context-row">
+                <span>Land-cover class</span>
+                <strong>{contextReport?.predictedClass || 'Not available'}</strong>
+              </div>
+
+              <div className="analysis-results-context-row">
+                <span>Confidence</span>
+                <strong>{contextReport?.confidenceLabel || '—'}</strong>
+              </div>
             </div>
 
-            <div className="analysis-results-context-row">
-              <span>Confidence</span>
-              <strong>{contextReport?.confidenceLabel || '—'}</strong>
-            </div>
-          </div>
+            <div className="analysis-results-context-banner">{previousRunsMessage}</div>
+          </aside>
 
-          <div className="analysis-results-context-banner">{previousRunsMessage}</div>
-        </aside>
+          <section className={`analysis-results-action-card glass-panel tone-${inspectionSummary.tone}`}>
+            <div className="analysis-results-action-copy">
+              <span className="analysis-results-card-kicker">Recommended action</span>
+              <h2>{inspectionSummary.headline}</h2>
+              <p>{inspectionSummary.reason}</p>
+              <span className={`analysis-results-action-badge ${inspectionSummary.tone}`}>
+                {inspectionSummary.badge}
+              </span>
+            </div>
+
+            <div className="analysis-results-note">
+              <Info size={16} />
+              <span>{ANALYSIS_LIMITATION_NOTE}</span>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section className="analysis-results-highlights">
+        <ResultHighlightCard
+          icon={<Leaf size={16} />}
+          label="NDVI"
+          value={formatIndex(activeReport?.ndviValue)}
+          helper={ndviDisplay.helper}
+          tone={ndviDisplay.tone}
+          badge={ndviDisplay.value}
+        />
+        <ResultHighlightCard
+          icon={<Activity size={16} />}
+          label="EVI"
+          value={formatIndex(activeReport?.eviValue)}
+          helper={eviDisplay.helper}
+          tone={eviDisplay.tone}
+          badge={eviDisplay.value}
+        />
+        <ResultHighlightCard
+          icon={<Layers3 size={16} />}
+          label="Land-cover class"
+          value={contextReport?.predictedClass || 'Not available'}
+          helper="Latest model-assisted class estimate for the selected run."
+          tone="neutral"
+        />
+        <ResultHighlightCard
+          icon={<ShieldCheck size={16} />}
+          label="Confidence"
+          value={contextReport?.confidenceLabel || '—'}
+          helper="Model confidence for the selected land-cover classification."
+          tone={confidenceTone}
+        />
       </section>
 
       <section className="analysis-results-technical glass-panel">
@@ -678,54 +821,27 @@ export default function AnalysisResultsPage({
             <BrainCircuit size={16} />
           </div>
           <div>
-            <strong style={{ fontSize: '1rem' }}>Technical details</strong>
+            <strong style={{ fontSize: '1rem' }}>Run details</strong>
             <p className="workspace-helper-text">
-              Concise values from the selected analysis period.
+              Supporting metadata from the selected analysis run.
             </p>
           </div>
         </div>
 
-        {activeReport ? (
+        {technicalDetails.length ? (
           <div className="analysis-results-technical-grid">
-            <TechnicalDetail
-              label="Vegetation greenness (NDVI)"
-              value={formatIndex(activeReport.ndviValue)}
-              helper={ndviDisplay.value}
-            />
-            <TechnicalDetail
-              label="Vegetation vigor (EVI)"
-              value={formatIndex(activeReport.eviValue)}
-              helper={eviDisplay.value}
-            />
-            <TechnicalDetail label="Land-cover workflow" value="ResNet-50-assisted" />
-            <TechnicalDetail
-              label="EuroSAT class"
-              value={activeReport.euroSatClass || activeReport.predictedClass || 'Not available'}
-            />
-            <TechnicalDetail
-              label="Model confidence"
-              value={activeReport.confidenceLabel || '—'}
-            />
-            <TechnicalDetail
-              label="Satellite source"
-              value={activeReport.satelliteSource || 'Not available'}
-            />
-            <TechnicalDetail
-              label="Cloud coverage"
-              value={
-                activeReport.cloudCoverage === null
-                  ? 'Unknown'
-                  : `${activeReport.cloudCoverage}%`
-              }
-            />
-            <TechnicalDetail
-              label="Quality flags"
-              value={activeReport.qualityFlags?.length ? activeReport.qualityFlags.join(', ') : 'None'}
-            />
+            {technicalDetails.map((item) => (
+              <TechnicalDetail
+                key={item.label}
+                label={item.label}
+                value={item.value}
+                helper={item.helper}
+              />
+            ))}
           </div>
         ) : (
           <div className="analysis-results-empty-card">
-            No technical details are available for Season {selectedSeasonLabel}.
+            No additional run metadata is available for Season {selectedSeasonLabel}.
           </div>
         )}
       </section>
