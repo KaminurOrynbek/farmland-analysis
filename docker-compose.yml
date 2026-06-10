@@ -34,7 +34,7 @@ services:
       - "6379:6379"
 
   minio:
-    image: minio/minio
+    image: minio/minio:latest
     container_name: farmland_minio
     restart: unless-stopped
     ports:
@@ -46,18 +46,24 @@ services:
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   minio-init:
-    image: minio/mc
+    image: quay.io/minio/mc:latest
     container_name: farmland_minio_init
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-      /usr/bin/mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-admin} ${MINIO_ROOT_PASSWORD:-minioadmin};
-      /usr/bin/mc mb --ignore-existing local/satellite-data;
-      /usr/bin/mc mb --ignore-existing local/analysis-results;
-      /usr/bin/mc anonymous set public local/analysis-results;
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-admin} ${MINIO_ROOT_PASSWORD:-minioadmin};
+      mc mb --ignore-existing local/satellite-data;
+      mc mb --ignore-existing local/analysis-results;
+      mc anonymous set public local/analysis-results;
       exit 0;
       "
 
@@ -81,6 +87,8 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-0000}@db:5432/${POSTGRES_DB:-farmland_db}
       REDIS_URL: redis://redis:6379/0
       EE_CREDENTIALS_PATH: /app/gee_service_account.json
+      EE_SERVICE_ACCOUNT: service-accounts@farmland-499012.iam.gserviceaccount.com
+      EE_PROJECT_ID: farmland-499012
       MINIO_URL: http://minio:9000
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -112,6 +120,8 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-0000}@db:5432/${POSTGRES_DB:-farmland_db}
       REDIS_URL: redis://redis:6379/0
       EE_CREDENTIALS_PATH: /app/gee_service_account.json
+      EE_SERVICE_ACCOUNT: service-accounts@farmland-499012.iam.gserviceaccount.com
+      EE_PROJECT_ID: farmland-499012
       MINIO_URL: http://minio:9000
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -127,7 +137,7 @@ services:
     container_name: farmland_frontend
     restart: unless-stopped
     ports:
-      - "5173:5173"
+      - "5173:80"
     depends_on:
       backend:
         condition: service_started

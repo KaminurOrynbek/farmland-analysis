@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Lock, Mail, UserRound, ShieldCheck } from 'lucide-react';
-import { loginUser, registerUser } from '../api';
+import { loginUser, registerUser } from '../api/client';
+import ThemeToggleButton from '../components/common/ThemeToggleButton.jsx';
+import { APP_PAGES } from '../constants/appPages';
 
 const DEFAULT_LOGIN = {
   email: '',
@@ -16,7 +18,7 @@ const DEFAULT_REGISTER = {
 
 
 
-export default function AuthPage({ onBack, onLogin }) {
+export default function AuthPage({ onBack, onLogin, onRegistered, theme, onToggleTheme }) {
   const [mode, setMode] = useState('login');
   const [loginForm, setLoginForm] = useState(DEFAULT_LOGIN);
   const [registerForm, setRegisterForm] = useState(DEFAULT_REGISTER);
@@ -33,18 +35,9 @@ export default function AuthPage({ onBack, onLogin }) {
     setIsSubmitting(true);
 
     try {
-      await loginUser(loginForm);
 
-      const inferredRole =
-        loginForm.email.includes('admin')
-          ? 'ADMIN'
-          : 'FARMER';
+      const user = await loginUser(loginForm);
 
-      const user = {
-        name: loginForm.email.split('@')[0],
-        email: loginForm.email,
-        role: inferredRole
-      };
 
       onLogin(user);
     } catch (err) {
@@ -63,6 +56,7 @@ export default function AuthPage({ onBack, onLogin }) {
     try {
       const createdUser = await registerUser(registerForm);
 
+      onRegistered?.(createdUser);
       setSuccess('Account created successfully. You can now sign in.');
       setMode('login');
       setLoginForm({
@@ -80,10 +74,14 @@ export default function AuthPage({ onBack, onLogin }) {
   return (
     <main className="auth-page">
       <div className="auth-shell">
-        <button type="button" className="auth-back" onClick={onBack}>
-          <ArrowLeft size={18} />
-          Back to Landing
-        </button>
+        <div className="auth-shell-header">
+          <button type="button" className="auth-back" onClick={onBack}>
+            <ArrowLeft size={18} />
+            Back to Landing
+          </button>
+
+          <ThemeToggleButton theme={theme} onToggle={onToggleTheme} />
+        </div>
 
         <section className="auth-layout">
           <div className="auth-card glass-panel">
@@ -95,7 +93,7 @@ export default function AuthPage({ onBack, onLogin }) {
             <h1 className="auth-title">{isLogin ? 'Welcome back' : 'Create your account'}</h1>
             <p className="auth-subtitle">
               {isLogin
-                ? 'Sign in to access your farmland monitoring dashboard, workspace map, and analysis reports.'
+                ? 'Sign in to access your fields, workspace, and analysis results.'
                 : 'Create an account to save fields, run analysis, and manage your farmland monitoring history.'}
             </p>
 
@@ -263,18 +261,18 @@ export default function AuthPage({ onBack, onLogin }) {
 
             <div className="auth-info-list">
               <div className="auth-info-item">
-                <span className="auth-info-kicker">Home Dashboard</span>
+                <span className="auth-info-kicker">{APP_PAGES.FIELDS}</span>
                 <p>Track saved fields, recent analyses, and key vegetation metrics at a glance.</p>
               </div>
 
               <div className="auth-info-item">
-                <span className="auth-info-kicker">Workspace Map</span>
+                <span className="auth-info-kicker">{APP_PAGES.WORKSPACE}</span>
                 <p>Upload boundaries, draw parcels, prepare imagery, and run field analysis.</p>
               </div>
 
               <div className="auth-info-item">
-                <span className="auth-info-kicker">AI Reports</span>
-                <p>Review field health, crop classification, stress zones, and risk interpretation.</p>
+                <span className="auth-info-kicker">{APP_PAGES.ANALYSIS_RESULTS}</span>
+                <p>Review field condition, land-cover classification, vegetation indicators, and screening priority.</p>
               </div>
             </div>
           </div>

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
+from datetime import date
 import uuid
 
 from backend.infrastructure.database.database import get_db
@@ -14,6 +15,9 @@ router = APIRouter()
 class CreateFieldRequest(BaseModel):
     name: Optional[str] = "Unnamed Field"
     geometry: Dict[str, Any]
+    crop_type: Optional[str] = None
+    planting_date: Optional[date] = None
+    season_year: Optional[int] = None
 
 class ShareFieldRequest(BaseModel):
     field_id: uuid.UUID
@@ -34,7 +38,10 @@ def save_field_boundary(
         field_data = service.create_field(
             user=current_user,
             name=request.name,
-            geometry=request.geometry
+            geometry=request.geometry,
+            crop_type=request.crop_type,
+            planting_date=request.planting_date,
+            season_year=request.season_year
         )
         
         return {
@@ -98,8 +105,9 @@ def get_field_team(
 def revoke_field_access(
     field_id: uuid.UUID,
     user_id: uuid.UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """ Revokes access from a user (Owners only) """
     service = FieldService(db)
-    return service.revoke_access(field_id, user_id)
+    return service.revoke_access(field_id, user_id, current_user.id)

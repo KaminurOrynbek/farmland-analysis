@@ -1,0 +1,539 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { BrainCircuit, CalendarClock, Info, MapPinned } from 'lucide-react';
+import { fetchAnalysisHistory } from '../api/client';
+import FieldMap from '../components/workspace/FieldMap';
+import NoAnalysisState from '../components/workspace/NoAnalysisState';
+import MonitoringSeasonSelector from '../components/workspace/MonitoringSeasonSelector';
+import { APP_PAGES } from '../constants/appPages';
+import { formatAreaMeasure, formatIndex } from '../utils/analysisFormatters';
+import {
+  ANALYSIS_LIMITATION_NOTE,
+  buildSeasonOptions,
+  createFieldFallbackRecord,
+  filterAnalysesBySeason,
+  formatWorkspaceDate,
+  formatWorkspaceDateTime,
+  getCurrentSeasonYear,
+  getFieldSelectionId,
+  getFieldSelectionName,
+  getVegetationIndexLevelDisplay,
+  normalizeAnalysisRecord,
+  sortAnalysesByNewest
+} from '../utils/fieldAnalysisUtils';
+
+const buildGeoJsonFromSelection = (selectedField, fieldId, fieldName) => {
+  if (!selectedField?.geometry) {
+    return null;
+  }
+
+  return {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: {
+          ...selectedField.properties,
+          id: fieldId,
+          field_id: fieldId,
+          name: fieldName
+        },
+        geometry: selectedField.geometry
+      }
+    ]
+  };
+};
+
+const hasMeaningfulAnalysis = (analysis) => (
+  Boolean(
+    analysis?.analysisId ||
+    analysis?.predictedClass ||
+    analysis?.riskLevel ||
+    analysis?.ndviValue !== null && analysis?.ndviValue !== undefined ||
+    analysis?.eviValue !== null && analysis?.eviValue !== undefined
+  )
+);
+
+const getInspectionPrioritySummary = ({
+  riskLevel,
+  selectedSeason,
+  fallbackSeason
+}) => {
+  if (riskLevel === 'Low') {
+    return {
+      tone: 'healthy',
+      priorityLabel: 'Low inspection priority',
+      headline: 'The field looks stable',
+      reason: 'The latest satellite image shows steady vegetation signals for this field.',
+      badge: 'Continue routine monitoring'
+    };
+  }
+
+  if (riskLevel === 'Medium') {
+    return {
+      tone: 'warning',
+      priorityLabel: 'Medium inspection priority',
+      headline: 'Check the field when convenient',
+      reason: 'The latest satellite image shows mixed vegetation signals that are worth checking on your next visit.',
+      badge: 'Check during next field visit'
+    };
+  }
+
+  if (riskLevel === 'High') {
+    return {
+      tone: 'critical',
+      priorityLabel: 'High inspection priority',
+      headline: 'Inspect this field soon',
+      reason: 'The latest satellite image shows weaker vegetation signals than expected for this field.',
+      badge: 'Inspect soon'
+    };
+  }
+
+  if (riskLevel === 'Critical') {
+    return {
+      tone: 'critical',
+      priorityLabel: 'Critical inspection priority',
+      headline: 'Inspect this field urgently',
+      reason: 'The latest satellite image shows very weak or unusual vegetation signals that need urgent attention.',
+      badge: 'Inspect urgently'
+    };
+  }
+
+  const seasonMessage =
+    fallbackSeason && String(fallbackSeason) !== String(selectedSeason)
+      ? `No stored analysis is available for Season ${selectedSeason}. The map keeps the latest available context from Season ${fallbackSeason}.`
+      : `No stored analysis is available for Season ${selectedSeason}.`;
+
+  return {
+    tone: 'neutral',
+    priorityLabel: 'Not analyzed',
+    headline: 'No analysis available for this period',
+    reason: seasonMessage,
+    badge: 'No result for selected period'
+  };
+};
+
+function ResultHeroMetric({ label, value, children }) {
+  return (
+    <div className="analysis-results-metric">
+      <span>{label}</span>
+      {children || <strong>{value}</strong>}
+    </div>
+  );
+}
+
+function TechnicalDetail({ label, value, helper }) {
+  return (
+    <div className="analysis-results-technical-item">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      {helper ? <p>{helper}</p> : null}
+    </div>
+  );
+}
+
+export default function AnalysisResultsPage({
+  user,
+  backendHealthy,
+  analysisResults,
+  selectedField,
+  setSelectedField,
+  geoJsonData,
+  fieldLayerVisible,
+  analysisStarted,
+  latestAnalysisAt,
+  selectedSeason,
+  onChangeSeason,
+  onNavigate,
+  onRunNewAnalysis,
+  refreshKey
+}) {
+  const [history, setHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [notice, setNotice] = useState('');
+
+  const selectedFieldId = getFieldSelectionId(selectedField);
+  const selectedFieldName = getFieldSelectionName(selectedField);
+  const selectedSeasonLabel = String(selectedSeason || getCurrentSeasonYear());
+
+  const fieldRecord = useMemo(
+    () => createFieldFallbackRecord(selectedField, selectedFieldId),
+    [selectedField, selectedFieldId]
+  );
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadHistory = async () => {
+      setLoadingHistory(true);
+
+      try {
+        const response = await fetchAnalysisHistory(
+          selectedFieldId ? { field_id: selectedFieldId } : {}
+        );
+
+        if (!isActive) {
+          return;
+        }
+
+        setHistory(sortAnalysesByNewest((response.data || []).map(normalizeAnalysisRecord)));
+        setNotice('');
+      } catch {
+        if (!isActive) {
+          return;
+        }
+
+        setHistory([]);
+        setNotice(
+          backendHealthy
+            ? 'Field history could not be refreshed. Showing the latest available results context.'
+            : 'Backend is not connected. Stored analysis history is unavailable right now.'
+        );
+      } finally {
+        if (isActive) {
+          setLoadingHistory(false);
+        }
+      }
+    };
+
+    void loadHistory();
+
+    return () => {
+      isActive = false;
+    };
+  }, [backendHealthy, refreshKey, selectedFieldId]);
+
+  const fieldHistory = useMemo(() => {
+    if (!selectedFieldId && !selectedFieldName) {
+      return [];
+    }
+
+    return sortAnalysesByNewest(
+      history.filter((item) => {
+        if (selectedFieldId) {
+          return String(item.fieldId) === String(selectedFieldId);
+        }
+
+        return item.fieldName === selectedFieldName;
+      })
+    );
+  }, [history, selectedFieldId, selectedFieldName]);
+
+  const seasonOptions = useMemo(
+    () => buildSeasonOptions(fieldHistory, false, selectedSeasonLabel),
+    [fieldHistory, selectedSeasonLabel]
+  );
+
+  const seasonHistory = useMemo(
+    () => filterAnalysesBySeason(fieldHistory, selectedSeasonLabel),
+    [fieldHistory, selectedSeasonLabel]
+  );
+
+  const latestSeasonAnalysis = seasonHistory[0] || null;
+  const currentSessionAnalysis = useMemo(() => (
+    analysisStarted
+      ? normalizeAnalysisRecord({
+          ...analysisResults,
+          analysisDate: latestAnalysisAt || analysisResults.analysisDate
+        })
+      : null
+  ), [analysisResults, analysisStarted, latestAnalysisAt]);
+  const latestAvailableReport = hasMeaningfulAnalysis(currentSessionAnalysis)
+    ? currentSessionAnalysis
+    : fieldHistory.find((item) => hasMeaningfulAnalysis(item)) || null;
+
+  const selectedSeasonReport =
+    hasMeaningfulAnalysis(currentSessionAnalysis) &&
+    String(currentSessionAnalysis?.seasonYear) === selectedSeasonLabel
+      ? currentSessionAnalysis
+      : latestSeasonAnalysis;
+
+  const activeReport = selectedSeasonReport;
+  const contextReport = activeReport || latestAvailableReport;
+  const displayFieldName =
+    selectedFieldName !== 'Unnamed Field'
+      ? selectedFieldName
+      : contextReport?.fieldName || selectedFieldName;
+  const previousSeasonRuns = useMemo(() => {
+    if (!activeReport) {
+      return [];
+    }
+
+    if (
+      activeReport.analysisId &&
+      seasonHistory[0]?.analysisId &&
+      String(activeReport.analysisId) === String(seasonHistory[0].analysisId)
+    ) {
+      return seasonHistory.slice(1);
+    }
+
+    return seasonHistory;
+  }, [activeReport, seasonHistory]);
+  const showingLatestContextFallback = !activeReport && Boolean(contextReport);
+
+  const inspectionSummary = getInspectionPrioritySummary({
+    riskLevel: activeReport?.riskLevel,
+    selectedSeason: selectedSeasonLabel,
+    fallbackSeason: contextReport?.seasonYear
+  });
+  const ndviDisplay = getVegetationIndexLevelDisplay('ndvi', activeReport?.ndviValue);
+  const eviDisplay = getVegetationIndexLevelDisplay('evi', activeReport?.eviValue);
+
+  const analysisGeoJsonData = useMemo(() => (
+    geoJsonData?.features?.length
+      ? geoJsonData
+      : buildGeoJsonFromSelection(selectedField, selectedFieldId, selectedFieldName)
+  ), [geoJsonData, selectedField, selectedFieldId, selectedFieldName]);
+
+  const fieldArea = fieldRecord?.area_ha
+    ? formatAreaMeasure(fieldRecord.area_ha)
+    : contextReport?.areaHectares
+      ? formatAreaMeasure(contextReport.areaHectares)
+      : 'Area pending';
+
+  const latestRunLabel = contextReport?.analysisDate
+    ? formatWorkspaceDateTime(contextReport.analysisDate, 'Not available')
+    : 'Not available';
+
+  const satelliteDateLabel = contextReport?.satelliteAcquisitionDate
+    ? formatWorkspaceDate(contextReport.satelliteAcquisitionDate)
+    : contextReport?.startDate && contextReport?.endDate
+      ? `${formatWorkspaceDate(contextReport.startDate)} to ${formatWorkspaceDate(contextReport.endDate)}`
+      : 'Not available';
+
+  const previousRunsMessage = useMemo(() => {
+    if (loadingHistory) {
+      return 'Loading previous runs...';
+    }
+
+    if (!activeReport) {
+      return `No stored runs are available for Season ${selectedSeasonLabel}.`;
+    }
+
+    if (!previousSeasonRuns.length) {
+      return `No previous runs are stored for Season ${selectedSeasonLabel}.`;
+    }
+
+    return `${previousSeasonRuns.length} previous run${previousSeasonRuns.length === 1 ? '' : 's'} stored for Season ${selectedSeasonLabel}.`;
+  }, [activeReport, loadingHistory, previousSeasonRuns.length, selectedSeasonLabel]);
+
+  if (!selectedField && !activeReport) {
+    return (
+      <div className="content-page">
+        <NoAnalysisState
+          title="No analysis available yet"
+          description="Select or save a field in Workspace, then run an analysis to open the land health report."
+          primaryAction={{
+            label: `Open ${APP_PAGES.WORKSPACE}`,
+            onClick: () => onNavigate(APP_PAGES.WORKSPACE)
+          }}
+          secondaryAction={{
+            label: `Open ${APP_PAGES.FIELDS}`,
+            onClick: () => onNavigate(APP_PAGES.FIELDS)
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="content-page analysis-results-page">
+      <section className="analysis-results-hero glass-panel">
+        <div className="analysis-results-hero-copy">
+          <div className="page-kicker">Land health report</div>
+          <h1 className="page-title">{displayFieldName}</h1>
+          <p className="page-subtitle">Satellite-based summary for the selected parcel.</p>
+        </div>
+
+        <div className="analysis-results-hero-side">
+          <div className="analysis-results-metrics">
+            <ResultHeroMetric label="Area" value={fieldArea} />
+            <ResultHeroMetric label="Analysis period" value={`Season ${selectedSeasonLabel}`} />
+            <ResultHeroMetric label="Inspection priority">
+              <span className={`status-pill ${inspectionSummary.tone}`}>
+                {inspectionSummary.priorityLabel}
+              </span>
+            </ResultHeroMetric>
+          </div>
+
+          <div className="page-hero-actions">
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => onNavigate(APP_PAGES.WORKSPACE)}
+            >
+              Open Workspace
+            </button>
+
+            <button type="button" className="primary-btn" onClick={() => onRunNewAnalysis?.()}>
+              Run new analysis
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {notice ? <div className="workspace-notice-banner">{notice}</div> : null}
+
+      <section className={`analysis-results-action-card glass-panel tone-${inspectionSummary.tone}`}>
+        <div className="analysis-results-action-copy">
+          <span className="analysis-results-card-kicker">Recommended action</span>
+          <h2>{inspectionSummary.headline}</h2>
+          <p>{inspectionSummary.reason}</p>
+          <span className={`analysis-results-action-badge ${inspectionSummary.tone}`}>
+            {inspectionSummary.badge}
+          </span>
+        </div>
+
+        <div className="analysis-results-note">
+          <Info size={16} />
+          <span>{ANALYSIS_LIMITATION_NOTE}</span>
+        </div>
+      </section>
+
+      <section className="analysis-results-main-grid">
+        <div className="analysis-results-map-panel glass-panel">
+          <div className="workspace-section-heading">
+            <div className="workspace-section-icon">
+              <MapPinned size={16} />
+            </div>
+            <div>
+              <strong style={{ fontSize: '1rem' }}>Field map</strong>
+              <p className="workspace-helper-text">
+                Boundary colored by the latest available inspection priority.
+              </p>
+            </div>
+          </div>
+
+          <div className="workspace-map-stage analysis-results-map-stage">
+            <FieldMap
+              user={user}
+              backendHealthy={backendHealthy}
+              analysisStarted={Boolean(contextReport)}
+              isAnalyzing={false}
+              geoJsonData={analysisGeoJsonData}
+              selectedField={selectedField}
+              setSelectedField={setSelectedField}
+              fieldLayerVisible={Boolean(analysisGeoJsonData) || fieldLayerVisible}
+              analysisResults={contextReport || analysisResults}
+              fieldRiskLevel={contextReport?.riskLevel}
+              fieldName={displayFieldName}
+              hasStoredAnalysis={Boolean(contextReport)}
+              readOnly
+              showDemoData={false}
+              showInfoCard={false}
+            />
+          </div>
+        </div>
+
+        <aside className="analysis-results-context-panel glass-panel">
+          <div className="workspace-section-heading">
+            <div className="workspace-section-icon">
+              <CalendarClock size={16} />
+            </div>
+            <div>
+              <strong style={{ fontSize: '1rem' }}>Analysis context</strong>
+              <p className="workspace-helper-text">
+                Choose a monitoring season and review the latest available run details.
+              </p>
+            </div>
+          </div>
+
+          <MonitoringSeasonSelector
+            value={selectedSeasonLabel}
+            onChange={onChangeSeason}
+            options={seasonOptions}
+            label="Analysis period"
+            helperText="Choose the current or previous monitoring season."
+          />
+
+          {showingLatestContextFallback ? (
+            <div className="analysis-results-context-banner">
+              {`No result for Season ${selectedSeasonLabel}. Context below is from the latest available run in Season ${contextReport?.seasonYear}.`}
+            </div>
+          ) : null}
+
+          <div className="analysis-results-context-list">
+            <div className="analysis-results-context-row">
+              <span>Latest run</span>
+              <strong>{latestRunLabel}</strong>
+            </div>
+
+            <div className="analysis-results-context-row">
+              <span>Satellite image date</span>
+              <strong>{satelliteDateLabel}</strong>
+            </div>
+
+            <div className="analysis-results-context-row">
+              <span>Land-cover class</span>
+              <strong>{contextReport?.predictedClass || 'Not available'}</strong>
+            </div>
+
+            <div className="analysis-results-context-row">
+              <span>Confidence</span>
+              <strong>{contextReport?.confidenceLabel || '—'}</strong>
+            </div>
+          </div>
+
+          <div className="analysis-results-context-banner">{previousRunsMessage}</div>
+        </aside>
+      </section>
+
+      <section className="analysis-results-technical glass-panel">
+        <div className="workspace-section-heading">
+          <div className="workspace-section-icon">
+            <BrainCircuit size={16} />
+          </div>
+          <div>
+            <strong style={{ fontSize: '1rem' }}>Technical details</strong>
+            <p className="workspace-helper-text">
+              Concise values from the selected analysis period.
+            </p>
+          </div>
+        </div>
+
+        {activeReport ? (
+          <div className="analysis-results-technical-grid">
+            <TechnicalDetail
+              label="Vegetation greenness (NDVI)"
+              value={formatIndex(activeReport.ndviValue)}
+              helper={ndviDisplay.value}
+            />
+            <TechnicalDetail
+              label="Vegetation vigor (EVI)"
+              value={formatIndex(activeReport.eviValue)}
+              helper={eviDisplay.value}
+            />
+            <TechnicalDetail label="Land-cover workflow" value="ResNet-50-assisted" />
+            <TechnicalDetail
+              label="EuroSAT class"
+              value={activeReport.euroSatClass || activeReport.predictedClass || 'Not available'}
+            />
+            <TechnicalDetail
+              label="Model confidence"
+              value={activeReport.confidenceLabel || '—'}
+            />
+            <TechnicalDetail
+              label="Satellite source"
+              value={activeReport.satelliteSource || 'Not available'}
+            />
+            <TechnicalDetail
+              label="Cloud coverage"
+              value={
+                activeReport.cloudCoverage === null
+                  ? 'Unknown'
+                  : `${activeReport.cloudCoverage}%`
+              }
+            />
+            <TechnicalDetail
+              label="Quality flags"
+              value={activeReport.qualityFlags?.length ? activeReport.qualityFlags.join(', ') : 'None'}
+            />
+          </div>
+        ) : (
+          <div className="analysis-results-empty-card">
+            No technical details are available for Season {selectedSeasonLabel}.
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}

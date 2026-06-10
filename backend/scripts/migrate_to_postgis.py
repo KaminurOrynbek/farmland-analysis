@@ -25,9 +25,18 @@ def run_migration():
         # 3. Create Spatial Index
         "CREATE INDEX IF NOT EXISTS idx_fields_boundary_geom ON fields USING GIST (boundary_geom);",
         
-        # 4. Add professional metrics columns
+        # 4. Add analysis metrics columns
         "ALTER TABLE spectral_indices ADD COLUMN IF NOT EXISTS stress_area_percentage FLOAT DEFAULT 0;",
-        "ALTER TABLE ml_predictions ADD COLUMN IF NOT EXISTS agronomic_assessment JSONB;",
+        "ALTER TABLE fields ADD COLUMN IF NOT EXISTS crop_type VARCHAR;",
+        "ALTER TABLE fields ADD COLUMN IF NOT EXISTS planting_date DATE;",
+        "ALTER TABLE fields ADD COLUMN IF NOT EXISTS season_year INTEGER;",
+        "ALTER TABLE analyses ADD COLUMN IF NOT EXISTS season_year INTEGER;",
+        "ALTER TABLE analyses ADD COLUMN IF NOT EXISTS requested_start_date DATE;",
+        "ALTER TABLE analyses ADD COLUMN IF NOT EXISTS requested_end_date DATE;",
+        "ALTER TABLE analyses ADD COLUMN IF NOT EXISTS satellite_acquisition_date DATE;",
+        "ALTER TABLE analyses ADD COLUMN IF NOT EXISTS satellite_source VARCHAR;",
+        "ALTER TABLE analyses ADD COLUMN IF NOT EXISTS cloud_coverage FLOAT;",
+        "ALTER TABLE analyses ADD COLUMN IF NOT EXISTS quality_flags JSONB;",
         
         # 5. Add Job Tracking columns (Senior+ level)
         "ALTER TABLE analyses ADD COLUMN IF NOT EXISTS progress_percent INTEGER DEFAULT 0;",

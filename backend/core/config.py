@@ -1,7 +1,12 @@
 import os
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore"
+    )
+
     PROJECT_NAME: str = "Farmland Image Analysis System"
     VERSION: str = "1.0.0"
     
@@ -14,6 +19,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7 # 1 week
     
     # External APIs
+    EE_PROJECT_ID: str = os.getenv("EE_PROJECT_ID", "farmland-499012")
     EE_CREDENTIALS_PATH: str = os.getenv("EE_CREDENTIALS_PATH", "gee_service_account.json")
     EE_SERVICE_ACCOUNT: str = os.getenv("EE_SERVICE_ACCOUNT", "your-service-account@project.iam.gserviceaccount.com")
     
@@ -35,7 +41,4 @@ class Settings(BaseSettings):
     MINIO_BUCKET_RAW: str = os.getenv("MINIO_BUCKET_RAW", "satellite-data")
     MINIO_BUCKET_RESULTS: str = os.getenv("MINIO_BUCKET_RESULTS", "analysis-results")
         
-    class Config:
-        env_file = ".env"
-
 settings = Settings()

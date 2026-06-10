@@ -29,6 +29,12 @@ def register(
             status_code=400,
             detail="The user with this email already exists in the system.",
         )
+    if getattr(user_in.role, "value", user_in.role) == "ADMIN":
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot register as ADMIN directly.",
+        )
+
     return user_repo.create(obj_in=user_in)
 
 @router.post("/login", response_model=Token)

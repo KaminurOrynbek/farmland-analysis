@@ -8,7 +8,7 @@ import asyncio
 from backend.core.config import settings
 from backend.infrastructure.database.database import engine, Base
 from backend.infrastructure.database import models
-from backend.routers import health, satellite, geo, analysis, auth, admin, comments
+from backend.routers import health, satellite, geo, analysis, auth, users, admin, comments
 from backend.core.websocket_manager import redis_listener
 
 # Automatically generate database tables
@@ -42,7 +42,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -50,6 +50,7 @@ app.add_middleware(
 # Include routers
 app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(geo.router, prefix="/api/geo", tags=["Geospatial"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["Analysis"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])

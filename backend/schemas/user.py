@@ -3,6 +3,9 @@ from typing import Optional
 from uuid import UUID
 from datetime import datetime
 from enum import Enum
+from pydantic import BaseModel, EmailStr
+from typing import Optional
+
 
 class UserRole(str, Enum):
     ADMIN = "ADMIN"
@@ -20,8 +23,7 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
-    password: Optional[str] = None
-    role: Optional[UserRole] = None
+
 
 class UserInDBBase(UserBase):
     id: UUID

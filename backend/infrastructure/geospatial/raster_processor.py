@@ -13,12 +13,15 @@ class RasterProcessor:
     def calculate_spectral_indices(self, tif_path: str) -> dict:
         try:
             with rasterio.open(tif_path) as dataset:
+                quality_flags = []
                 red = dataset.read(1).astype(float) / self.scale_factor
                 nir = dataset.read(2).astype(float) / self.scale_factor
 
                 blue = None
                 if dataset.count >= 3:
                     blue = dataset.read(3).astype(float) / self.scale_factor
+                else:
+                    quality_flags.append("EVI_UNAVAILABLE")
 
                 valid_mask = (red > 0) & (nir > 0)
 
@@ -31,7 +34,9 @@ class RasterProcessor:
                         "evi_mean": 0.0,
                         "ndvi_min": 0.0,
                         "ndvi_max": 0.0,
-                        "stress_zones_count": 0
+                        "stress_zones_count": 0,
+                        "stress_area_percentage": 0,
+                        "quality_flags": ["NO_VALID_PIXELS", *quality_flags]
                     }
 
                 red_valid = red[valid_mask]
@@ -58,7 +63,8 @@ class RasterProcessor:
                     "ndvi_min": float(np.min(ndvi)),
                     "ndvi_max": float(np.max(ndvi)),
                     "stress_zones_count": int(stress_pixels),
-                    "stress_area_percentage": round(float(stress_percentage), 2)
+                    "stress_area_percentage": round(float(stress_percentage), 2),
+                    "quality_flags": quality_flags or None
                 }
 
         except Exception as e:

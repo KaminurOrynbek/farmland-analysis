@@ -1,196 +1,241 @@
-import React from 'react';
-import {
-  ChevronRight,
-  LogOut,
-  Map,
-  ShieldCheck,
-  UserRound
-} from 'lucide-react';
+import React, { useState } from 'react';
+import { Mail, UserRound, Save, X, Edit3 } from 'lucide-react';
+import { updateCurrentUser } from '../api/client';
 
-const initialsFromName = (name = 'AgroVision User') => (
-  name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((segment) => segment.charAt(0).toUpperCase())
-    .join('') || 'AG'
-);
+export default function SettingsPage({ user, onUpdateUser }) {
+  const displayName = user?.full_name || user?.name || 'AgroVision User';
+  const displayEmail = user?.email || 'farmer@agrovision.ai';
+  const displayRole = user?.role || 'FARMER';
 
-export default function ProfilePage({
-  user,
-  onNavigate,
-  onLogout,
-  onOpenAdmin,
-  backendHealthy
-}) {
-  const profile = user || {
-    name: 'AgroVision User',
-    email: 'analyst@agrovision.ai',
-    role: 'Research Analyst'
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [formData, setFormData] = useState({
+    name: displayName,
+    email: displayEmail
+  });
+
+  const handleCancel = () => {
+    setFormData({
+      name: displayName,
+      email: displayEmail
+    });
+    setIsEditing(false);
   };
 
+  const handleSave = async () => {
+    if (!formData.name.trim()) {
+      alert('Full name cannot be empty.');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const updatedUser = await updateCurrentUser({
+        fullName: formData.name.trim(),
+        email: formData.email.trim()
+      });
+
+      if (onUpdateUser) {
+        onUpdateUser(updatedUser);
+      }
+
+      setIsEditing(false);
+      setFormData({
+        name: updatedUser.full_name || updatedUser.name || '',
+        email: updatedUser.email || ''
+      });
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to update profile.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const initial = formData.name?.charAt(0)?.toUpperCase() || 'A';
+
   return (
-    <div className="content-page">
-      <section className="profile-hero glass-panel">
-        <div className="profile-avatar">{initialsFromName(profile.name)}</div>
+    <div
+      className="content-page"
+      style={{
+        maxWidth: '760px',
+        margin: '0 auto',
+        width: '100%',
+        paddingTop: '28px'
+      }}
+    >
+      <div style={{ marginBottom: '22px' }}>
+        <p
+          style={{
+            color: 'var(--accent-color)',
+            fontSize: '0.72rem',
+            fontWeight: 800,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            marginBottom: '8px'
+          }}
+        >
+          Settings
+        </p>
 
-        <div className="profile-hero-copy">
-          <div className="page-kicker">User Profile</div>
-          <h1 className="page-title">{profile.name}</h1>
-          <p className="page-subtitle">
-            Manage your AgroVision workspace access, review your role, and move quickly back into your analysis flow.
-          </p>
+        <h1
+          className="page-title"
+          style={{
+            margin: 0,
+            fontSize: '1.75rem'
+          }}
+        >
+          Settings
+        </h1>
 
-          <div className="profile-meta-row">
-            <span className="status-pill neutral">{profile.email}</span>
-            <span className="status-pill neutral">{profile.role}</span>
-            <span className={`status-pill ${backendHealthy ? 'healthy' : 'critical'}`}>
-              {backendHealthy ? 'Backend Connected' : 'Backend Unavailable'}
+        <p
+          style={{
+            marginTop: '8px',
+            color: 'var(--text-secondary)',
+            fontSize: '0.9rem'
+          }}
+        >
+          Manage your personal information and account details.
+        </p>
+      </div>
+
+      <section
+        className="glass-panel"
+        style={{
+          padding: '24px',
+          borderRadius: '20px'
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            marginBottom: '24px'
+          }}
+        >
+          <div
+            style={{
+              width: '62px',
+              height: '62px',
+              borderRadius: '18px',
+              background: 'linear-gradient(135deg, var(--accent-color), #1d4ed8)',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.55rem',
+              fontWeight: 800
+            }}
+          >
+            {initial}
+          </div>
+
+          <div>
+            <h2 style={{ fontSize: '1.15rem', marginBottom: '6px' }}>
+              {isEditing ? formData.name : displayName}
+            </h2>
+            <span className="status-pill neutral" style={{ textTransform: 'capitalize' }}>
+              {displayRole.toLowerCase()}
             </span>
           </div>
         </div>
 
-        <div className="page-hero-actions">
-          <button type="button" className="primary-btn" onClick={() => onNavigate('Workspace')}>
-            Return to Workspace
-          </button>
-          <button type="button" className="secondary-btn" onClick={onLogout}>
-            Logout
-          </button>
-        </div>
-      </section>
+        <div style={{ display: 'grid', gap: '14px' }}>
+          <div>
+            <label style={labelStyle}>
+              <UserRound size={15} />
+              Full name
+            </label>
 
-      <section className="split-panel-grid">
-        <div className="section-card glass-panel">
-          <div className="section-card-header">
-            <div>
-              <div className="section-kicker">Account</div>
-              <h2>Profile details</h2>
-            </div>
+            {isEditing ? (
+              <input
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                style={inputStyle}
+              />
+            ) : (
+              <div style={readonlyStyle}>{displayName}</div>
+            )}
           </div>
 
-          <div className="stack-list">
-            <div className="stack-row">
-              <span>Name</span>
-              <strong>{profile.name}</strong>
-            </div>
-            <div className="stack-row">
-              <span>Email</span>
-              <strong>{profile.email}</strong>
-            </div>
-            <div className="stack-row">
-              <span>Role</span>
-              <strong>{profile.role}</strong>
-            </div>
-            <div className="stack-row">
-              <span>Access model</span>
-              <strong>Mock authentication for diploma demo</strong>
-            </div>
+          <div>
+            <label style={labelStyle}>
+              <Mail size={15} />
+              Email address
+            </label>
+
+            {isEditing ? (
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                style={inputStyle}
+              />
+            ) : (
+              <div style={readonlyStyle}>{displayEmail}</div>
+            )}
           </div>
         </div>
 
-        <div className="section-card glass-panel">
-          <div className="section-card-header">
-            <div>
-              <div className="section-kicker">Workspace</div>
-              <h2>Recommended next actions</h2>
-            </div>
-          </div>
-
-          <div className="stack-list">
-            <button type="button" className="list-action-row" onClick={() => onNavigate('Home')}>
-              <div>
-                <strong>Go to Home Dashboard</strong>
-                <p>Review summary cards, recent projects, and latest analysis status.</p>
-              </div>
-              <ChevronRight size={18} color="var(--text-secondary)" />
-            </button>
-            <button type="button" className="list-action-row" onClick={() => onNavigate('Projects')}>
-              <div>
-                <strong>Open Projects & History</strong>
-                <p>Inspect saved fields, historical analyses, and field-level risk trends.</p>
-              </div>
-              <ChevronRight size={18} color="var(--text-secondary)" />
-            </button>
-            <button type="button" className="list-action-row" onClick={onLogout}>
-              <div>
-                <strong>Sign out of AgroVision</strong>
-                <p>Return to the public product experience and mock auth entry point.</p>
-              </div>
-              <LogOut size={18} color="var(--text-secondary)" />
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section className="split-panel-grid">
-        <div className="section-card glass-panel">
-          <div className="section-card-header">
-            <div>
-              <div className="section-kicker">Product Role</div>
-              <h2>How this account is positioned</h2>
-            </div>
-          </div>
-
-          <div className="insight-grid">
-            <div className="insight-card">
-              <UserRound size={18} color="var(--accent-color)" />
-              <div>
-                <strong>Research-oriented workflow</strong>
-                <p>This account is designed for demoing field monitoring, vegetation indices, and model-driven agronomic support.</p>
-              </div>
-            </div>
-            <div className="insight-card">
-              <Map size={18} color="var(--status-healthy)" />
-              <div>
-                <strong>Workspace-first execution</strong>
-                <p>Map tools remain the operational layer, while Home and Projects create a clearer product journey around them.</p>
-              </div>
-            </div>
-            <div className="insight-card">
-              <ShieldCheck size={18} color="#8b5cf6" />
-              <div>
-                <strong>Expandable governance model</strong>
-                <p>The frontend is now structured so an admin-only control surface can exist without complicating the main user navigation.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {onOpenAdmin ? (
-          <div className="section-card glass-panel">
-            <div className="section-card-header">
-              <div>
-                <div className="section-kicker">Admin Access</div>
-                <h2>Optional administration workspace</h2>
-              </div>
-            </div>
-
-            <p className="card-copy">
-              Because this mock account has administrator access, you can open the optional admin dashboard without exposing it in the main private navbar.
-            </p>
-
-            <div className="page-hero-actions">
-              <button type="button" className="primary-btn" onClick={onOpenAdmin}>
-                Open Admin Dashboard
+        <div style={{ marginTop: '22px', display: 'flex', gap: '10px' }}>
+          {isEditing ? (
+            <>
+              <button className="primary-btn" onClick={handleSave} disabled={isSaving}>
+                <Save size={16} />
+                {isSaving ? 'Saving...' : 'Save'}
               </button>
-            </div>
-          </div>
-        ) : (
-          <div className="section-card glass-panel">
-            <div className="section-card-header">
-              <div>
-                <div className="section-kicker">Permissions</div>
-                <h2>Standard research access</h2>
-              </div>
-            </div>
 
-            <p className="card-copy">
-              This account follows the normal analyst flow: Home, Workspace, Analysis Details, Projects, and Profile. Admin tools stay out of the primary navigation to keep the product journey focused.
-            </p>
-          </div>
-        )}
+              <button className="secondary-btn" onClick={handleCancel} disabled={isSaving}>
+                <X size={16} />
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              className="secondary-btn"
+              onClick={() => {
+                setFormData({
+                  name: displayName,
+                  email: displayEmail
+                });
+                setIsEditing(true);
+              }}
+            >
+              <Edit3 size={16} />
+              Edit profile
+            </button>
+          )}
+        </div>
       </section>
     </div>
   );
 }
+
+const labelStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '7px',
+  color: 'var(--text-secondary)',
+  fontSize: '0.78rem',
+  fontWeight: 600,
+  marginBottom: '7px'
+};
+
+const inputStyle = {
+  width: '100%',
+  padding: '10px 13px',
+  borderRadius: '11px',
+  background: 'var(--surface-3)',
+  border: '1px solid var(--border-color)',
+  color: 'var(--text-primary)',
+  outline: 'none'
+};
+
+const readonlyStyle = {
+  padding: '10px 13px',
+  background: 'var(--surface-highlight-2)',
+  border: '1px solid var(--border-soft)',
+  borderRadius: '11px',
+  fontSize: '0.9rem'
+};

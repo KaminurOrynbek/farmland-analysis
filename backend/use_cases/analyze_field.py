@@ -3,7 +3,7 @@ import urllib.request
 import tempfile
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from backend.infrastructure.database.repositories import FieldRepository, AnalysisRepository
@@ -16,6 +16,29 @@ from geoalchemy2.shape import to_shape
 from shapely.geometry import mapping
 
 logger = logging.getLogger(__name__)
+
+
+def _derive_risk_level(ndvi_mean: float, stress_percentage: float) -> str:
+    if ndvi_mean is None:
+        return "Unknown"
+
+    if stress_percentage >= 25 or ndvi_mean < 0.25:
+        return "High"
+
+    if stress_percentage >= 10 or ndvi_mean < 0.5:
+        return "Medium"
+
+    return "Low"
+
+
+def _build_quality_flags(indices_result: dict, ml_result: dict) -> list | None:
+    flags = list(indices_result.get("quality_flags") or [])
+
+    confidence = ml_result.get("confidence")
+    if confidence is not None and float(confidence) < 0.55:
+        flags.append("LOW_CLASSIFICATION_CONFIDENCE")
+
+    return flags or None
 
 class AnalyzeFieldUseCase:
     def __init__(self, db_session: Session, storage: FileStorage):
@@ -33,7 +56,7 @@ class AnalyzeFieldUseCase:
             "job_id": job_id,
             "phase": phase,
             "message": message,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         log_data.update(kwargs)
         log_str = json.dumps(log_data)
@@ -125,31 +148,44 @@ class AnalyzeFieldUseCase:
             self._update_job_state(analysis, AnalysisStatus.PROCESSING, 70, "Performing ML classification...")
             ml_result = self.ml_adapter.predict(tmp_tif_path)
             
-            self._update_job_state(analysis, AnalysisStatus.PROCESSING, 90, "Generating expert assessment...")
+            self._update_job_state(analysis, AnalysisStatus.PROCESSING, 90, "Preparing screening metadata...")
             ndvi_mean = indices_result.get("ndvi_mean", 0)
-            
-            from backend.services.agronomic_service import AgronomicService
-            assessment = AgronomicService.generate_assessment(
-                ndvi=ndvi_mean, stress_percentage=indices_result.get("stress_area_percentage", 0), crop_type=ml_result["crop_type"]
-            )
-            
-            vegetation_health = assessment["overall_status"]
-            ml_result["vegetation_health_score"] = 85 if vegetation_health == "Healthy" else 55 if vegetation_health == "Warning" else 25
-            ml_result["risk_level"] = "High" if vegetation_health == "Critical" else "Medium" if vegetation_health == "Warning" else "Low"
-            ml_result["assessment"] = assessment
+            stress_percentage = indices_result.get("stress_area_percentage", 0)
+            predicted_class = ml_result.get("predicted_class") or ml_result.get("crop_type")
+            quality_flags = _build_quality_flags(indices_result, ml_result)
+
+            ml_result["predicted_class"] = predicted_class
+            ml_result["crop_type"] = predicted_class
+            ml_result["risk_level"] = _derive_risk_level(ndvi_mean, stress_percentage)
+            ml_result["quality_flags"] = quality_flags
 
             # Generate pseudo result file to represent validated DONE status
             self._update_job_state(analysis, AnalysisStatus.PROCESSING, 95, "Uploading results metadata to storage...")
             result_key = f"results/{job_id}_metadata.json"
             with tempfile.NamedTemporaryFile(mode='w', suffix=".json", delete=False) as tmp_meta:
-                json.dump(ml_result, tmp_meta)
+                json.dump(
+                    {
+                        "predicted_class": predicted_class,
+                        "confidence": ml_result.get("confidence"),
+                        "risk_level": ml_result.get("risk_level"),
+                        "quality_flags": quality_flags,
+                        "ndvi_value": indices_result.get("ndvi_mean"),
+                        "evi_value": indices_result.get("evi_mean")
+                    },
+                    tmp_meta
+                )
                 tmp_meta_path = tmp_meta.name
                 
             self.storage.upload(tmp_meta_path, result_key)
             os.remove(tmp_meta_path)
             
             analysis.result_key = result_key
-            self.analysis_repo.save_results(job_id, indices_result, ml_result)
+            self.analysis_repo.save_results(
+                job_id,
+                indices_result,
+                ml_result,
+                analysis_metadata={"quality_flags": quality_flags}
+            )
             self._update_job_state(analysis, AnalysisStatus.DONE, 100, "Analysis completed successfully.")
             self._log("INFO", job_id, "PROCESSING_DONE", "Processing successful.", result_key=result_key)
 
@@ -158,8 +194,8 @@ class AnalyzeFieldUseCase:
                 "job_id": job_id,
                 "input_key": analysis.input_key,
                 "result_key": analysis.result_key,
-                "crop_type": ml_result["crop_type"],
-                "health": vegetation_health
+                "predicted_class": predicted_class,
+                "risk_level": ml_result["risk_level"]
             }
         finally:
             if tmp_tif_path and os.path.exists(tmp_tif_path):
