@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Lock, MapPinned, MessageSquare, Send } from 'lucide-react';
+import { ChevronDown, ChevronRight, Lock, MapPinned, MessageSquare, Send } from 'lucide-react';
 import { createFieldComment, fetchFieldComments } from '../../api/client';
 import { getFieldPermissions } from '../../permissions/permissions';
 
@@ -37,13 +37,17 @@ export default function FieldCommentsPanel({
   fieldId,
   selectedField,
   hasGeometry,
-  variant = 'panel'
+  variant = 'panel',
+  collapsible = false,
+  expanded: controlledExpanded,
+  onToggleExpanded
 }) {
   const [comments, setComments] = useState([]);
   const [draftComment, setDraftComment] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [internalExpanded, setInternalExpanded] = useState(true);
 
   const permissions = getFieldPermissions(selectedField?.properties || selectedField, user);
   const canComment = permissions.canComment;
@@ -121,6 +125,16 @@ export default function FieldCommentsPanel({
   };
 
   const isEmbedded = variant === 'embedded';
+  const isExpanded = controlledExpanded ?? internalExpanded;
+
+  const handleToggleExpanded = () => {
+    if (onToggleExpanded) {
+      onToggleExpanded();
+      return;
+    }
+
+    setInternalExpanded((current) => !current);
+  };
 
   if (!isEmbedded && !hasGeometry && !fieldId) {
     return null;
@@ -218,19 +232,46 @@ export default function FieldCommentsPanel({
   if (isEmbedded) {
     return (
       <div className="workspace-comments-embedded" data-guide="field-comments">
-        <div style={embeddedHeaderStyle}>
-          <div>
-            <strong style={{ display: 'block', marginBottom: '4px' }}>Field comments</strong>
-            <span style={metaTextStyle}>{fieldId ? fieldName : 'Saved fields only'}</span>
+        {collapsible ? (
+          <button
+            type="button"
+            className="workspace-comments-toggle"
+            onClick={handleToggleExpanded}
+            aria-expanded={isExpanded}
+          >
+            <div style={embeddedHeaderStyle}>
+              <div>
+                <strong style={{ display: 'block', marginBottom: '4px' }}>Field comments</strong>
+                <span style={metaTextStyle}>{fieldId ? fieldName : 'Saved fields only'}</span>
+              </div>
+
+              <div className="workspace-comments-toggle-meta">
+                <span className="status-pill neutral">
+                  <MessageSquare size={14} />
+                  {sortedComments.length}
+                </span>
+
+                <span className="workspace-comments-toggle-icon">
+                  {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </span>
+              </div>
+            </div>
+          </button>
+        ) : (
+          <div style={embeddedHeaderStyle}>
+            <div>
+              <strong style={{ display: 'block', marginBottom: '4px' }}>Field comments</strong>
+              <span style={metaTextStyle}>{fieldId ? fieldName : 'Saved fields only'}</span>
+            </div>
+
+            <span className="status-pill neutral">
+              <MessageSquare size={14} />
+              {sortedComments.length}
+            </span>
           </div>
+        )}
 
-          <span className="status-pill neutral">
-            <MessageSquare size={14} />
-            {sortedComments.length}
-          </span>
-        </div>
-
-        {commentsBody}
+        {(!collapsible || isExpanded) ? commentsBody : null}
       </div>
     );
   }

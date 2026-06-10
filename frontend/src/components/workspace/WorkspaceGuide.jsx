@@ -20,13 +20,12 @@ const steps = [
   },
   {
     title: 'Step 3 — Draw boundary',
-    text: 'If you want to draw instead, use the polygon or rectangle tools in the top-left corner of the map. These are the exact drawing controls for creating a new field boundary.',
+    text: 'Click the Draw on map button in the sidebar. Then use the polygon or rectangle tools on the map to create a field boundary.',
+    target: '[data-guide="draw-on-map-button"]',
     targetGroups: [
-      ['[data-guide="draw-polygon-control"]', '[data-guide="draw-rectangle-control"]'],
-      ['[data-guide="draw-toolbar"]'],
-      ['[data-guide="draw-on-map"]']
+      ['[data-guide="draw-on-map-button"]']
     ],
-    placement: 'bottom',
+    placement: 'right',
     button: 'OK, next'
   },
   {
@@ -64,34 +63,20 @@ const steps = [
   },
   {
     title: 'Step 7 — Selected field',
-    text: 'Use this card to review the saved field, switch tabs, and follow the next action.',
+    text: 'Use the main map panel to confirm which field is selected and whether the current boundary is saved or still in progress.',
     targetGroups: [['[data-guide="selected-field-section"]']],
     placement: 'right',
     button: 'OK, next'
   },
   {
-    title: 'Step 8 — Field comments',
-    text: 'Open the Comments tab in the selected-field panel to review or add saved-field notes.',
-    targetGroups: [
-      ['[data-guide="field-comments"]'],
-      ['[data-guide="selected-field-section"]']
-    ],
-    placement: 'right',
-    button: 'OK, next',
-    targetTab: 'comments',
-    forceScroll: true
-  },
-  {
-    title: 'Step 9 — View results',
-    text: 'Return to Overview and open Analysis Results when a field result is ready.',
+    title: 'Step 8 — View results',
+    text: 'When a field result is ready, use View results here to open the dedicated analysis report page.',
     targetGroups: [
       ['[data-guide="open-report"]'],
-      ['[data-guide="run-analysis-section"]'],
-      ['[data-guide="selected-field-section"]']
+      ['[data-guide="run-analysis-section"]']
     ],
     placement: 'right',
     button: 'Finish guide',
-    targetTab: 'overview',
     forceScroll: true
   }
 ];

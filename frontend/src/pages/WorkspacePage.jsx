@@ -53,6 +53,24 @@ const hasUsableAnalysisResult = (analysis) => (
   analysis?.eviValue !== null && analysis?.eviValue !== undefined
 );
 
+const doesAnalysisMatchField = (analysis, fieldRecord, selectedFieldName) => {
+  if (!analysis) {
+    return false;
+  }
+
+  const analysisFieldId = analysis?.fieldId || analysis?.field_id || null;
+  const currentFieldId = fieldRecord?.id || null;
+
+  if (analysisFieldId && currentFieldId) {
+    return String(analysisFieldId) === String(currentFieldId);
+  }
+
+  const analysisFieldName = analysis?.fieldName || analysis?.field_name || null;
+  const comparableFieldName = fieldRecord?.name || selectedFieldName || null;
+
+  return Boolean(analysisFieldName && comparableFieldName && analysisFieldName === comparableFieldName);
+};
+
 export default function WorkspacePage({
   user,
   refreshKey,
@@ -90,7 +108,6 @@ export default function WorkspacePage({
   analysisStarted,
   latestAnalysisAt,
   onOpenAnalysis,
-  onOpenResults,
   isGuidedTourOpen,
   onCloseGuidedTour
 }) {
@@ -173,6 +190,7 @@ export default function WorkspacePage({
   }, [currentFieldId, fieldSummaries, selectedField]);
 
   const currentFieldRecord = selectedFieldSummary?.field || fallbackFieldRecord || null;
+  const selectedFieldName = currentFieldRecord?.name || getFieldSelectionName(selectedField);
   const currentFieldAnalyses = useMemo(
     () => selectedFieldSummary?.analyses || [],
     [selectedFieldSummary]
@@ -182,20 +200,38 @@ export default function WorkspacePage({
       return null;
     }
 
+    if (
+      (currentFieldRecord || selectedFieldName) &&
+      !doesAnalysisMatchField(analysisResults, currentFieldRecord, selectedFieldName)
+    ) {
+      return null;
+    }
+
     return {
       ...analysisResults,
       analysisDate: latestAnalysisAt || analysisResults.analysisDate
     };
-  }, [analysisResults, analysisStarted, latestAnalysisAt]);
+  }, [analysisResults, analysisStarted, currentFieldRecord, latestAnalysisAt, selectedFieldName]);
+  const latestSeasonUsableAnalysis = useMemo(
+    () => selectedFieldSummary?.seasonAnalyses?.find((item) => hasUsableAnalysisResult(item)) || null,
+    [selectedFieldSummary]
+  );
+  const latestStoredUsableAnalysis = useMemo(
+    () => currentFieldAnalyses.find((item) => hasUsableAnalysisResult(item)) || null,
+    [currentFieldAnalyses]
+  );
   const latestResultAnalysis = useMemo(() => (
     currentSessionAnalysis ||
-    currentFieldAnalyses.find((item) => hasUsableAnalysisResult(item)) ||
+    latestSeasonUsableAnalysis ||
+    latestStoredUsableAnalysis ||
+    selectedFieldSummary?.latestAnalysis ||
     null
-  ), [currentFieldAnalyses, currentSessionAnalysis]);
-  const fieldRiskLevel =
-    analysisStarted && analysisResults?.riskLevel
-      ? analysisResults.riskLevel
-      : selectedFieldSummary?.latestAnalysis?.riskLevel || null;
+  ), [
+    currentSessionAnalysis,
+    latestSeasonUsableAnalysis,
+    latestStoredUsableAnalysis,
+    selectedFieldSummary
+  ]);
   const permissions = getFieldPermissions(selectedField?.properties || selectedField, user);
   const runAnalysisReason = getRunAnalysisReason({
     hasGeometry: Boolean(geoJsonData),
@@ -205,15 +241,38 @@ export default function WorkspacePage({
     isFetchingSatelliteData,
     isAnalyzing
   });
-  const canViewResults = Boolean(latestResultAnalysis);
+  const canViewResults = Boolean(latestResultAnalysis && hasUsableAnalysisResult(latestResultAnalysis));
+  const workspaceMapTitle =
+    selectedFieldName && selectedFieldName !== 'Unnamed Field'
+      ? selectedFieldName
+      : 'Field workspace';
+  const viewResultsFieldRecord = useMemo(() => {
+    if (currentFieldRecord?.geometry) {
+      return currentFieldRecord;
+    }
+
+    if (!selectedField?.geometry) {
+      return currentFieldRecord || null;
+    }
+
+    return {
+      id: currentFieldRecord?.id || selectedField?.properties?.id || selectedField?.properties?.field_id || null,
+      name: currentFieldRecord?.name || selectedFieldName || selectedField?.properties?.name || 'Selected field',
+      area_ha: currentFieldRecord?.area_ha || selectedField?.properties?.area_ha || selectedField?.properties?.area || 0,
+      role: currentFieldRecord?.role || selectedField?.properties?.role || null,
+      crop_type: currentFieldRecord?.crop_type || selectedField?.properties?.crop_type || null,
+      planting_date: currentFieldRecord?.planting_date || selectedField?.properties?.planting_date || null,
+      season_year: currentFieldRecord?.season_year || selectedField?.properties?.season_year || null,
+      geometry: selectedField.geometry
+    };
+  }, [currentFieldRecord, selectedField, selectedFieldName]);
 
   const handleViewResults = () => {
-    if (latestResultAnalysis) {
-      onOpenAnalysis?.(latestResultAnalysis, currentFieldRecord);
+    if (!latestResultAnalysis) {
       return;
     }
 
-    onOpenResults?.();
+    onOpenAnalysis?.(latestResultAnalysis, viewResultsFieldRecord);
   };
 
   return (
@@ -249,37 +308,36 @@ export default function WorkspacePage({
             setSelectedField={setSelectedField}
             onSaveField={onSaveField}
             isSavingField={isSavingField}
-            onViewResults={handleViewResults}
             onRunAnalysis={onRunAnalysis}
+            onViewResults={handleViewResults}
             canRunAnalysis={!runAnalysisReason}
             canViewResults={canViewResults}
             runAnalysisReason={runAnalysisReason}
-            fieldRecord={currentFieldRecord}
-            fieldRiskLevel={fieldRiskLevel}
-            latestAnalysisAt={latestAnalysisAt || selectedFieldSummary?.latestAnalysisAt || null}
-            analysisHistory={currentFieldAnalyses}
-            onOpenAnalysis={onOpenAnalysis}
           />
         </div>
 
-          <main className="workspace-stage-column map-container workspace-map-stage" style={mapPanelStyle} tabIndex={-1}>
-            <FieldMap
-              user={user}
-              backendHealthy={backendHealthy}
-              analysisStarted={analysisStarted}
-              isAnalyzing={isAnalyzing}
-              geoJsonData={geoJsonData}
-              selectedField={selectedField}
-              setSelectedField={setSelectedField}
-              fieldLayerVisible={fieldLayerVisible}
-              onPolygonDrawn={onPolygonDrawn}
-              analysisResults={analysisResults}
-              fieldRiskLevel={fieldRiskLevel}
-              fieldName={currentFieldRecord?.name || getFieldSelectionName(selectedField)}
-              hasStoredAnalysis={Boolean(currentFieldAnalyses.length || analysisStarted)}
-              showInfoCard={false}
-            />
-          </main>
+        <main className="workspace-stage-column workspace-main-stage" tabIndex={-1}>
+          <section className="workspace-stage-map-card workspace-stage-map-only glass-panel" data-guide="selected-field-section">
+            <div className="workspace-map-stage workspace-stage-map-shell" style={mapPanelStyle}>
+              <FieldMap
+                user={user}
+                backendHealthy={backendHealthy}
+                analysisStarted={false}
+                isAnalyzing={isAnalyzing}
+                geoJsonData={geoJsonData}
+                selectedField={selectedField}
+                setSelectedField={setSelectedField}
+                fieldLayerVisible={fieldLayerVisible}
+                onPolygonDrawn={onPolygonDrawn}
+                analysisResults={analysisResults}
+                fieldName={workspaceMapTitle}
+                hasStoredAnalysis={false}
+                legendMode="priority"
+                showInfoCard={false}
+              />
+            </div>
+          </section>
+        </main>
       </div>
 
       <WorkspaceGuide

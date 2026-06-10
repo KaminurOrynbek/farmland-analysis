@@ -693,9 +693,9 @@ function App() {
       setGeoJsonMeta(null);
       setGeoJsonUploadResponse(null);
       setGeoJsonUploadError(null);
-      setFieldNameDraft('');
-      setFieldCropTypeDraft('');
-      setFieldPlantingDateDraft('');
+      setFieldNameDraft(normalized.fieldName || '');
+      setFieldCropTypeDraft(normalized.fieldMetadata?.cropType || '');
+      setFieldPlantingDateDraft(normalized.fieldMetadata?.plantingDate || '');
     }
 
     handleNavigate(APP_PAGES.ANALYSIS_RESULTS);
@@ -901,7 +901,6 @@ function App() {
             selectedSeason={selectedSeason}
             onOpenField={handleOpenField}
             onOpenAnalysis={handleOpenAnalysis}
-            onOpenResults={() => handleNavigate(APP_PAGES.ANALYSIS_RESULTS)}
             isGuidedTourOpen={isGuidedTourOpen}
             onCloseGuidedTour={handleCloseGuidedTour}
           />

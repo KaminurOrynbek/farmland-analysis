@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Image as ImageIcon,
   Pencil,
@@ -6,9 +6,11 @@ import {
   X
 } from 'lucide-react';
 import { getFieldPermissions } from '../../permissions/permissions';
-import { formatWorkspaceDate, getFieldSelectionId } from '../../utils/fieldAnalysisUtils';
+import {
+  formatWorkspaceDate,
+  getFieldSelectionId
+} from '../../utils/fieldAnalysisUtils';
 import MonitoringSeasonSelector from './MonitoringSeasonSelector';
-import WorkspaceSelectionCard from './WorkspaceSelectionCard';
 
 const normalizeGeoJson = (geoJson, metadata = {}) => {
   if (geoJson.type === 'FeatureCollection') {
@@ -95,14 +97,10 @@ export default function FieldControlPanel({
   onViewResults,
   canRunAnalysis,
   canViewResults,
-  runAnalysisReason,
-  fieldRecord,
-  fieldRiskLevel,
-  latestAnalysisAt,
-  analysisHistory,
-  onOpenAnalysis
+  runAnalysisReason
 }) {
   const geoJsonInputRef = useRef(null);
+  const drawGuideTimeoutRef = useRef(null);
   const permissions = getFieldPermissions(selectedField?.properties || selectedField, user);
   const canCreateField = permissions.canCreateField;
   const currentFieldId = getFieldSelectionId(selectedField) || getFieldSelectionId(geoJsonUploadResponse?.data);
@@ -174,9 +172,41 @@ export default function FieldControlPanel({
     });
   };
 
+  useEffect(() => (
+    () => {
+      if (drawGuideTimeoutRef.current) {
+        window.clearTimeout(drawGuideTimeoutRef.current);
+      }
+    }
+  ), []);
+
   const handleFocusMapDrawing = () => {
     const mapStage = document.querySelector('.workspace-map-stage');
+    const toolbar = document.querySelector('[data-guide="draw-toolbar"]');
+    const drawControls = [
+      document.querySelector('[data-guide="draw-polygon-control"]'),
+      document.querySelector('[data-guide="draw-rectangle-control"]')
+    ].filter(Boolean);
+
+    if (drawGuideTimeoutRef.current) {
+      window.clearTimeout(drawGuideTimeoutRef.current);
+    }
+
     mapStage?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    window.setTimeout(() => {
+      toolbar?.classList.add('workspace-draw-toolbar-highlight');
+      drawControls.forEach((control) => control.classList.add('workspace-draw-tool-highlight'));
+
+      if (drawControls[0] instanceof HTMLElement) {
+        drawControls[0].focus({ preventScroll: true });
+      }
+    }, 220);
+
+    drawGuideTimeoutRef.current = window.setTimeout(() => {
+      toolbar?.classList.remove('workspace-draw-toolbar-highlight');
+      drawControls.forEach((control) => control.classList.remove('workspace-draw-tool-highlight'));
+    }, 3200);
   };
 
   return (
@@ -189,17 +219,18 @@ export default function FieldControlPanel({
         style={{ display: 'none' }}
       />
 
-      <SidebarSection title="Analysis period" guideId="season-date-selection">
+      <SidebarSection title="Season" guideId="season-date-selection">
         <MonitoringSeasonSelector
           value={seasonSelection}
           onChange={onSeasonSelectionChange}
           allowCustom
+          label=""
         />
       </SidebarSection>
 
       <SidebarSection title="Field boundary" guideId="field-upload-section">
         <p className="workspace-helper-text" style={{ margin: 0 }}>
-          Upload a GeoJSON boundary or draw a new one from the map toolbar.
+          Upload a field boundary or draw one directly on the map.
         </p>
 
         <div className="workspace-boundary-methods">
@@ -224,14 +255,14 @@ export default function FieldControlPanel({
             className="workspace-boundary-method"
             onClick={handleFocusMapDrawing}
             disabled={!canCreateField || isAnalyzing}
-            data-guide="draw-on-map"
+            data-guide="draw-on-map-button"
           >
             <span className="workspace-boundary-method-icon">
               <Pencil size={16} />
             </span>
             <span>
               <strong>Draw on map</strong>
-              <small>Use the polygon tool in the top-left corner of the map.</small>
+              <small>Click to jump to the map tools, then choose polygon or rectangle.</small>
             </span>
           </button>
         </div>
@@ -351,7 +382,7 @@ export default function FieldControlPanel({
           {canViewResults ? (
             <button
               type="button"
-              className="primary-btn"
+              className="secondary-btn"
               onClick={() => onViewResults?.()}
               data-guide="open-report"
             >
@@ -361,7 +392,7 @@ export default function FieldControlPanel({
 
           <button
             type="button"
-            className={canViewResults ? 'secondary-btn' : 'primary-btn'}
+            className="primary-btn"
             onClick={() => onRunAnalysis?.()}
             disabled={!canRunAnalysis}
             title={runAnalysisReason || undefined}
@@ -380,22 +411,6 @@ export default function FieldControlPanel({
             Run NDVI, EVI, and model-assisted land-cover classification.
           </p>
         )}
-      </SidebarSection>
-
-      <SidebarSection title="Selected field + comments" guideId="selected-field-section">
-        <WorkspaceSelectionCard
-          user={user}
-          fieldId={currentFieldId}
-          selectedField={selectedField}
-          hasGeometry={hasGeometry}
-          fieldRecord={fieldRecord}
-          riskLevel={fieldRiskLevel}
-          latestAnalysisAt={latestAnalysisAt}
-          analysisHistory={analysisHistory}
-          canViewResults={canViewResults}
-          onViewResults={onViewResults}
-          onOpenAnalysis={onOpenAnalysis}
-        />
       </SidebarSection>
     </aside>
   );

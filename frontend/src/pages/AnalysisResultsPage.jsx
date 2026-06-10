@@ -1,11 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { BrainCircuit, CalendarClock, Info, MapPinned } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { BrainCircuit, CalendarClock, Download, Info, MapPinned } from 'lucide-react';
 import { fetchAnalysisHistory } from '../api/client';
 import FieldMap from '../components/workspace/FieldMap';
 import NoAnalysisState from '../components/workspace/NoAnalysisState';
 import MonitoringSeasonSelector from '../components/workspace/MonitoringSeasonSelector';
 import { APP_PAGES } from '../constants/appPages';
 import { formatAreaMeasure, formatIndex } from '../utils/analysisFormatters';
+import FieldCommentsPanel from '../components/workspace/FieldCommentsPanel';
+import { downloadAnalysisReportPdf } from '../utils/reportPdf';
 import {
   ANALYSIS_LIMITATION_NOTE,
   buildSeasonOptions,
@@ -131,6 +133,139 @@ function TechnicalDetail({ label, value, helper }) {
   );
 }
 
+const waitForDomImage = (image) => new Promise((resolve) => {
+  if (!image || image.complete) {
+    resolve();
+    return;
+  }
+
+  const handleDone = () => {
+    image.removeEventListener('load', handleDone);
+    image.removeEventListener('error', handleDone);
+    resolve();
+  };
+
+  image.addEventListener('load', handleDone, { once: true });
+  image.addEventListener('error', handleDone, { once: true });
+});
+
+const loadSerializableImage = (src) => new Promise((resolve, reject) => {
+  const image = new Image();
+
+  image.crossOrigin = 'anonymous';
+  image.onload = () => resolve(image);
+  image.onerror = () => reject(new Error('Map overlay could not be loaded.'));
+  image.src = src;
+});
+
+const captureMapImageFromStage = async (stageElement) => {
+  const leafletElement = stageElement?.querySelector('.leaflet-container');
+
+  if (!leafletElement) {
+    return null;
+  }
+
+  const bounds = leafletElement.getBoundingClientRect();
+  const width = Math.round(bounds.width);
+  const height = Math.round(bounds.height);
+
+  if (!width || !height) {
+    return null;
+  }
+
+  const imageElements = Array.from(
+    leafletElement.querySelectorAll('img.leaflet-tile, img.leaflet-image-layer')
+  );
+
+  await Promise.all(imageElements.map(waitForDomImage));
+
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  const canvas = document.createElement('canvas');
+  canvas.width = width * pixelRatio;
+  canvas.height = height * pixelRatio;
+
+  const context = canvas.getContext('2d');
+
+  if (!context) {
+    return null;
+  }
+
+  context.scale(pixelRatio, pixelRatio);
+  context.fillStyle = '#0b1726';
+  context.fillRect(0, 0, width, height);
+
+  imageElements.forEach((image) => {
+    const imageBounds = image.getBoundingClientRect();
+
+    if (!imageBounds.width || !imageBounds.height) {
+      return;
+    }
+
+    const computedStyle = window.getComputedStyle(image);
+
+    if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+      return;
+    }
+
+    const opacity = Number.parseFloat(computedStyle.opacity || '1');
+    context.globalAlpha = Number.isFinite(opacity) ? opacity : 1;
+
+    try {
+      context.drawImage(
+        image,
+        imageBounds.left - bounds.left,
+        imageBounds.top - bounds.top,
+        imageBounds.width,
+        imageBounds.height
+      );
+    } catch {
+      // Some browsers block remote-tile drawing; the PDF export falls back to SVG in that case.
+    }
+  });
+
+  context.globalAlpha = 1;
+
+  const overlaySvg = leafletElement.querySelector('.leaflet-overlay-pane svg');
+
+  if (overlaySvg) {
+    const svgBounds = overlaySvg.getBoundingClientRect();
+
+    if (svgBounds.width && svgBounds.height) {
+      const clonedSvg = overlaySvg.cloneNode(true);
+      clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      clonedSvg.setAttribute('width', `${svgBounds.width}`);
+      clonedSvg.setAttribute('height', `${svgBounds.height}`);
+
+      if (!clonedSvg.getAttribute('viewBox')) {
+        clonedSvg.setAttribute('viewBox', `0 0 ${svgBounds.width} ${svgBounds.height}`);
+      }
+
+      try {
+        const serializedSvg = new XMLSerializer().serializeToString(clonedSvg);
+        const svgImage = await loadSerializableImage(
+          `data:image/svg+xml;charset=utf-8,${encodeURIComponent(serializedSvg)}`
+        );
+
+        context.drawImage(
+          svgImage,
+          svgBounds.left - bounds.left,
+          svgBounds.top - bounds.top,
+          svgBounds.width,
+          svgBounds.height
+        );
+      } catch {
+        // Keep the tile capture if the SVG overlay cannot be serialized.
+      }
+    }
+  }
+
+  try {
+    return canvas.toDataURL('image/png');
+  } catch {
+    return null;
+  }
+};
+
 export default function AnalysisResultsPage({
   user,
   backendHealthy,
@@ -150,7 +285,9 @@ export default function AnalysisResultsPage({
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [notice, setNotice] = useState('');
-
+  const [isPreparingPdf, setIsPreparingPdf] = useState(false);
+  const mapStageRef = useRef(null);
+  const [commentsExpanded, setCommentsExpanded] = useState(false);
   const selectedFieldId = getFieldSelectionId(selectedField);
   const selectedFieldName = getFieldSelectionName(selectedField);
   const selectedSeasonLabel = String(selectedSeason || getCurrentSeasonYear());
@@ -315,6 +452,53 @@ export default function AnalysisResultsPage({
 
     return `${previousSeasonRuns.length} previous run${previousSeasonRuns.length === 1 ? '' : 's'} stored for Season ${selectedSeasonLabel}.`;
   }, [activeReport, loadingHistory, previousSeasonRuns.length, selectedSeasonLabel]);
+  const reportToDownload = activeReport || contextReport || null;
+
+  const handleDownloadPdf = async () => {
+    if (!reportToDownload) {
+      return;
+    }
+
+    const reportWindow = window.open('', '_blank', 'width=1080,height=820');
+
+    if (!reportWindow) {
+      alert('Allow pop-ups in your browser to download the PDF report.');
+      return;
+    }
+
+    setIsPreparingPdf(true);
+
+    try {
+      await new Promise((resolve) => {
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(resolve);
+        });
+      });
+
+      const mapImageDataUrl = await captureMapImageFromStage(mapStageRef.current);
+      const opened = downloadAnalysisReportPdf({
+        fieldName: displayFieldName,
+        fieldAreaHectares: fieldRecord?.area_ha || reportToDownload?.areaHectares || null,
+        analysisPeriodLabel: `Season ${selectedSeasonLabel}`,
+        report: reportToDownload,
+        recommendation: inspectionSummary.reason,
+        recommendationHeadline: inspectionSummary.headline,
+        historyItems: fieldHistory,
+        geoJsonData: analysisGeoJsonData,
+        mapImageDataUrl,
+        reportWindow,
+        contextNotice: showingLatestContextFallback
+          ? `No result is stored for Season ${selectedSeasonLabel}. This export uses the latest available analysis from Season ${contextReport?.seasonYear}.`
+          : ''
+      });
+
+      if (!opened) {
+        alert('Allow pop-ups in your browser to download the PDF report.');
+      }
+    } finally {
+      setIsPreparingPdf(false);
+    }
+  };
 
   if (!selectedField && !activeReport) {
     return (
@@ -356,6 +540,16 @@ export default function AnalysisResultsPage({
           </div>
 
           <div className="page-hero-actions">
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={handleDownloadPdf}
+              disabled={!reportToDownload || isPreparingPdf}
+            >
+              <Download size={16} />
+              {isPreparingPdf ? 'Preparing PDF...' : 'Download PDF'}
+            </button>
+
             <button
               type="button"
               className="secondary-btn"
@@ -403,7 +597,7 @@ export default function AnalysisResultsPage({
             </div>
           </div>
 
-          <div className="workspace-map-stage analysis-results-map-stage">
+          <div className="workspace-map-stage analysis-results-map-stage" ref={mapStageRef}>
             <FieldMap
               user={user}
               backendHealthy={backendHealthy}
@@ -420,6 +614,7 @@ export default function AnalysisResultsPage({
               readOnly
               showDemoData={false}
               showInfoCard={false}
+              legendMode={contextReport ? 'analysis' : 'priority'}
             />
           </div>
         </div>
@@ -533,6 +728,20 @@ export default function AnalysisResultsPage({
             No technical details are available for Season {selectedSeasonLabel}.
           </div>
         )}
+      </section>
+
+
+      <section className="analysis-results-comments glass-panel">
+        <FieldCommentsPanel
+          user={user}
+          fieldId={selectedFieldId}
+          selectedField={fieldRecord || selectedField}
+          hasGeometry={Boolean(analysisGeoJsonData)}
+          variant="embedded"
+          collapsible
+          expanded={commentsExpanded}
+          onToggleExpanded={() => setCommentsExpanded((current) => !current)}
+        />
       </section>
     </div>
   );
