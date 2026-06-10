@@ -4,7 +4,18 @@ from typing import Dict, Any, List, Optional
 from uuid import UUID
 from backend.infrastructure.database.repositories import FieldRepository
 from backend.services.geo_service import process_geojson_upload
-from backend.infrastructure.database.models import User, FieldAccess, Field
+from backend.infrastructure.database.models import (
+    Analysis,
+    AnalysisArtifact,
+    AnalysisImage,
+    Field,
+    FieldAccess,
+    FieldComment,
+    MLPrediction,
+    SatelliteImage,
+    SpectralIndices,
+    User,
+)
 from backend.infrastructure.database.models import FieldAccessRole as Role
 from backend.services.audit_service import AuditService
 from fastapi import HTTPException
@@ -147,6 +158,111 @@ class FieldService:
                 "created_at": f.created_at.isoformat() if f.created_at else None
             })
         return result
+
+    def delete_field(self, field_id: UUID, deleted_by: User) -> Dict[str, Any]:
+        """
+        Permanently deletes a field and all dependent records.
+        """
+        field = self.db.query(Field).filter(Field.id == field_id).first()
+        if not field:
+            raise HTTPException(status_code=404, detail="Field not found")
+
+        deleted_by_role = deleted_by.role.value if hasattr(deleted_by.role, "value") else str(deleted_by.role)
+        if deleted_by_role != "ADMIN" and field.owner_id != deleted_by.id:
+            access = self.db.query(FieldAccess).filter(
+                FieldAccess.field_id == field_id,
+                FieldAccess.user_id == deleted_by.id,
+                FieldAccess.access_role == Role.OWNER
+            ).first()
+            if not access:
+                raise HTTPException(status_code=403, detail="Only owners can delete fields")
+
+        analysis_ids = [
+            analysis_id
+            for analysis_id, in self.db.query(Analysis.id).filter(Analysis.field_id == field_id).all()
+        ]
+
+        field_snapshot = {
+            "name": field.name,
+            "owner_id": str(field.owner_id),
+            "area_ha": float(field.area_ha) if field.area_ha else 0.0,
+            "crop_type": field.crop_type,
+            "planting_date": field.planting_date.isoformat() if field.planting_date else None,
+            "season_year": field.season_year
+        }
+
+        deleted_counts = {
+            "comments": 0,
+            "access_records": 0,
+            "satellite_images": 0,
+            "analyses": len(analysis_ids),
+            "analysis_artifacts": 0,
+            "analysis_images": 0,
+            "spectral_indices": 0,
+            "ml_predictions": 0
+        }
+
+        try:
+            deleted_counts["comments"] = (
+                self.db.query(FieldComment)
+                .filter(FieldComment.field_id == field_id)
+                .delete(synchronize_session=False)
+            )
+
+            deleted_counts["access_records"] = (
+                self.db.query(FieldAccess)
+                .filter(FieldAccess.field_id == field_id)
+                .delete(synchronize_session=False)
+            )
+
+            if analysis_ids:
+                deleted_counts["analysis_artifacts"] = (
+                    self.db.query(AnalysisArtifact)
+                    .filter(AnalysisArtifact.analysis_id.in_(analysis_ids))
+                    .delete(synchronize_session=False)
+                )
+                deleted_counts["analysis_images"] = (
+                    self.db.query(AnalysisImage)
+                    .filter(AnalysisImage.analysis_id.in_(analysis_ids))
+                    .delete(synchronize_session=False)
+                )
+                deleted_counts["spectral_indices"] = (
+                    self.db.query(SpectralIndices)
+                    .filter(SpectralIndices.analysis_id.in_(analysis_ids))
+                    .delete(synchronize_session=False)
+                )
+                deleted_counts["ml_predictions"] = (
+                    self.db.query(MLPrediction)
+                    .filter(MLPrediction.analysis_id.in_(analysis_ids))
+                    .delete(synchronize_session=False)
+                )
+                self.db.query(Analysis).filter(Analysis.id.in_(analysis_ids)).delete(synchronize_session=False)
+
+            deleted_counts["satellite_images"] = (
+                self.db.query(SatelliteImage)
+                .filter(SatelliteImage.field_id == field_id)
+                .delete(synchronize_session=False)
+            )
+
+            self.db.delete(field)
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+
+        AuditService(self.db).log_action(
+            user_id=deleted_by.id,
+            action="FIELD_DELETED",
+            entity_type="field",
+            entity_id=field_id,
+            old_values=field_snapshot,
+            metadata=deleted_counts
+        )
+
+        return {
+            "status": "success",
+            "message": f'Field "{field_snapshot["name"]}" deleted successfully.'
+        }
 
     def share_field(self, owner: User, field_id: UUID, target_user_email: str, role: str) -> Dict[str, Any]:
         """

@@ -69,6 +69,21 @@ def get_all_fields(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch fields: {str(e)}")
 
+@router.delete("/fields/{field_id}", dependencies=[Depends(FieldPermissionChecker(FieldAccessRole.OWNER))])
+def delete_field(
+    field_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """ Deletes a field and its dependent records (Owners only, Admin bypass supported) """
+    try:
+        service = FieldService(db)
+        return service.delete_field(field_id, current_user)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete field: {str(e)}")
+
 @router.post("/fields/share")
 def share_field(
     request: ShareFieldRequest,

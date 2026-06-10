@@ -173,6 +173,11 @@ export const fetchAllFields = async () => {
   return response.data;
 };
 
+export const deleteField = async (fieldId) => {
+  const response = await api.delete(`/geo/fields/${fieldId}`);
+  return response.data;
+};
+
 export const fetchAnalysisHistory = async (params = {}) => {
   const response = await api.get('/analysis/history', { params });
   return response.data;

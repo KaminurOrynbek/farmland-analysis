@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
-import { fetchAllFields, fetchAnalysisHistory } from '../api/client';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
+import { deleteField, fetchAllFields, fetchAnalysisHistory } from '../api/client';
 import PaginationControls from '../components/common/PaginationControls';
 import { APP_PAGES } from '../constants/appPages';
 import { formatAreaMeasure } from '../utils/analysisFormatters';
@@ -52,7 +52,8 @@ const FIELD_TABLE_COLUMNS = [
   { key: 'lastAnalysis', label: 'Last analysis', align: 'left' },
   { key: 'runs', label: 'Runs', align: 'left' },
   { key: 'owner', label: 'Owner', align: 'left' },
-  { key: 'actions', label: 'Actions', align: 'right' }
+  { key: 'actions', label: 'Actions', align: 'right' },
+  { key: 'delete', label: '', align: 'center' }
 ];
 
 const RISK_ORDER = {
@@ -271,13 +272,20 @@ function TableCell({ label, className = '', children, align = 'left' }) {
   );
 }
 
-function FieldRow({ item, onOpenWorkspace, onViewResult }) {
+function FieldRow({
+  item,
+  isDeleting,
+  onDelete,
+  onOpenWorkspace,
+  onViewResult
+}) {
   const hasLatestAnalysis = Boolean(item.latestOverallAnalysis);
   const analysisCount = item.analyses?.length || 0;
   const latestAnalysisDateLabel = hasLatestAnalysis
     ? formatAnalysisDate(item.latestAnalysisDate)
     : 'No analysis yet';
   const latestAnalysisTypeLabel = item.latestCropType || 'Detected cover unavailable';
+  const canDelete = item.canDelete;
 
   return (
     <article
@@ -333,7 +341,7 @@ function FieldRow({ item, onOpenWorkspace, onViewResult }) {
         </span>
       </TableCell>
 
-      <TableCell label="Actions" className="fields-directory-actions-cell" align="right">
+      <TableCell label="Actions" className="fields-directory-actions-cell" align="left">
         <div className="fields-directory-actions-wrap" style={fieldActionsWrapStyle}>
           <button
             type="button"
@@ -358,6 +366,20 @@ function FieldRow({ item, onOpenWorkspace, onViewResult }) {
           </button>
         </div>
       </TableCell>
+      <TableCell label="Delete" className="fields-directory-delete-cell" align="center">
+        {canDelete ? (
+          <button
+            type="button"
+            className="fields-directory-delete-icon-btn"
+            onClick={onDelete}
+            disabled={isDeleting}
+            title={isDeleting ? 'Deleting...' : 'Delete field'}
+            aria-label={isDeleting ? 'Deleting field' : 'Delete field'}
+          >
+            <Trash2 size={16} />
+          </button>
+        ) : null}
+      </TableCell>
     </article>
   );
 }
@@ -381,6 +403,7 @@ export default function FieldsPage({
   const [accessRoleFilter, setAccessRoleFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState('latest');
   const [currentPage, setCurrentPage] = useState(1);
+  const [deletingFieldId, setDeletingFieldId] = useState('');
 
   const canCreateField = user?.role === 'ADMIN' || user?.role === 'FARMER';
   const isAdminUser = user?.role === 'ADMIN';
@@ -394,56 +417,65 @@ export default function FieldsPage({
 
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
 
+  const loadFieldsPageData = useCallback(async ({
+    preserveNotice = false,
+    shouldCancel = () => false
+  } = {}) => {
+    setLoading(true);
+
+    const [fieldsResponse, historyResponse] = await Promise.allSettled([
+      fetchAllFields(),
+      fetchAnalysisHistory()
+    ]);
+
+    if (shouldCancel()) {
+      return;
+    }
+
+    if (fieldsResponse.status === 'fulfilled') {
+      setFields(fieldsResponse.value.data || []);
+    } else {
+      setFields([]);
+    }
+
+    if (historyResponse.status === 'fulfilled') {
+      setHistory(sortAnalysesByNewest(historyResponse.value.data || []));
+    } else {
+      setHistory([]);
+    }
+
+    const hasFailure =
+      fieldsResponse.status === 'rejected' ||
+      historyResponse.status === 'rejected';
+
+    if (hasFailure) {
+      setNotice(
+        backendHealthy
+          ? 'Some field records could not be refreshed. Showing the latest available data.'
+          : 'Backend is not connected. Showing the latest local field context where possible.'
+      );
+    } else if (!preserveNotice) {
+      setNotice('');
+    }
+
+    setLoading(false);
+  }, [backendHealthy]);
+
   useEffect(() => {
     let isActive = true;
 
-    const loadFieldsPageData = async () => {
-      setLoading(true);
-
-      const [fieldsResponse, historyResponse] = await Promise.allSettled([
-        fetchAllFields(),
-        fetchAnalysisHistory()
-      ]);
-
-      if (!isActive) {
-        return;
-      }
-
-      if (fieldsResponse.status === 'fulfilled') {
-        setFields(fieldsResponse.value.data || []);
-      } else {
-        setFields([]);
-      }
-
-      if (historyResponse.status === 'fulfilled') {
-        setHistory(sortAnalysesByNewest(historyResponse.value.data || []));
-      } else {
-        setHistory([]);
-      }
-
-      const hasFailure =
-        fieldsResponse.status === 'rejected' ||
-        historyResponse.status === 'rejected';
-
-      if (hasFailure) {
-        setNotice(
-          backendHealthy
-            ? 'Some field records could not be refreshed. Showing the latest available data.'
-            : 'Backend is not connected. Showing the latest local field context where possible.'
-        );
-      } else {
-        setNotice('');
-      }
-
-      setLoading(false);
+    const loadIfActive = async () => {
+      await loadFieldsPageData({
+        shouldCancel: () => !isActive
+      });
     };
 
-    void loadFieldsPageData();
+    void loadIfActive();
 
     return () => {
       isActive = false;
     };
-  }, [backendHealthy, refreshKey]);
+  }, [loadFieldsPageData, refreshKey]);
 
 
   const fieldSummaries = useMemo(
@@ -467,10 +499,11 @@ export default function FieldsPage({
         latestCropType: getLatestCropType(summary),
         accessRole: summary.field.role || 'UNKNOWN',
         accessRoleLabel: getAccessRoleLabel(summary.field.role),
+        canDelete: isAdminUser || isFieldOwnedByUser(summary.field, user),
         ownerDisplay
       };
     })
-  ), [fieldSummaries, user, isAgronomistUser]);
+  ), [fieldSummaries, user, isAgronomistUser, isAdminUser]);
 
   const tabCounts = useMemo(() => {
     if (isAgronomistUser) {
@@ -538,6 +571,39 @@ export default function FieldsPage({
 
     onOpenField(item.field, null, { navigate: false });
     onNavigate(APP_PAGES.ANALYSIS_RESULTS);
+  };
+
+  const handleDeleteField = async (item) => {
+    const fieldId = item?.field?.id;
+    const fieldName = getFieldName(item?.field);
+
+    if (!fieldId || deletingFieldId) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete "${fieldName}"? This permanently removes the field, its access list, comments, and analysis records.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingFieldId(String(fieldId));
+    setNotice('');
+
+    try {
+      const response = await deleteField(fieldId);
+      await loadFieldsPageData({ preserveNotice: true });
+      setNotice(response?.message || `Field "${fieldName}" deleted successfully.`);
+    } catch (error) {
+      setNotice(
+        error.response?.data?.detail ||
+        `Failed to delete "${fieldName}".`
+      );
+    } finally {
+      setDeletingFieldId('');
+    }
   };
 
   const hasAnyFields = fieldItems.length > 0;
@@ -687,6 +753,8 @@ export default function FieldsPage({
                   <FieldRow
                     key={item.field.id}
                     item={item}
+                    isDeleting={deletingFieldId === String(item.field.id)}
+                    onDelete={() => void handleDeleteField(item)}
                     onOpenWorkspace={() => handleOpenWorkspace(item)}
                     onViewResult={() => handleViewResult(item)}
                   />
@@ -793,15 +861,7 @@ const fieldListStyle = {
 
 const tableGridStyle = {
   display: 'grid',
-  gridTemplateColumns: [
-    'minmax(180px, 1.9fr)',
-    'minmax(96px, 0.85fr)',
-    'minmax(92px, 0.8fr)',
-    'minmax(136px, 1.15fr)',
-    'minmax(72px, 0.65fr)',
-    'minmax(140px, 0.95fr)',
-    'minmax(172px, 1.1fr)'
-  ].join(' '),
+  gridTemplateColumns: 'minmax(180px, 1.5fr) minmax(100px, 0.8fr) minmax(90px, 0.7fr) minmax(140px, 1fr) minmax(80px, 0.6fr) minmax(140px, 1fr) 170px 44px',
   alignItems: 'center',
   gap: '12px',
   minWidth: 0
@@ -890,10 +950,11 @@ const analysisSublineStyle = {
 };
 
 const fieldActionsWrapStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  display: 'flex',
   gap: '8px',
-  width: '100%',
+  justifyContent: 'flex-start',
+  alignItems: 'center',
+  width: 'fit-content',
   minWidth: 0
 };
 
