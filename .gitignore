@@ -26,6 +26,7 @@ venv/
 
 # Secrets
 gee_service_account.json
+gee_service_account_old.json
 
 # Local files
 .DS_Store

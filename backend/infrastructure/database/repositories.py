@@ -1,7 +1,7 @@
 import os
 import json
 import redis
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend.infrastructure.database.models import User, Field, Analysis, AnalysisStatus, AnalysisType, SatelliteImage, SpectralIndices, MLPrediction
@@ -103,7 +103,7 @@ class AnalysisRepository:
                 analysis.status = AnalysisStatus.PROCESSING
 
             event = {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "stage": stage,
                 "progress": percent
             }
@@ -148,7 +148,7 @@ class AnalysisRepository:
             satellite_source=metadata.get("satellite_source"),
             cloud_coverage=metadata.get("cloud_coverage"),
             quality_flags=metadata.get("quality_flags"),
-            started_at=datetime.utcnow()
+            started_at=datetime.now(timezone.utc)        
         )
         self.db.add(analysis)
         self.db.flush() # Get the analysis ID
@@ -165,11 +165,9 @@ class AnalysisRepository:
         self.db.refresh(analysis)
         return analysis
         
-        
     def save_results(self, analysis_id: str, indices_data: dict, ml_data: dict, analysis_metadata: dict = None):
         analysis_metadata = analysis_metadata or {}
 
-        # Save Spectral Indices
         indices = SpectralIndices(
             analysis_id=analysis_id,
             ndvi_mean=indices_data.get("ndvi_mean"),
@@ -180,8 +178,7 @@ class AnalysisRepository:
             stress_area_percentage=indices_data.get("stress_area_percentage", 0)
         )
         self.db.add(indices)
-        
-        # Save ML Predictions
+
         ml_pred = MLPrediction(
             analysis_id=analysis_id,
             crop_type_prediction=ml_data.get("predicted_class") or ml_data.get("crop_type"),
@@ -192,16 +189,20 @@ class AnalysisRepository:
         )
         self.db.add(ml_pred)
 
-        # Update Analysis Status
         analysis = self.db.query(Analysis).filter(Analysis.id == analysis_id).first()
+
         if analysis:
             analysis.status = AnalysisStatus.DONE
-            analysis.completed_at = datetime.utcnow()
+            analysis.completed_at = datetime.now(timezone.utc)
             analysis.quality_flags = analysis_metadata.get("quality_flags")
 
             if analysis.started_at:
+                started_at = analysis.started_at
+                if started_at.tzinfo is None:
+                    started_at = started_at.replace(tzinfo=timezone.utc)
+
                 analysis.processing_time_ms = int(
-                    (analysis.completed_at - analysis.started_at).total_seconds() * 1000
+                    (analysis.completed_at - started_at).total_seconds() * 1000
                 )
 
             analysis.analysis_results = {

@@ -3,7 +3,7 @@ import urllib.request
 import tempfile
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from backend.infrastructure.database.repositories import FieldRepository, AnalysisRepository
@@ -56,7 +56,7 @@ class AnalyzeFieldUseCase:
             "job_id": job_id,
             "phase": phase,
             "message": message,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         log_data.update(kwargs)
         log_str = json.dumps(log_data)

@@ -17,8 +17,12 @@ class GEEClient:
                 print(f"WARNING: GEE JSON not found at {self.credentials_path}. Remote sensing will fail.")
                 return
 
-            credentials = ee.ServiceAccountCredentials(settings.EE_SERVICE_ACCOUNT, self.credentials_path)
-            ee.Initialize(credentials)
+            credentials = ee.ServiceAccountCredentials(
+                settings.EE_SERVICE_ACCOUNT,
+                self.credentials_path
+            )
+
+            ee.Initialize(credentials, project=settings.EE_PROJECT_ID)
             print("GEE Initialized with Service Account.")
         except Exception as e:
             print(f"ERROR: Failed to authenticate with Earth Engine. {str(e)}")

@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7 # 1 week
     
     # External APIs
+    EE_PROJECT_ID: str = os.getenv("EE_PROJECT_ID", "farmland-499012")
     EE_CREDENTIALS_PATH: str = os.getenv("EE_CREDENTIALS_PATH", "gee_service_account.json")
     EE_SERVICE_ACCOUNT: str = os.getenv("EE_SERVICE_ACCOUNT", "your-service-account@project.iam.gserviceaccount.com")
     
