@@ -45,7 +45,7 @@ export default function MonitoringSeasonSelector({
   options = DEFAULT_OPTIONS,
   allowCustom = false,
   compact = false,
-  label = 'Period',
+  label = 'Season',
   helperText = null
 }) {
   const selectedMode = getSelectedMode(value);
@@ -56,11 +56,7 @@ export default function MonitoringSeasonSelector({
   );
 
   const isCustom = selectedMode === 'custom';
-  const resolvedHelperText = helperText ?? (
-    isCustom
-      ? 'Used to search satellite imagery for the selected dates.'
-      : 'Used to search satellite imagery for the selected season.'
-  );
+  const resolvedHelperText = helperText;
 
   const handleModeChange = (event) => {
     const nextMode = event.target.value;
