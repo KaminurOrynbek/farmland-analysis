@@ -11,7 +11,7 @@
         "River",
         "SeaLake"
     ],
-    "test_accuracy": 0.9833,
+    "test_accuracy": 0.9856,
     "single_prediction_class": "Forest",
-    "single_prediction_confidence": 0.9971
+    "single_prediction_confidence": 0.9986
 }

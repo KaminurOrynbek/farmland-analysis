@@ -17,15 +17,37 @@ from shapely.geometry import mapping
 
 logger = logging.getLogger(__name__)
 
-
-def _derive_risk_level(ndvi_mean: float, stress_percentage: float) -> str:
-    if ndvi_mean is None:
+def _derive_risk_level(
+    ndvi_mean: float | None,
+    evi_mean: float | None,
+    stress_percentage: float | None
+) -> str:
+    if ndvi_mean is None or evi_mean is None:
         return "Unknown"
 
-    if stress_percentage >= 25 or ndvi_mean < 0.25:
+    stress_percentage = float(stress_percentage or 0)
+    stress_ratio = min(stress_percentage / 100, 1)
+
+    vegetation_health_score = (
+        0.40 * ndvi_mean +
+        0.40 * evi_mean +
+        0.20 * (1 - stress_ratio)
+    )
+
+    if (
+        vegetation_health_score < 0.35
+        or ndvi_mean < 0.25
+        or evi_mean < 0.20
+        or stress_percentage >= 25
+    ):
         return "High"
 
-    if stress_percentage >= 10 or ndvi_mean < 0.5:
+    if (
+        vegetation_health_score < 0.55
+        or ndvi_mean < 0.50
+        or evi_mean < 0.35
+        or stress_percentage >= 10
+    ):
         return "Medium"
 
     return "Low"
@@ -149,14 +171,15 @@ class AnalyzeFieldUseCase:
             ml_result = self.ml_adapter.predict(tmp_tif_path)
             
             self._update_job_state(analysis, AnalysisStatus.PROCESSING, 90, "Preparing screening metadata...")
-            ndvi_mean = indices_result.get("ndvi_mean", 0)
+            ndvi_mean = indices_result.get("ndvi_mean")
+            evi_mean = indices_result.get("evi_mean")
             stress_percentage = indices_result.get("stress_area_percentage", 0)
             predicted_class = ml_result.get("predicted_class") or ml_result.get("crop_type")
             quality_flags = _build_quality_flags(indices_result, ml_result)
 
             ml_result["predicted_class"] = predicted_class
             ml_result["crop_type"] = predicted_class
-            ml_result["risk_level"] = _derive_risk_level(ndvi_mean, stress_percentage)
+            ml_result["risk_level"] = _derive_risk_level(ndvi_mean, evi_mean,stress_percentage)
             ml_result["quality_flags"] = quality_flags
 
             # Generate pseudo result file to represent validated DONE status
