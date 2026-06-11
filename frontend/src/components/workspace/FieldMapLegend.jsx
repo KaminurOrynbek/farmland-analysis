@@ -11,14 +11,14 @@ export default function MapLegend({ mode = 'priority' }) {
   if (mode === 'analysis') {
     return (
       <div className="map-legend glass-panel map-legend-gradient map-legend-risk">
-        <strong className="map-legend-title">Risk colors</strong>
+        <strong className="map-legend-title">Vegetation signal</strong>
 
         <div className="map-risk-gradient-bar" />
 
         <div className="map-gradient-scale">
-          <span>Low</span>
-          <span>Medium</span>
-          <span>High</span>
+          <span>Weak</span>
+          <span>Moderate</span>
+          <span>Strong</span>
         </div>
 
         <div className="map-risk-not-analyzed">

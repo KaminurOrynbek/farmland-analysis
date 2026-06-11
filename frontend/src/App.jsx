@@ -273,14 +273,45 @@ function App() {
     setSessionUser(updatedUser);
   };
 
+  const resetSessionWorkspaceState = () => {
+    setGeoJsonUploadResponse(null);
+    setGeoJsonUploadError(null);
+    setPendingDrawnField(null);
+    setFieldNameDraft('');
+    setFieldCropTypeDraft('');
+    setFieldPlantingDateDraft('');
+
+    setSatelliteFetchResult(null);
+    setSatelliteFetchError(null);
+    setIsFetchingSatelliteData(false);
+    setIsSavingField(false);
+
+    setIsAnalyzing(false);
+    setAnalysisStarted(false);
+    setAnalysisResults(createEmptyAnalysisRecord());
+    setLatestAnalysisAt(null);
+
+    setGeoJsonData(null);
+    setGeoJsonMeta(null);
+    setSelectedField(null);
+    setFieldLayerVisible(true);
+
+    setSelectedSeason(getCurrentSeasonYear());
+    setSeasonSelection(createSeasonSelection(getCurrentSeasonYear()));
+  };
+
   const handleLogout = () => {
     logoutUser();
+    resetSessionWorkspaceState();
+
     sessionStorage.removeItem('authRedirect');
     sessionStorage.removeItem(WORKSPACE_GUIDE_PENDING_KEY);
+
     setSessionUser(null);
     setAppView('landing');
     setActivePage(APP_PAGES.DASHBOARD);
     setIsGuidedTourOpen(false);
+    setDataRefreshKey((current) => current + 1);
   };
 
   const resetAnalysisState = () => {
