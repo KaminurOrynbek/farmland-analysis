@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Users
 } from 'lucide-react';
+import { t } from '../../i18n.js';
 
 const ADMIN_NAV = [
   { id: APP_PAGES.ADMIN_PANEL, label: APP_PAGES.ADMIN_PANEL, icon: <ShieldCheck size={16} /> }
@@ -51,7 +52,7 @@ function NavButton({ item, activePage, onNavigate, onLogout, isLogout = false })
       }}
     >
       {item.icon}
-      {item.label}
+      {t(item.label)}
     </button>
   );
 }

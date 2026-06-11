@@ -10,6 +10,7 @@ import {
   getFieldSelectionName,
   sortAnalysesByNewest
 } from '../utils/fieldAnalysisUtils';
+import { t } from '../i18n.js';
 
 const getRunAnalysisReason = ({
   hasGeometry,
@@ -20,27 +21,27 @@ const getRunAnalysisReason = ({
   isAnalyzing
 }) => {
   if (!hasGeometry) {
-    return 'Select, upload, or draw a field boundary first.';
+    return t('Select, upload, or draw a field boundary first.');
   }
 
   if (!hasSavedField) {
-    return 'Save the field before running analysis.';
+    return t('Save the field before running analysis.');
   }
 
   if (!hasSatelliteMetadata) {
-    return 'Fetch satellite metadata for the selected season or date range first.';
+    return t('Fetch satellite metadata for the selected season or date range first.');
   }
 
   if (!canAnalyze) {
-    return 'Your current field role is view-only. OWNER or EDITOR access is required.';
+    return t('Your current field role is view-only. OWNER or EDITOR access is required.');
   }
 
   if (isFetchingSatelliteData) {
-    return 'Wait for the satellite metadata request to finish.';
+    return t('Wait for the satellite metadata request to finish.');
   }
 
   if (isAnalyzing) {
-    return 'Analysis is already in progress for this session.';
+    return t('Analysis is already in progress for this session.');
   }
 
   return '';
@@ -147,8 +148,8 @@ export default function WorkspacePage({
       if (hasFailure) {
         setContextNotice(
           backendHealthy
-            ? 'Some field history could not be refreshed. Showing the latest available context.'
-            : 'Backend is not connected. Demo values and local field context are shown where possible.'
+            ? t('Some field history could not be refreshed. Showing the latest available context.')
+            : t('Backend is not connected. Demo values and local field context are shown where possible.')
         );
       } else {
         setContextNotice('');
@@ -245,7 +246,7 @@ export default function WorkspacePage({
   const workspaceMapTitle =
     selectedFieldName && selectedFieldName !== 'Unnamed Field'
       ? selectedFieldName
-      : 'Field workspace';
+      : t('Field workspace');
   const viewResultsFieldRecord = useMemo(() => {
     if (currentFieldRecord?.geometry) {
       return currentFieldRecord;
@@ -257,7 +258,7 @@ export default function WorkspacePage({
 
     return {
       id: currentFieldRecord?.id || selectedField?.properties?.id || selectedField?.properties?.field_id || null,
-      name: currentFieldRecord?.name || selectedFieldName || selectedField?.properties?.name || 'Selected field',
+      name: currentFieldRecord?.name || selectedFieldName || selectedField?.properties?.name || t('Selected field'),
       area_ha: currentFieldRecord?.area_ha || selectedField?.properties?.area_ha || selectedField?.properties?.area || 0,
       role: currentFieldRecord?.role || selectedField?.properties?.role || null,
       crop_type: currentFieldRecord?.crop_type || selectedField?.properties?.crop_type || null,
@@ -382,11 +383,11 @@ function DrawnFieldNameModal({ isSavingField, onSave, onCancel }) {
   return (
     <div style={modalOverlayStyle}>
       <form className="glass-panel" style={modalStyle} onSubmit={handleSubmit}>
-        <h2 style={{ marginBottom: '8px' }}>Name this field</h2>
-        <p style={modalCopyStyle}>Save the drawn boundary with a field name before analysis.</p>
+        <h2 style={{ marginBottom: '8px' }}>{t('Name this field')}</h2>
+        <p style={modalCopyStyle}>{t('Save the drawn boundary with a field name before analysis.')}</p>
 
         <label style={labelStyle} htmlFor="drawn-field-name">
-          Field name
+          {t('Field name')}
         </label>
         <input
           id="drawn-field-name"
@@ -394,13 +395,13 @@ function DrawnFieldNameModal({ isSavingField, onSave, onCancel }) {
           style={inputStyle}
           value={fieldName}
           onChange={(event) => setFieldName(event.target.value)}
-          placeholder="North Wheat Field"
+          placeholder={t('North Wheat Field')}
           required
         />
 
         <div style={modalActionsStyle}>
           <button type="button" className="secondary-btn" onClick={onCancel} disabled={isSavingField}>
-            Cancel
+            {t('Cancel')}
           </button>
 
           <button
@@ -408,7 +409,7 @@ function DrawnFieldNameModal({ isSavingField, onSave, onCancel }) {
             className="primary-btn"
             disabled={isSavingField || !fieldName.trim()}
           >
-            {isSavingField ? 'Saving...' : 'Save Field'}
+            {isSavingField ? t('Saving...') : t('Save Field')}
           </button>
         </div>
       </form>

@@ -37,6 +37,13 @@ import {
   getCurrentSeasonYear,
   normalizeAnalysisRecord
 } from './utils/fieldAnalysisUtils';
+import {
+  getDocumentLanguage,
+  getInitialLocale,
+  LOCALE_STORAGE_KEY,
+  setCurrentLocale,
+  t
+} from './i18n.js';
 
 const DEFAULT_ANALYSIS_RESULTS = createEmptyAnalysisRecord();
 
@@ -68,7 +75,7 @@ const applyAnalysisStatusUpdate = (setAnalysisResults, analysisId, statusRespons
     ...current,
     analysisId,
     status: statusResponse?.status || current.status,
-    message: statusResponse?.stage || 'Processing analysis...'
+    message: statusResponse?.stage || t('Processing analysis...')
   }));
 };
 
@@ -103,7 +110,7 @@ const buildSelectionFromAnalysis = (analysisItem, field = null) => ({
   properties: {
     id: field?.id || analysisItem?.field_id || analysisItem?.fieldId || null,
     field_id: field?.id || analysisItem?.field_id || analysisItem?.fieldId || null,
-    name: field?.name || analysisItem?.field_name || analysisItem?.fieldName || 'Unnamed Field',
+    name: field?.name || analysisItem?.field_name || analysisItem?.fieldName || t('Unnamed field'),
     area: field?.area_ha || analysisItem?.area_ha || analysisItem?.areaHectares || 0,
     role: field?.role || null,
     crop_type: field?.crop_type || analysisItem?.field_metadata?.crop_type || analysisItem?.fieldMetadata?.cropType || null,
@@ -183,6 +190,8 @@ const getInitialTheme = () => {
 };
 
 function App() {
+  const [locale, setLocale] = useState(getInitialLocale);
+  setCurrentLocale(locale);
   const [geoJsonUploadResponse, setGeoJsonUploadResponse] = useState(null);
   const [geoJsonUploadError, setGeoJsonUploadError] = useState(null);
   const [backendHealthy, setBackendHealthy] = useState(false);
@@ -237,6 +246,12 @@ function App() {
     document.documentElement.style.colorScheme = theme;
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    setCurrentLocale(locale);
+    document.documentElement.lang = getDocumentLanguage(locale);
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+  }, [locale]);
 
   const handleDataChanged = () => {
     setDataRefreshKey((current) => current + 1);
@@ -361,7 +376,7 @@ function App() {
     const fieldId = getCurrentFieldId({ geoJsonUploadResponse });
 
     if (!fieldId) {
-      alert('Please save or open a field before running analysis.');
+      alert(t('Please save or open a field before running analysis.'));
       return;
     }
 
@@ -392,7 +407,7 @@ function App() {
         satelliteAcquisitionDate: currentSatelliteFetchResult?.acquisition_date || null,
         cloudCoverage: currentSatelliteFetchResult?.cloud_coverage ?? null,
         qualityFlags: currentSatelliteFetchResult?.quality_flags ?? null,
-        message: 'Analysis has started. Satellite indicators and model-assisted land-cover classification are being processed.'
+        message: t('Analysis has started. Satellite indicators and model-assisted land-cover classification are being processed.')
       }));
 
       let finalStatus = null;
@@ -417,7 +432,7 @@ function App() {
             lastConsumedSocketStatus = latestSocketStatus;
 
             if (finalStatus.status === 'FAILED') {
-              throw new Error(finalStatus.error || 'Analysis failed on the server.');
+              throw new Error(t(finalStatus.error || 'Analysis failed on the server.'));
             }
 
             if (isAnalysisFinished(finalStatus)) {
@@ -433,7 +448,7 @@ function App() {
           applyAnalysisStatusUpdate(setAnalysisResults, analysisId, statusResponse);
 
           if (statusResponse.status === 'FAILED') {
-            throw new Error(statusResponse.error || 'Analysis failed on the server.');
+            throw new Error(t(statusResponse.error || 'Analysis failed on the server.'));
           }
 
           if (isAnalysisFinished(statusResponse)) {
@@ -447,11 +462,11 @@ function App() {
       }
 
       if (!finalStatus || finalStatus.status === 'FAILED') {
-        throw new Error(finalStatus?.error || 'Analysis failed on the server.');
+        throw new Error(t(finalStatus?.error || 'Analysis failed on the server.'));
       }
 
       if (!isAnalysisFinished(finalStatus)) {
-        throw new Error('Analysis is still processing. Please check the results history later.');
+        throw new Error(t('Analysis is still processing. Please check the results history later.'));
       }
 
       const historyResponse = await fetchAnalysisHistory();
@@ -461,7 +476,7 @@ function App() {
       const latestAnalysis = completedAnalyses[0];
 
       if (!latestAnalysis) {
-        throw new Error('Analysis completed, but results were not found in history.');
+        throw new Error(t('Analysis completed, but results were not found in history.'));
       }
 
       const normalizedResult = normalizeAnalysisRecord(latestAnalysis);
@@ -473,7 +488,7 @@ function App() {
       handleDataChanged();
     } catch (error) {
       console.error('Analysis failed:', error);
-      alert(`Analysis failed: ${error.message}`);
+      alert(t('Analysis failed: {message}', { message: t(error.message) }));
     } finally {
       setIsAnalyzing(false);
     }
@@ -482,7 +497,7 @@ function App() {
 
   const handleFetchSatelliteData = async (dataset = 'sentinel2') => {
     if (!geoJsonData) {
-      alert('Please upload field boundaries first.');
+      alert(t('Please upload field boundaries first.'));
       return;
     }
 
@@ -495,7 +510,7 @@ function App() {
     });
 
     if (!bbox || !currentFieldKey) {
-      alert('The current field geometry is missing valid coordinates.');
+      alert(t('The current field geometry is missing valid coordinates.'));
       return;
     }
 
@@ -518,7 +533,7 @@ function App() {
     } catch (error) {
       setSatelliteFetchError({
         fieldKey: currentFieldKey,
-        message: error.response?.data?.detail || 'Failed to fetch satellite metadata.'
+        message: t(error.response?.data?.detail || 'Failed to fetch satellite metadata.')
       });
     } finally {
       setIsFetchingSatelliteData(false);
@@ -530,12 +545,12 @@ function App() {
     const geometryToSave = featureCollection?.features?.[0]?.geometry;
 
     if (!trimmedFieldName) {
-      alert('Please enter a field name before saving.');
+      alert(t('Please enter a field name before saving.'));
       return false;
     }
 
     if (!geometryToSave) {
-      alert('Please upload or draw a field first.');
+      alert(t('Please upload or draw a field first.'));
       return false;
     }
 
@@ -579,8 +594,12 @@ function App() {
       return true;
     } catch (error) {
       console.error('Field save error:', error);
-      setGeoJsonUploadError(error.response?.data?.detail || 'Backend database validation failed.');
-      alert(`Failed to save field: ${error.response?.data?.detail || error.message}`);
+      setGeoJsonUploadError(t(error.response?.data?.detail || 'Backend database validation failed.'));
+      alert(
+        t('Failed to save field: {message}', {
+          message: t(error.response?.data?.detail || error.message)
+        })
+      );
       return false;
     } finally {
       setIsSavingField(false);
@@ -605,7 +624,7 @@ function App() {
     });
     setGeoJsonData(geoJsonFeatureCollection);
     setSelectedField(geoJsonFeatureCollection.features[0] || null);
-    setGeoJsonMeta({ name: 'Manual drawing', size: null });
+    setGeoJsonMeta({ name: t('Manual drawing'), size: null });
     setGeoJsonUploadResponse(null);
     setGeoJsonUploadError(null);
     setFieldNameDraft('');
@@ -648,7 +667,7 @@ function App() {
     const { navigate = true } = options;
 
     if (!field?.geometry) {
-      alert('This field does not have valid geometry.');
+      alert(t('This field does not have valid geometry.'));
       return;
     }
 
@@ -659,10 +678,10 @@ function App() {
     setGeoJsonData(featureCollection);
     setSelectedField(featureCollection.features[0]);
     setGeoJsonMeta({
-      name: field.name || 'Saved Field',
+      name: field.name || t('Saved Field'),
       size: null
     });
-    setFieldNameDraft(field.name || 'Saved Field');
+    setFieldNameDraft(field.name || t('Saved Field'));
     setFieldCropTypeDraft(field.crop_type || '');
     setFieldPlantingDateDraft(field.planting_date || '');
     setGeoJsonUploadResponse({
@@ -708,10 +727,10 @@ function App() {
       const featureCollection = buildFeatureCollectionFromField(field);
       setGeoJsonData(featureCollection);
       setGeoJsonMeta({
-        name: field.name || 'Saved Field',
+        name: field.name || t('Saved Field'),
         size: null
       });
-      setFieldNameDraft(field.name || 'Saved Field');
+      setFieldNameDraft(field.name || t('Saved Field'));
       setFieldCropTypeDraft(field.crop_type || '');
       setFieldPlantingDateDraft(field.planting_date || '');
       setGeoJsonUploadResponse({
@@ -829,7 +848,7 @@ function App() {
       <div className="auth-page">
         <div className="auth-shell">
           <div className="glass-panel" style={{ padding: '32px', textAlign: 'center' }}>
-            Restoring your session...
+            {t('Restoring your session...')}
           </div>
         </div>
       </div>
@@ -844,6 +863,8 @@ function App() {
         onGetStarted={handleOpenAuth}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        locale={locale}
+        onChangeLocale={setLocale}
       />
     );
   }
@@ -856,6 +877,8 @@ function App() {
         onRegistered={handleRegisterSuccess}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        locale={locale}
+        onChangeLocale={setLocale}
       />
     );
   }
@@ -1001,6 +1024,8 @@ function App() {
           user={sessionUser}
           theme={theme}
           onToggleTheme={handleToggleTheme}
+          locale={locale}
+          onChangeLocale={setLocale}
         />
         {renderPrivatePage()}
       </div>

@@ -1,9 +1,10 @@
 import React from 'react';
 import { ArrowRight, ClipboardList } from 'lucide-react';
+import { t } from '../../i18n.js';
 
 export default function NoAnalysisState({
-  title = 'No analysis available yet',
-  description = 'Select or save a field, then run analysis when imagery is ready.',
+  title = t('No analysis available yet'),
+  description = t('Select or save a field, then run analysis when imagery is ready.'),
   primaryAction,
   secondaryAction
 }) {

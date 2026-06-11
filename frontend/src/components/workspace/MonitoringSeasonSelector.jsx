@@ -1,13 +1,14 @@
 import React, { useMemo } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { t } from '../../i18n.js';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const PREVIOUS_YEAR = CURRENT_YEAR - 1;
 
-const DEFAULT_OPTIONS = [
-  { value: String(CURRENT_YEAR), label: `Current season (${CURRENT_YEAR})` },
-  { value: String(PREVIOUS_YEAR), label: `Previous season (${PREVIOUS_YEAR})` }
-];
+const buildDefaultOptions = () => ([
+  { value: String(CURRENT_YEAR), label: t('Current season ({year})', { year: CURRENT_YEAR }) },
+  { value: String(PREVIOUS_YEAR), label: t('Previous season ({year})', { year: PREVIOUS_YEAR }) }
+]);
 
 const getSelectedMode = (value) => {
   if (typeof value === 'object' && value !== null) {
@@ -42,12 +43,14 @@ const buildSelection = (mode, currentValue = {}) => {
 export default function MonitoringSeasonSelector({
   value,
   onChange,
-  options = DEFAULT_OPTIONS,
+  options,
   allowCustom = false,
   compact = false,
-  label = 'Season',
+  label,
   helperText = null
 }) {
+  const resolvedOptions = options || buildDefaultOptions();
+  const resolvedLabel = label ?? t('Season');
   const selectedMode = getSelectedMode(value);
 
   const selection = useMemo(
@@ -90,7 +93,7 @@ export default function MonitoringSeasonSelector({
   return (
     <section className="analysis-period-card" data-guide="season-date-selection">
       <label className="analysis-period-field">
-        {!compact && label ? <span>{label}</span> : null}
+        {!compact && resolvedLabel ? <span>{resolvedLabel}</span> : null}
 
         <div className="analysis-period-select-wrap">
           <select
@@ -99,9 +102,9 @@ export default function MonitoringSeasonSelector({
             className="analysis-period-native-select"
             data-guide="season-mode-select"
           >
-            {options.map((option) => {
+            {resolvedOptions.map((option) => {
               const optionValue = String(option.value || option);
-              const optionLabel = option.label || `Season ${optionValue}`;
+              const optionLabel = option.label || t('Season {year}', { year: optionValue });
 
               return (
                 <option key={optionValue} value={optionValue}>
@@ -110,7 +113,7 @@ export default function MonitoringSeasonSelector({
               );
             })}
 
-            {allowCustom ? <option value="custom">Custom date range</option> : null}
+            {allowCustom ? <option value="custom">{t('Custom date range')}</option> : null}
           </select>
 
           <ChevronDown size={16} />
@@ -124,7 +127,7 @@ export default function MonitoringSeasonSelector({
       {isCustom && !compact ? (
         <div className="analysis-period-date-grid" data-guide="season-custom-range">
           <label className="analysis-period-field">
-            <span>Start date</span>
+            <span>{t('Start date')}</span>
             <input
               type="date"
               value={selection.startDate || ''}
@@ -134,7 +137,7 @@ export default function MonitoringSeasonSelector({
           </label>
 
           <label className="analysis-period-field">
-            <span>End date</span>
+            <span>{t('End date')}</span>
             <input
               type="date"
               value={selection.endDate || ''}

@@ -1,7 +1,12 @@
 import { formatAreaMeasure } from './analysisFormatters';
+import {
+  formatDate,
+  formatDateTime,
+  t
+} from '../i18n.js';
 
 export const ANALYSIS_LIMITATION_NOTE =
-  'This result supports field monitoring and does not replace agronomic inspection.';
+  t('This result supports field monitoring and does not replace agronomic inspection.');
 
 export const getCurrentSeasonYear = () => String(new Date().getFullYear());
 
@@ -10,17 +15,17 @@ const getPreviousSeasonYear = () => String(Number(getCurrentSeasonYear()) - 1);
 export const SEASON_OPTIONS = [
   {
     value: getCurrentSeasonYear(),
-    label: `Current season (${getCurrentSeasonYear()})`
+    label: t('Current season ({year})', { year: getCurrentSeasonYear() })
   },
   {
     value: getPreviousSeasonYear(),
-    label: `Previous season (${getPreviousSeasonYear()})`
+    label: t('Previous season ({year})', { year: getPreviousSeasonYear() })
   }
 ];
 
 const CUSTOM_SEASON_OPTION = {
   value: 'custom',
-  label: 'Custom date range'
+  label: t('Custom date range')
 };
 
 const toDate = (value) => {
@@ -76,14 +81,14 @@ export const createSeasonSelection = (
 
 const getSeasonOptionLabel = (seasonYear) => {
   if (String(seasonYear) === getCurrentSeasonYear()) {
-    return `Current season (${seasonYear})`;
+    return t('Current season ({year})', { year: seasonYear });
   }
 
   if (String(seasonYear) === getPreviousSeasonYear()) {
-    return `Previous season (${seasonYear})`;
+    return t('Previous season ({year})', { year: seasonYear });
   }
 
-  return `Season ${seasonYear}`;
+  return t('Season {year}', { year: seasonYear });
 };
 
 export const buildSeasonOptions = (items = [], includeCustom = false, selectedSeason = null) => {
@@ -140,12 +145,12 @@ export const normalizeConfidence = (value, fallback = '—') => {
 
 export const formatWorkspaceDateTime = (value, fallback = '—') => {
   const parsed = toDate(value);
-  return parsed ? parsed.toLocaleString() : fallback;
+  return parsed ? formatDateTime(parsed) : fallback;
 };
 
 export const formatWorkspaceDate = (value, fallback = '—') => {
   const parsed = toDate(value);
-  return parsed ? parsed.toLocaleDateString() : fallback;
+  return parsed ? formatDate(parsed) : fallback;
 };
 
 export const getAnalysisYear = (analysis) => {
@@ -331,8 +336,8 @@ export const mapRiskToStatus = (riskLevel) => {
 export const getVegetationLevelDisplay = (ndviValue) => {
   if (ndviValue === null || ndviValue === undefined || Number.isNaN(Number(ndviValue))) {
     return {
-      value: 'Not analyzed',
-      helper: 'Vegetation signal will appear after analysis.'
+      value: t('Not analyzed'),
+      helper: t('Vegetation signal will appear after analysis.')
     };
   }
 
@@ -340,30 +345,32 @@ export const getVegetationLevelDisplay = (ndviValue) => {
 
   if (numeric >= 0.6) {
     return {
-      value: 'High',
-      helper: 'Strong vegetation signal in the selected monitoring window.'
+      value: t('High'),
+      helper: t('Strong vegetation signal in the selected monitoring window.')
     };
   }
 
   if (numeric >= 0.35) {
     return {
-      value: 'Moderate',
-      helper: 'Moderate vegetation signal. Field inspection recommended.'
+      value: t('Moderate'),
+      helper: t('Moderate vegetation signal. Field inspection recommended.')
     };
   }
 
   return {
-    value: 'Low',
-    helper: 'Lower vegetation signal detected. Field inspection recommended.'
+    value: t('Low'),
+    helper: t('Lower vegetation signal detected. Field inspection recommended.')
   };
 };
 
 export const getVegetationIndexLevelDisplay = (indexType, value) => {
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
     return {
-      value: 'Not analyzed',
+      value: t('Not analyzed'),
       tone: 'neutral',
-      helper: `${indexType.toUpperCase()} is not available for this run.`
+      helper: t('{indexType} is not available for this run.', {
+        indexType: indexType.toUpperCase()
+      })
     };
   }
 
@@ -372,55 +379,55 @@ export const getVegetationIndexLevelDisplay = (indexType, value) => {
   if (indexType === 'evi') {
     if (numeric >= 0.45) {
       return {
-        value: 'High',
+        value: t('High'),
         tone: 'healthy',
-        helper: 'Higher canopy signal detected in the selected image window.'
+        helper: t('Higher canopy signal detected in the selected image window.')
       };
     }
 
     if (numeric >= 0.2) {
       return {
-        value: 'Moderate',
+        value: t('Moderate'),
         tone: 'warning',
-        helper: 'Moderate canopy signal. Field inspection recommended.'
+        helper: t('Moderate canopy signal. Field inspection recommended.')
       };
     }
 
     return {
-      value: 'Low',
+      value: t('Low'),
       tone: 'critical',
-      helper: 'Lower canopy signal detected. Field inspection recommended.'
+      helper: t('Lower canopy signal detected. Field inspection recommended.')
     };
   }
 
   if (numeric >= 0.6) {
     return {
-      value: 'High',
+      value: t('High'),
       tone: 'healthy',
-      helper: 'Higher greenness signal detected in the selected image window.'
+      helper: t('Higher greenness signal detected in the selected image window.')
     };
   }
 
   if (numeric >= 0.35) {
     return {
-      value: 'Moderate',
+      value: t('Moderate'),
       tone: 'warning',
-      helper: 'Moderate greenness signal. Field inspection recommended.'
+      helper: t('Moderate greenness signal. Field inspection recommended.')
     };
   }
 
   return {
-    value: 'Low',
+    value: t('Low'),
     tone: 'critical',
-    helper: 'Lower greenness signal detected. Field inspection recommended.'
+    helper: t('Lower greenness signal detected. Field inspection recommended.')
   };
 };
 
 export const getConditionSummaryDisplay = (analysisSummary) => {
   if (!analysisSummary?.analysisId) {
     return {
-      value: 'Not analyzed',
-      helper: 'Run an analysis to view a remote-sensing screening result.'
+      value: t('Not analyzed'),
+      helper: t('Run an analysis to view a remote-sensing screening result.')
     };
   }
 
@@ -428,28 +435,28 @@ export const getConditionSummaryDisplay = (analysisSummary) => {
 
   if (fieldCondition === 'Healthy') {
     return {
-      value: fieldCondition,
-      helper: 'Low inspection priority in the current result. Continue routine monitoring.'
+      value: t(fieldCondition),
+      helper: t('Low inspection priority in the current result. Continue routine monitoring.')
     };
   }
 
   if (fieldCondition === 'Warning') {
     return {
-      value: fieldCondition,
-      helper: 'Mixed signals detected. Field inspection recommended.'
+      value: t(fieldCondition),
+      helper: t('Mixed signals detected. Field inspection recommended.')
     };
   }
 
   if (fieldCondition === 'Critical') {
     return {
-      value: fieldCondition,
-      helper: 'Higher inspection priority detected. Field inspection is recommended.'
+      value: t(fieldCondition),
+      helper: t('Higher inspection priority detected. Field inspection is recommended.')
     };
   }
 
   return {
-    value: 'Not analyzed',
-    helper: 'Run an analysis to view a remote-sensing screening result.'
+    value: t('Not analyzed'),
+    helper: t('Run an analysis to view a remote-sensing screening result.')
   };
 };
 
@@ -457,15 +464,15 @@ export const getInspectionMessage = (analysisSummary) => {
   const condition = mapRiskToStatus(analysisSummary?.riskLevel);
 
   if (condition === 'Healthy') {
-    return 'Remote-sensing result indicates lower current inspection priority. Continue monitoring and inspect if field conditions change.';
+    return t('Remote-sensing result indicates lower current inspection priority. Continue monitoring and inspect if field conditions change.');
   }
 
   if (condition === 'Warning') {
-    return 'Remote-sensing screening result indicates mixed signals. Field inspection recommended.';
+    return t('Remote-sensing screening result indicates mixed signals. Field inspection recommended.');
   }
 
   if (condition === 'Critical') {
-    return 'Remote-sensing result indicates higher inspection priority. Field inspection is recommended.';
+    return t('Remote-sensing result indicates higher inspection priority. Field inspection is recommended.');
   }
 
   return 'Remote-sensing screening result is not available yet.';

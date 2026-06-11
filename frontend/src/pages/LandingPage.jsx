@@ -1,6 +1,7 @@
 import React from 'react';
 import AgroVisionLogo from '../components/common/AgroVisionLogo';
 import ThemeToggleButton from '../components/common/ThemeToggleButton.jsx';
+import LanguageSwitcher from '../components/common/LanguageSwitcher.jsx';
 import {
   Activity,
   ArrowRight,
@@ -15,6 +16,7 @@ import {
   Sprout,
   Upload
 } from 'lucide-react';
+import { t } from '../i18n.js';
 
 const NAV_LINKS = [
   { id: 'workflow', label: 'Workflow' },
@@ -72,8 +74,8 @@ function SatelliteHeroPanel() {
   return (
     <aside className="landing-map-panel glass-panel">
       <div className="landing-map-topbar">
-        <span>Satellite workspace</span>
-        <span>Boundary ready</span>
+        <span>{t('Satellite workspace')}</span>
+        <span>{t('Boundary ready')}</span>
       </div>
 
       <div className="landing-map-stage">
@@ -86,27 +88,34 @@ function SatelliteHeroPanel() {
         <div className="landing-map-boundary" />
         <div className="landing-map-pin">
           <MapPin size={14} />
-          Selected field
+          {t('Selected field')}
         </div>
 
         <div className="landing-map-caption">
-          <strong>From map to report</strong>
-          <p>Draw or upload a boundary, then run the analysis workflow.</p>
+          <strong>{t('From map to report')}</strong>
+          <p>{t('Draw or upload a boundary, then run the analysis workflow.')}</p>
         </div>
       </div>
 
       <div className="landing-map-flow">
-        <span>Boundary</span>
+        <span>{t('Boundary')}</span>
         <ArrowRight size={14} />
-        <span>Imagery</span>
+        <span>{t('Imagery')}</span>
         <ArrowRight size={14} />
-        <span>Report</span>
+        <span>{t('Report')}</span>
       </div>
     </aside>
   );
 }
 
-export default function LandingPage({ onSignIn, onGetStarted, theme, onToggleTheme }) {
+export default function LandingPage({
+  onSignIn,
+  onGetStarted,
+  theme,
+  onToggleTheme,
+  locale,
+  onChangeLocale
+}) {
   const handleScrollToTop = () => {
     const landingPage = document.querySelector('.landing-page');
 
@@ -156,18 +165,19 @@ export default function LandingPage({ onSignIn, onGetStarted, theme, onToggleThe
                 className="landing-nav-link"
                 onClick={() => scrollToSection(item.id)}
               >
-                {item.label}
+                {t(item.label)}
               </button>
             ))}
           </div>
 
           <div className="landing-nav-actions">
+            <LanguageSwitcher value={locale} onChange={onChangeLocale} />
             <ThemeToggleButton theme={theme} onToggle={onToggleTheme} />
             <button type="button" className="landing-btn-ghost" onClick={onSignIn}>
-              Sign In
+              {t('Sign In')}
             </button>
             <button type="button" className="landing-btn-outline" onClick={onGetStarted}>
-              Get Started
+              {t('Get Started')}
             </button>
           </div>
         </nav>
@@ -177,27 +187,26 @@ export default function LandingPage({ onSignIn, onGetStarted, theme, onToggleThe
             <div className="landing-hero-copy glass-panel landing-hero-copy-refined">
               <div className="landing-hero-badge">
                 <MapPin size={14} />
-                <span>Field boundaries · Satellite imagery · Monitoring reports</span>
+                <span>{t('Field boundaries · Satellite imagery · Monitoring reports')}</span>
               </div>
 
               <h1 className="landing-headline">
-                Turn field boundaries into satellite-based monitoring reports.
+                {t('Turn field boundaries into satellite-based monitoring reports.')}
               </h1>
 
               <p className="landing-subheadline">
-                AgroVision helps users add a field, prepare satellite imagery, run analysis,
-                and review vegetation condition, land-cover output, and season history.
+                {t('AgroVision helps users add a field, prepare satellite imagery, run analysis, and review vegetation condition, land-cover output, and season history.')}
               </p>
 
               <div className="landing-hero-points">
-                <span>GeoJSON upload or map drawing</span>
-                <span>NDVI / EVI vegetation indicators</span>
-                <span>Land-cover classification</span>
+                <span>{t('GeoJSON upload or map drawing')}</span>
+                <span>{t('NDVI / EVI vegetation indicators')}</span>
+                <span>{t('Land-cover classification')}</span>
               </div>
 
               <div className="landing-cta-row">
                 <button type="button" className="landing-btn-primary" onClick={onGetStarted}>
-                  Get Started
+                  {t('Get Started')}
                   <ChevronRight size={16} />
                 </button>
 
@@ -206,7 +215,7 @@ export default function LandingPage({ onSignIn, onGetStarted, theme, onToggleThe
                   className="landing-btn-secondary"
                   onClick={() => scrollToSection('workflow')}
                 >
-                  View Workflow
+                  {t('View Workflow')}
                 </button>
               </div>
             </div>
@@ -217,10 +226,10 @@ export default function LandingPage({ onSignIn, onGetStarted, theme, onToggleThe
 
         <section id="workflow" className="landing-section landing-section-anchor landing-workflow-section">
           <div className="landing-workflow-heading">
-            <p className="landing-section-label">Workflow</p>
-            <h2 className="landing-section-title">Five steps inside the Workspace</h2>
+            <p className="landing-section-label">{t('Workflow')}</p>
+            <h2 className="landing-section-title">{t('Five steps inside the Workspace')}</h2>
             <p className="landing-section-copy">
-              The process follows the actual field analysis flow used in the application.
+              {t('The process follows the actual field analysis flow used in the application.')}
             </p>
           </div>
 
@@ -231,8 +240,8 @@ export default function LandingPage({ onSignIn, onGetStarted, theme, onToggleThe
                   <div className="landing-workflow-number">{index + 1}</div>
                   <div className="landing-workflow-icon">{icon}</div>
                 </div>
-                <h3>{title}</h3>
-                <p>{desc}</p>
+                <h3>{t(title)}</h3>
+                <p>{t(desc)}</p>
               </div>
             ))}
           </div>
@@ -241,12 +250,10 @@ export default function LandingPage({ onSignIn, onGetStarted, theme, onToggleThe
         <section id="results" className="landing-section landing-section-anchor">
           <div className="landing-results-layout">
             <div className="landing-results-copy">
-              <p className="landing-section-label">Results</p>
-              <h2 className="landing-section-title">What the report helps you understand</h2>
+              <p className="landing-section-label">{t('Results')}</p>
+              <h2 className="landing-section-title">{t('What the report helps you understand')}</h2>
               <p className="landing-section-copy">
-                AgroVision turns satellite analysis into clear field insights. Each report helps users
-                understand field condition, detected land cover, recommended action, and seasonal history
-                without reading technical values first.
+                {t('AgroVision turns satellite analysis into clear field insights. Each report helps users understand field condition, detected land cover, recommended action, and seasonal history without reading technical values first.')}
               </p>
             </div>
 
@@ -255,8 +262,8 @@ export default function LandingPage({ onSignIn, onGetStarted, theme, onToggleThe
                 <div key={title} className="landing-result-card glass-panel">
                   <div className="landing-result-icon">{icon}</div>
                   <div>
-                    <h3>{title}</h3>
-                    <p>{desc}</p>
+                    <h3>{t(title)}</h3>
+                    <p>{t(desc)}</p>
                   </div>
                 </div>
               ))}
@@ -266,51 +273,51 @@ export default function LandingPage({ onSignIn, onGetStarted, theme, onToggleThe
 
         <section id="technology" className="landing-section landing-section-anchor">
           <div className="landing-section-header">
-            <p className="landing-section-label">Technology</p>
-            <h2 className="landing-section-title">How analysis is formed</h2>
+            <p className="landing-section-label">{t('Technology')}</p>
+            <h2 className="landing-section-title">{t('How analysis is formed')}</h2>
             <p className="landing-section-copy">
-              The technical workflow stays behind the interface, while the user receives a readable report.
+              {t('The technical workflow stays behind the interface, while the user receives a readable report.')}
             </p>
           </div>
 
           <div className="landing-tech-row glass-panel">
             <div>
               <Satellite size={24} />
-              <strong>Satellite image</strong>
-              <span>Imagery is selected for the field and season.</span>
+              <strong>{t('Satellite image')}</strong>
+              <span>{t('Imagery is selected for the field and season.')}</span>
             </div>
             <ArrowRight size={18} />
             <div>
               <Sprout size={24} />
               <strong>NDVI / EVI</strong>
-              <span>Vegetation indicators are calculated.</span>
+              <span>{t('Vegetation indicators are calculated.')}</span>
             </div>
             <ArrowRight size={18} />
             <div>
               <BrainCircuit size={24} />
-              <strong>Model output</strong>
-              <span>Land-cover class and confidence are returned.</span>
+              <strong>{t('Model output')}</strong>
+              <span>{t('Land-cover class and confidence are returned.')}</span>
             </div>
             <ArrowRight size={18} />
             <div>
               <BarChart3 size={24} />
-              <strong>Field report</strong>
-              <span>Status, recommendation, map, and history are shown.</span>
+              <strong>{t('Field report')}</strong>
+              <span>{t('Status, recommendation, map, and history are shown.')}</span>
             </div>
           </div>
         </section>
 
         <section id="faq" className="landing-section landing-section-anchor">
           <div className="landing-section-header">
-            <p className="landing-section-label">FAQ</p>
-            <h2 className="landing-section-title">Frequently asked questions</h2>
+            <p className="landing-section-label">{t('FAQ')}</p>
+            <h2 className="landing-section-title">{t('Frequently asked questions')}</h2>
           </div>
 
           <div className="landing-faq">
             {FAQ_ITEMS.map(([title, text]) => (
               <div key={title} className="landing-faq-item glass-panel">
-                <h3>{title}</h3>
-                <p>{text}</p>
+                <h3>{t(title)}</h3>
+                <p>{t(text)}</p>
               </div>
             ))}
           </div>
@@ -320,14 +327,14 @@ export default function LandingPage({ onSignIn, onGetStarted, theme, onToggleThe
           <div className="landing-final-card glass-panel">
             <AgroVisionLogo size={48} />
             <div>
-              <p className="landing-section-label">Get Started</p>
-              <h2 className="landing-section-title">Start with one field</h2>
+              <p className="landing-section-label">{t('Get Started')}</p>
+              <h2 className="landing-section-title">{t('Start with one field')}</h2>
               <p className="landing-section-copy">
-                Create an account, add a boundary, and generate the first land health report.
+                {t('Create an account, add a boundary, and generate the first land health report.')}
               </p>
             </div>
             <button type="button" className="landing-btn-primary" onClick={onGetStarted}>
-              Get Started Now
+              {t('Get Started Now')}
               <ChevronRight size={16} />
             </button>
           </div>
@@ -336,7 +343,7 @@ export default function LandingPage({ onSignIn, onGetStarted, theme, onToggleThe
         <footer className="landing-footer">
           <div>
             <p className="landing-footer-title">AgroVision</p>
-            <p>Satellite-based farmland monitoring with vegetation indicators and field history.</p>
+            <p>{t('Satellite-based farmland monitoring with vegetation indicators and field history.')}</p>
           </div>
         </footer>
       </div>

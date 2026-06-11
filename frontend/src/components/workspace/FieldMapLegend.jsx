@@ -1,4 +1,5 @@
 import React from 'react';
+import { t } from '../../i18n.js';
 
 const LEGEND_ITEMS = [
   { label: 'Low risk', color: 'var(--status-healthy)' },
@@ -11,19 +12,19 @@ export default function MapLegend({ mode = 'priority' }) {
   if (mode === 'analysis') {
     return (
       <div className="map-legend glass-panel map-legend-gradient map-legend-risk">
-        <strong className="map-legend-title">Vegetation signal</strong>
+        <strong className="map-legend-title">{t('Vegetation signal')}</strong>
 
         <div className="map-risk-gradient-bar" />
 
         <div className="map-gradient-scale">
-          <span>Weak</span>
-          <span>Moderate</span>
-          <span>Strong</span>
+          <span>{t('Weak')}</span>
+          <span>{t('Moderate')}</span>
+          <span>{t('Strong')}</span>
         </div>
 
         <div className="map-risk-not-analyzed">
           <span className="map-legend-swatch" style={{ background: 'var(--text-secondary)' }} />
-          <span>Not analyzed</span>
+          <span>{t('Not analyzed')}</span>
         </div>
       </div>
     );
@@ -31,13 +32,13 @@ export default function MapLegend({ mode = 'priority' }) {
 
   return (
     <div className="map-legend glass-panel">
-      <strong className="map-legend-title">Map legend</strong>
+      <strong className="map-legend-title">{t('Map legend')}</strong>
 
       <div className="map-legend-items">
         {LEGEND_ITEMS.map((item) => (
           <div key={item.label} className="map-legend-item">
             <span className="map-legend-swatch" style={{ background: item.color }} />
-            <span>{item.label}</span>
+            <span>{t(item.label)}</span>
           </div>
         ))}
       </div>

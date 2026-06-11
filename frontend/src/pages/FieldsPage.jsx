@@ -9,6 +9,12 @@ import {
   getRiskTone,
   sortAnalysesByNewest
 } from '../utils/fieldAnalysisUtils';
+import {
+  formatDate,
+  getAccessRoleLabel,
+  getRiskLabel,
+  t
+} from '../i18n.js';
 
 const DEFAULT_FIELD_TABS = [
   { id: 'all', label: 'All Fields' },
@@ -63,14 +69,7 @@ const RISK_ORDER = {
   'Not analyzed': 0
 };
 
-const getAccessRoleLabel = (role) => {
-  if (role === 'OWNER') return 'Owner';
-  if (role === 'EDITOR') return 'Editor';
-  if (role === 'VIEWER') return 'Viewer';
-  return 'Unknown';
-};
-
-const getFieldName = (field) => field?.name || 'Unnamed field';
+const getFieldName = (field) => field?.name || t('Unnamed field');
 
 const getLatestRiskLabel = (summary) => summary.latestRisk || 'Not analyzed';
 
@@ -95,15 +94,15 @@ const getLatestCropType = (summary) => (
 
 const formatAnalysisDate = (value) => {
   if (!value) {
-    return 'Date unavailable';
+    return t('Date unavailable');
   }
 
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
-    return 'Date unavailable';
+    return t('Date unavailable');
   }
 
-  return parsed.toLocaleDateString(undefined, {
+  return formatDate(parsed, t('Date unavailable'), {
     month: 'short',
     day: 'numeric',
     year: 'numeric'
@@ -203,7 +202,11 @@ const shouldShowAccessRoleBadge = (accessRole) => (
   accessRole !== 'OWNER' && accessRole !== 'ADMIN'
 );
 
-const formatRunCountLabel = (count) => `${count} ${count === 1 ? 'run' : 'runs'}`;
+const formatRunCountLabel = (count) => (
+  count === 1
+    ? t('{count} run', { count })
+    : t('{count} runs', { count })
+);
 
 function TabButton({ item, count, isActive, onClick }) {
   return (
@@ -215,7 +218,7 @@ function TabButton({ item, count, isActive, onClick }) {
         ...(isActive ? activeTabButtonStyle : null)
       }}
     >
-      <span>{item.label}</span>
+      <span>{t(item.label)}</span>
       <span style={tabCountStyle}>{count}</span>
     </button>
   );
@@ -224,7 +227,7 @@ function TabButton({ item, count, isActive, onClick }) {
 function FilterField({ label, children }) {
   return (
     <label style={filterFieldStyle}>
-      <span style={filterLabelStyle}>{label}</span>
+      <span style={filterLabelStyle}>{t(label)}</span>
       {children}
     </label>
   );
@@ -247,7 +250,7 @@ function TableHeader() {
             textAlign: column.align
           }}
         >
-          {column.label}
+          {column.label ? t(column.label) : ''}
         </span>
       ))}
     </div>
@@ -283,8 +286,8 @@ function FieldRow({
   const analysisCount = item.analyses?.length || 0;
   const latestAnalysisDateLabel = hasLatestAnalysis
     ? formatAnalysisDate(item.latestAnalysisDate)
-    : 'No analysis yet';
-  const latestAnalysisTypeLabel = item.latestCropType || 'Detected cover unavailable';
+    : t('No analysis yet');
+  const latestAnalysisTypeLabel = item.latestCropType || t('Detected cover unavailable');
   const canDelete = item.canDelete;
 
   return (
@@ -296,7 +299,7 @@ function FieldRow({
        borderLeft: `3px solid ${getRiskAccentColor(item.latestRiskLabel)}`
       }}
     >
-      <TableCell label="Field" className="fields-directory-field-cell">
+      <TableCell label={t('Field')} className="fields-directory-field-cell">
         <div style={fieldIdentityStackStyle}>
           <strong style={fieldTitleStyle}>{getFieldName(item.field)}</strong>
           {!item.isAgronomistUser && shouldShowAccessRoleBadge(item.accessRole) ? (            
@@ -305,17 +308,17 @@ function FieldRow({
         </div>
       </TableCell>
 
-      <TableCell label="Priority">
+      <TableCell label={t('Priority')}>
         <span className={`status-pill ${getRiskTone(item.latestRiskLabel)}`}>
-          {item.latestRiskLabel}
+          {getRiskLabel(item.latestRiskLabel)}
         </span>
       </TableCell>
 
-      <TableCell label="Area">
+      <TableCell label={t('Area')}>
         <strong style={cellValueStyle}>{formatAreaMeasure(item.field.area_ha)}</strong>
       </TableCell>
 
-      <TableCell label="Last analysis" className="fields-directory-latest-cell">
+      <TableCell label={t('Last analysis')} className="fields-directory-latest-cell">
         <div style={analysisStackStyle}>
           <span
             style={{
@@ -331,17 +334,17 @@ function FieldRow({
         </div>
       </TableCell>
 
-      <TableCell label="Runs">
+      <TableCell label={t('Runs')}>
         <strong style={cellValueStyle}>{formatRunCountLabel(analysisCount)}</strong>
       </TableCell>
 
-      <TableCell label="Owner">
+      <TableCell label={t('Owner')}>
         <span style={cellValueStyle}>
-          {item.ownerDisplay || 'Owner information unavailable'}
+          {item.ownerDisplay || t('Owner information unavailable')}
         </span>
       </TableCell>
 
-      <TableCell label="Actions" className="fields-directory-actions-cell" align="left">
+      <TableCell label={t('Actions')} className="fields-directory-actions-cell" align="left">
         <div className="fields-directory-actions-wrap" style={fieldActionsWrapStyle}>
           <button
             type="button"
@@ -349,7 +352,7 @@ function FieldRow({
             onClick={onOpenWorkspace}
             style={compactButtonStyle}
           >
-            Workspace
+            {t('Workspace')}
           </button>
 
           <button
@@ -359,22 +362,22 @@ function FieldRow({
               : 'secondary-btn fields-directory-action-btn fields-directory-action-btn--disabled'}
             onClick={onViewResult}
             disabled={!hasLatestAnalysis}
-            title={hasLatestAnalysis ? undefined : 'No result'}
+            title={hasLatestAnalysis ? undefined : t('No result')}
             style={compactButtonStyle}
           >
-            {hasLatestAnalysis ? 'View Results' : 'No result'}
+            {hasLatestAnalysis ? t('View results') : t('No result')}
           </button>
         </div>
       </TableCell>
-      <TableCell label="Delete" className="fields-directory-delete-cell" align="center">
+      <TableCell label={t('Delete')} className="fields-directory-delete-cell" align="center">
         {canDelete ? (
           <button
             type="button"
             className="fields-directory-delete-icon-btn"
             onClick={onDelete}
             disabled={isDeleting}
-            title={isDeleting ? 'Deleting...' : 'Delete field'}
-            aria-label={isDeleting ? 'Deleting field' : 'Delete field'}
+            title={isDeleting ? t('Deleting...') : t('Delete field')}
+            aria-label={isDeleting ? t('Deleting field') : t('Delete field')}
           >
             <Trash2 size={16} />
           </button>
@@ -451,8 +454,8 @@ export default function FieldsPage({
     if (hasFailure) {
       setNotice(
         backendHealthy
-          ? 'Some field records could not be refreshed. Showing the latest available data.'
-          : 'Backend is not connected. Showing the latest local field context where possible.'
+          ? t('Some field records could not be refreshed. Showing the latest available data.')
+          : t('Backend is not connected. Showing the latest local field context where possible.')
       );
     } else if (!preserveNotice) {
       setNotice('');
@@ -488,7 +491,7 @@ export default function FieldsPage({
       const ownerDisplay =
         summary.field.owner_name ||
         summary.field.owner_email ||
-        (isFieldOwnedByUser(summary.field, user) ? 'You' : null);
+        (isFieldOwnedByUser(summary.field, user) ? t('You') : null);
 
       return {
         ...summary,
@@ -582,7 +585,9 @@ export default function FieldsPage({
     }
 
     const confirmed = window.confirm(
-      `Delete "${fieldName}"? This permanently removes the field, its access list, comments, and analysis records.`
+      t('Delete "{fieldName}"? This permanently removes the field, its access list, comments, and analysis records.', {
+        fieldName
+      })
     );
 
     if (!confirmed) {
@@ -595,11 +600,16 @@ export default function FieldsPage({
     try {
       const response = await deleteField(fieldId);
       await loadFieldsPageData({ preserveNotice: true });
-      setNotice(response?.message || `Field "${fieldName}" deleted successfully.`);
+      setNotice(
+        t(response?.message || 'Field "{fieldName}" deleted successfully.', {
+          fieldName
+        })
+      );
     } catch (error) {
       setNotice(
-        error.response?.data?.detail ||
-        `Failed to delete "${fieldName}".`
+        t(error.response?.data?.detail || 'Failed to delete "{fieldName}".', {
+          fieldName
+        })
       );
     } finally {
       setDeletingFieldId('');
@@ -614,15 +624,15 @@ export default function FieldsPage({
         <section className="page-hero glass-panel">
           <div>
             <div className="page-kicker">
-              {isAgronomistUser ? 'FIELD REVIEW' : 'FIELD INVENTORY'}
+              {isAgronomistUser ? t('FIELD REVIEW') : t('FIELD INVENTORY')}
             </div>
             <h1 className="page-title">
-              {isAgronomistUser ? 'Assigned fields' : 'Your fields'}
+              {isAgronomistUser ? t('Assigned fields') : t('Your fields')}
             </h1>
             <p className="page-subtitle">
               {isAgronomistUser
-                ? 'Review assigned parcels, crop condition, and latest analysis results.'
-                : 'Review saved parcels, latest analysis status, and open the next action.'}
+                ? t('Review assigned parcels, crop condition, and latest analysis results.')
+                : t('Review saved parcels, latest analysis status, and open the next action.')}
             </p>
           </div>
 
@@ -633,7 +643,7 @@ export default function FieldsPage({
               onClick={handleAddField}
             >
               <Plus size={16} />
-              Add Field
+              {t('Add Field')}
             </button>
           ) : null}
         </section>
@@ -669,7 +679,7 @@ export default function FieldsPage({
                   setSearchQuery(event.target.value);
                   setCurrentPage(1);
                 }}
-                placeholder="Search by field, owner, crop, or priority"
+                placeholder={t('Search by field, owner, crop, or priority')}
                 style={controlInputStyle}
               />
             </FilterField>
@@ -685,7 +695,7 @@ export default function FieldsPage({
               >
                 {RISK_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {t(option.label)}
                   </option>
                 ))}
               </select>
@@ -703,7 +713,7 @@ export default function FieldsPage({
                 >
                   {ACCESS_ROLE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
-                      {option.label}
+                      {t(option.label)}
                     </option>
                   ))}
                 </select>
@@ -721,7 +731,7 @@ export default function FieldsPage({
               >
                 {SORT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {t(option.label)}
                   </option>
                 ))}
               </select>
@@ -729,20 +739,20 @@ export default function FieldsPage({
           </div>
 
           {loading ? (
-            <div className="workspace-helper-text">Loading field records...</div>
+            <div className="workspace-helper-text">{t('Loading field records...')}</div>
           ) : null}
         </section>
 
         <section className="glass-panel fields-directory-list-panel" style={listPanelStyle}>
           {loading ? (
-            <div className="empty-state">Loading fields...</div>
+            <div className="empty-state">{t('Loading fields...')}</div>
           ) : !hasAnyFields ? (
             <div className="empty-state">
-              No fields are available yet. Open the Workspace to upload or draw a field boundary.
+              {t('No fields are available yet. Open the Workspace to upload or draw a field boundary.')}
             </div>
           ) : visibleFieldItems.length === 0 ? (
             <div className="empty-state">
-              No fields match the current tab, search, or filters.
+              {t('No fields match the current tab, search, or filters.')}
             </div>
           ) : (
             <>

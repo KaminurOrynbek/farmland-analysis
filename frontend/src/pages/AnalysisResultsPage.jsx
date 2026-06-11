@@ -2,9 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   BrainCircuit,
+  Download,
   Layers3,
   Leaf,
   MapPinned,
+  MessageSquare,
   ShieldCheck
 } from 'lucide-react';
 import { fetchAnalysisHistory } from '../api/client';
@@ -12,6 +14,9 @@ import FieldMap from '../components/workspace/FieldMap';
 import NoAnalysisState from '../components/workspace/NoAnalysisState';
 import { APP_PAGES } from '../constants/appPages';
 import { formatAreaMeasure, formatIndex } from '../utils/analysisFormatters';
+import FieldCommentsPanel from '../components/workspace/FieldCommentsPanel';
+import { downloadAnalysisReportPdf } from '../utils/reportPdf';
+
 import {
   createFieldFallbackRecord,
   filterAnalysesBySeason,
@@ -23,6 +28,7 @@ import {
   normalizeAnalysisRecord,
   sortAnalysesByNewest
 } from '../utils/fieldAnalysisUtils';
+import { getRiskLabel, t } from '../i18n.js';
 
 const buildGeoJsonFromSelection = (selectedField, fieldId, fieldName) => {
   if (!selectedField?.geometry) return null;
@@ -58,35 +64,35 @@ const getHealthSummary = (riskLevel) => {
   if (riskLevel === 'Low') {
     return {
       tone: 'healthy',
-      label: 'Healthy',
-      title: 'The field looks stable',
-      text: 'NDVI and EVI indicate good vegetation condition for the selected season.'
+      label: t('Healthy'),
+      title: t('The field looks stable'),
+      text: t('NDVI and EVI indicate good vegetation condition for the selected season.')
     };
   }
 
   if (riskLevel === 'Medium') {
     return {
       tone: 'warning',
-      label: 'Moderate',
-      title: 'The field needs attention',
-      text: 'Vegetation indicators show mixed field condition. Review the map and monitor this parcel.'
+      label: t('Moderate'),
+      title: t('The field needs attention'),
+      text: t('Vegetation indicators show mixed field condition. Review the map and monitor this parcel.')
     };
   }
 
   if (riskLevel === 'High' || riskLevel === 'Critical') {
     return {
       tone: 'critical',
-      label: 'Needs attention',
-      title: 'The field may be stressed',
-      text: 'NDVI and EVI show weak vegetation signals. This parcel should be checked.'
+      label: t('Needs attention'),
+      title: t('The field may be stressed'),
+      text: t('NDVI and EVI show weak vegetation signals. This parcel should be checked.')
     };
   }
 
   return {
     tone: 'neutral',
-    label: 'Not analyzed',
-    title: 'No health result available',
-    text: 'Run an analysis to calculate NDVI, EVI, and field health status.'
+    label: t('Not analyzed'),
+    title: t('No health result available'),
+    text: t('Run an analysis to calculate NDVI, EVI, and field health status.')
   };
 };
 
@@ -129,6 +135,9 @@ export default function AnalysisResultsPage({
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [notice, setNotice] = useState('');
 
+  const [isPreparingPdf, setIsPreparingPdf] = useState(false);
+  const [commentsExpanded, setCommentsExpanded] = useState(false);
+
   const selectedFieldId = getFieldSelectionId(selectedField);
   const selectedFieldName = getFieldSelectionName(selectedField);
 
@@ -164,8 +173,8 @@ export default function AnalysisResultsPage({
         setHistory([]);
         setNotice(
           backendHealthy
-            ? 'Field history could not be refreshed. Showing the latest available result.'
-            : 'Backend is not connected. Stored analysis history is unavailable right now.'
+            ? t('Field history could not be refreshed. Showing the latest available result.')
+            : t('Backend is not connected. Stored analysis history is unavailable right now.')
         );
       } finally {
         if (isActive) {
@@ -232,13 +241,13 @@ export default function AnalysisResultsPage({
     ? formatAreaMeasure(fieldRecord.area_ha)
     : contextReport?.areaHectares
       ? formatAreaMeasure(contextReport.areaHectares)
-      : 'Area pending';
+      : t('Area pending');
 
   const latestRunLabel = contextReport?.analysisDate
-    ? formatWorkspaceDateTime(contextReport.analysisDate, 'Not available')
+    ? formatWorkspaceDateTime(contextReport.analysisDate, t('Not available'))
     : loadingHistory
-      ? 'Loading...'
-      : 'Not available';
+      ? t('Loading...')
+      : t('Not available');
 
   const analysisGeoJsonData = useMemo(() => (
     geoJsonData?.features?.length
@@ -262,18 +271,54 @@ export default function AnalysisResultsPage({
     return 'critical';
   }, [activeReport?.confidence]);
 
+
+  const reportToDownload = activeReport || contextReport || null;
+
+  const handleDownloadPdf = async () => {
+    if (!reportToDownload) return;
+
+    const reportWindow = window.open('', '_blank', 'width=1080,height=820');
+
+    if (!reportWindow) {
+      alert(t('Allow pop-ups in your browser to download the PDF report.'));
+      return;
+    }
+
+    setIsPreparingPdf(true);
+
+    try {
+      const opened = downloadAnalysisReportPdf({
+        fieldName: displayFieldName,
+        fieldAreaHectares: fieldRecord?.area_ha || reportToDownload?.areaHectares || null,
+        analysisPeriodLabel: `${t('Season')} ${selectedSeasonLabel}`,
+        report: reportToDownload,
+        recommendation: healthSummary.text,
+        recommendationHeadline: healthSummary.title,
+        historyItems: fieldHistory,
+        geoJsonData: analysisGeoJsonData,
+        reportWindow
+      });
+
+      if (!opened) {
+        alert(t('Allow pop-ups in your browser to download the PDF report.'));
+      }
+    } finally {
+      setIsPreparingPdf(false);
+    }
+  };
+
   if (!selectedField && !activeReport) {
     return (
       <div className="content-page">
         <NoAnalysisState
-          title="No analysis available yet"
-          description="Select or save a field in Workspace, then run an analysis to open the land health report."
+          title={t('No analysis available yet')}
+          description={t('Select or save a field in Workspace, then run an analysis to open the land health report.')}
           primaryAction={{
-            label: `Open ${APP_PAGES.WORKSPACE}`,
+            label: t('Open {page}', { page: t(APP_PAGES.WORKSPACE) }),
             onClick: () => onNavigate(APP_PAGES.WORKSPACE)
           }}
           secondaryAction={{
-            label: `Open ${APP_PAGES.FIELDS}`,
+            label: t('Open {page}', { page: t(APP_PAGES.FIELDS) }),
             onClick: () => onNavigate(APP_PAGES.FIELDS)
           }}
         />
@@ -285,32 +330,55 @@ export default function AnalysisResultsPage({
     <div className="content-page analysis-results-page">
       <section className="analysis-results-hero glass-panel">
         <div className="analysis-results-hero-copy">
-          <div className="page-kicker">Field health report</div>
+          <div className="page-kicker">{t('Field health report')}</div>
           <h1 className="page-title">{displayFieldName}</h1>
           <p className="page-subtitle">
-            Satellite-based result for the selected parcel and season.
+            {t('Satellite-based result for the selected parcel and season.')}
           </p>
 
           <div className="analysis-results-meta-strip">
             <div className="analysis-results-meta-pill">
-              <span>Season</span>
+              <span>{t('Season')}</span>
               <strong>{selectedSeasonLabel}</strong>
             </div>
 
             <div className="analysis-results-meta-pill">
-              <span>Area</span>
+              <span>{t('Area')}</span>
               <strong>{fieldArea}</strong>
             </div>
 
             <div className="analysis-results-meta-pill">
-              <span>Latest run</span>
+              <span>{t('Latest run')}</span>
               <strong>{latestRunLabel}</strong>
             </div>
           </div>
+
+
+          <div className="page-hero-actions analysis-results-top-actions">
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={handleDownloadPdf}
+              disabled={!reportToDownload || isPreparingPdf}
+            >
+              <Download size={16} />
+              {isPreparingPdf ? t('Preparing PDF...') : t('Download PDF')}
+            </button>
+
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => setCommentsExpanded((current) => !current)}
+            >
+              <MessageSquare size={16} />
+              {commentsExpanded ? t('Hide comments') : t('Show comments')}
+            </button>
+          </div>  
+
         </div>
 
         <div className={`analysis-results-health-card tone-${healthSummary.tone}`}>
-          <span className="analysis-results-card-kicker">Field health status</span>
+          <span className="analysis-results-card-kicker">{t('Field health status')}</span>
           <div className="analysis-results-health-main">
             <h2>{healthSummary.title}</h2>
             <span className={`status-pill ${healthSummary.tone}`}>
@@ -323,6 +391,19 @@ export default function AnalysisResultsPage({
 
       {notice ? <div className="workspace-notice-banner">{notice}</div> : null}
 
+      {commentsExpanded ? (
+        <section className="analysis-results-comments glass-panel">
+          <FieldCommentsPanel
+            user={user}
+            fieldId={selectedFieldId}
+            selectedField={fieldRecord || selectedField}
+            hasGeometry={Boolean(analysisGeoJsonData)}
+            variant="embedded"
+            collapsible={false}
+          />
+        </section>
+      ) : null}
+
       <section className="analysis-results-main-grid clean">
         <div className="analysis-results-map-panel glass-panel">
           <div className="workspace-section-heading">
@@ -330,9 +411,9 @@ export default function AnalysisResultsPage({
               <MapPinned size={16} />
             </div>
             <div>
-              <strong style={{ fontSize: '1rem' }}>NDVI vegetation map</strong>
+              <strong style={{ fontSize: '1rem' }}>{t('NDVI vegetation map')}</strong>
               <p className="workspace-helper-text">
-                Visual layer based on NDVI values. EVI is included as a separate measurement.
+                {t('Visual layer based on NDVI values. EVI is included as a separate measurement.')}
               </p>
             </div>
           </div>
@@ -366,9 +447,9 @@ export default function AnalysisResultsPage({
                 <Leaf size={16} />
               </div>
               <div>
-                <strong style={{ fontSize: '1rem' }}>Vegetation measurements</strong>
+                <strong style={{ fontSize: '1rem' }}>{t('Vegetation measurements')}</strong>
                 <p className="workspace-helper-text">
-                  NDVI and EVI are used together to calculate the final field health status.
+                  {t('NDVI and EVI are used together to calculate the final field health status.')}
                 </p>
               </div>
             </div>
@@ -394,9 +475,9 @@ export default function AnalysisResultsPage({
 
               <ResultMetricCard
                 icon={<ShieldCheck size={16} />}
-                label="Risk level"
-                value={activeReport?.riskLevel || 'Not available'}
-                helper="Calculated from NDVI, EVI, and stressed vegetation area."
+                label={t('Risk level')}
+                value={getRiskLabel(activeReport?.riskLevel) || t('Not available')}
+                helper={t('Calculated from NDVI, EVI, and stressed vegetation area.')}
                 tone={healthSummary.tone}
                 badge={healthSummary.label}
               />
@@ -409,7 +490,7 @@ export default function AnalysisResultsPage({
               className="secondary-btn"
               onClick={() => onNavigate(APP_PAGES.WORKSPACE)}
             >
-              Open Workspace
+              {t('Open Workspace')}
             </button>
 
             <button
@@ -417,7 +498,7 @@ export default function AnalysisResultsPage({
               className="primary-btn"
               onClick={() => onRunNewAnalysis?.()}
             >
-              Run new analysis
+              {t('Run new analysis')}
             </button>
           </div>
         </div>
@@ -429,9 +510,9 @@ export default function AnalysisResultsPage({
             <BrainCircuit size={16} />
           </div>
           <div>
-            <strong style={{ fontSize: '1rem' }}>Satellite image classification</strong>
+            <strong style={{ fontSize: '1rem' }}>{t('Satellite image classification')}</strong>
             <p className="workspace-helper-text">
-              Additional machine-learning context for the analyzed satellite image.
+              {t('Additional machine-learning context for the analyzed satellite image.')}
             </p>
           </div>
         </div>
@@ -439,17 +520,17 @@ export default function AnalysisResultsPage({
         <div className="analysis-results-classification-grid">
           <ResultMetricCard
             icon={<Layers3 size={16} />}
-            label="Detected land-cover type"
-            value={contextReport?.predictedClass || 'Not available'}
-            helper="Dominant land-cover category detected by the ResNet-50 model."
+            label={t('Detected land-cover type')}
+            value={contextReport?.predictedClass || t('Not available')}
+            helper={t('Dominant land-cover category detected by the ResNet-50 model.')}
             tone="neutral"
           />
 
           <ResultMetricCard
             icon={<ShieldCheck size={16} />}
-            label="Model certainty"
+            label={t('Model certainty')}
             value={contextReport?.confidenceLabel || '—'}
-            helper="How certain the model is about this detected land-cover type."
+            helper={t('How certain the model is about this detected land-cover type.')}
             tone={confidenceTone}
           />
         </div>

@@ -15,6 +15,7 @@ import {
   revokeFieldAccess,
   shareField
 } from '../api/client';
+import { getAccessRoleLabel, t } from '../i18n.js';
 
 const PAGE_SIZE = 8;
 
@@ -69,7 +70,7 @@ const SHARE_ROLE_OPTIONS = [
 const formatArea = (value) => (
   value !== null && value !== undefined && value !== ''
     ? `${Number(value).toFixed(2)} ha`
-    : 'Area unknown'
+    : t('Area unknown')
 );
 
 const getRoleTone = (role) => {
@@ -110,7 +111,6 @@ export default function FieldSharingPage({ user }) {
     selectedField?.role === 'OWNER' ||
     selectedField?.role === 'ADMIN' ||
     user?.role === 'ADMIN';
-  const selectedFieldRoleMeta = getRoleMeta(selectedField?.role);
 
   const filteredFields = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -137,8 +137,8 @@ export default function FieldSharingPage({ user }) {
           .includes(query);
       })
       .sort((left, right) => {
-        const leftName = left.name || 'Unnamed Field';
-        const rightName = right.name || 'Unnamed Field';
+        const leftName = left.name || t('Unnamed field');
+        const rightName = right.name || t('Unnamed field');
         return leftName.localeCompare(rightName);
       });
   }, [fields, isAdminUser, roleFilter, searchQuery]);
@@ -177,7 +177,7 @@ export default function FieldSharingPage({ user }) {
         setTeamMessage('');
       }
     } catch (error) {
-      setMessage(error.response?.data?.detail || 'Failed to load fields.');
+      setMessage(t(error.response?.data?.detail || 'Failed to load fields.'));
     } finally {
       setLoading(false);
     }
@@ -200,8 +200,8 @@ export default function FieldSharingPage({ user }) {
     } catch (error) {
       setTeam([]);
       setTeamMessage(
-        error.response?.data?.detail ||
-          'Unable to load the current access list for this field.'
+        t(error.response?.data?.detail ||
+          'Unable to load the current access list for this field.')
       );
     } finally {
       setTeamLoading(false);
@@ -247,12 +247,12 @@ export default function FieldSharingPage({ user }) {
         role
       });
 
-      setMessage(result.message || 'Field shared successfully.');
+      setMessage(t(result.message || 'Field shared successfully.'));
       setEmail('');
       setRole('VIEWER');
       await loadTeam(selectedFieldId);
     } catch (error) {
-      setMessage(error.response?.data?.detail || 'Failed to share field.');
+      setMessage(t(error.response?.data?.detail || 'Failed to share field.'));
     }
   };
 
@@ -269,7 +269,7 @@ export default function FieldSharingPage({ user }) {
 
       await loadTeam(selectedFieldId);
     } catch (error) {
-      setMessage(error.response?.data?.detail || 'Failed to revoke access.');
+      setMessage(t(error.response?.data?.detail || 'Failed to revoke access.'));
     }
   };
 
@@ -279,24 +279,24 @@ export default function FieldSharingPage({ user }) {
 
       <section className="page-hero glass-panel field-sharing-hero">
         <div>
-          <div className="page-kicker">ACCESS CONTROL</div>
-          <h1 className="page-title">Share field access</h1>
-          <p className="page-subtitle">Manage who can view, analyze, or edit saved fields.</p>
+          <div className="page-kicker">{t('ACCESS CONTROL')}</div>
+          <h1 className="page-title">{t('Share field access')}</h1>
+          <p className="page-subtitle">{t('Manage who can view, analyze, or edit saved fields.')}</p>
         </div>
 
         <button type="button" className="secondary-btn" onClick={loadFields}>
           <RefreshCw size={16} />
-          Refresh
+          {t('Refresh')}
         </button>
       </section>
 
       {message ? <div className="workspace-notice-banner">{message}</div> : null}
 
       {loading ? (
-        <div className="empty-state">Loading fields...</div>
+        <div className="empty-state">{t('Loading fields...')}</div>
       ) : fields.length === 0 ? (
         <div className="empty-state">
-          No fields available yet. Create or upload a field in Workspace first.
+          {t('No fields available yet. Create or upload a field in Workspace first.')}
         </div>
       ) : (
         <div className="field-sharing-grid">
@@ -304,9 +304,9 @@ export default function FieldSharingPage({ user }) {
             <div className="field-sharing-section-head">
               <MapPin size={18} color="var(--accent-color)" />
               <div>
-                <h2>Accessible fields</h2>
+                <h2>{t('Accessible fields')}</h2>
                 <p className="workspace-helper-text">
-                  Choose a saved field to review access and sharing permissions.
+                  {t('Choose a saved field to review access and sharing permissions.')}
                 </p>
               </div>
             </div>
@@ -321,7 +321,7 @@ export default function FieldSharingPage({ user }) {
                     setSearchQuery(event.target.value);
                     setCurrentPage(1);
                   }}
-                  placeholder="Search fields or owners"
+                  placeholder={t('Search fields or owners')}
                 />
               </label>
 
@@ -336,7 +336,7 @@ export default function FieldSharingPage({ user }) {
                 >
                   {ROLE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
-                      {option.label}
+                      {t(option.label)}
                     </option>
                   ))}
                 </select>
@@ -345,7 +345,7 @@ export default function FieldSharingPage({ user }) {
 
             {filteredFields.length === 0 ? (
               <div className="empty-state compact">
-                No fields match your search or role filter.
+                {t('No fields match your search or role filter.')}
               </div>
             ) : (
               <>
@@ -362,9 +362,9 @@ export default function FieldSharingPage({ user }) {
                       >
                         <div className="field-sharing-field-card-main">
                           <div className="field-sharing-field-card-head">
-                            <strong>{field.name || 'Unnamed Field'}</strong>
+                            <strong>{field.name || t('Unnamed field')}</strong>
                             {isSelected ? (
-                              <span className="field-sharing-selected-badge">Selected</span>
+                              <span className="field-sharing-selected-badge">{t('Selected')}</span>
                             ) : null}
                           </div>
                           <p>{formatArea(field.area_ha)}</p>
@@ -373,8 +373,8 @@ export default function FieldSharingPage({ user }) {
                         
 
                         <div className="field-sharing-field-card-side">
-                          <small>Owner</small>
-                          <strong>{field.owner_name || field.owner_email || 'Unknown'}</strong>
+                          <small>{t('Owner')}</small>
+                          <strong>{field.owner_name || field.owner_email || t('Unknown')}</strong>
                         </div>
                       </button>
                     );
@@ -396,21 +396,21 @@ export default function FieldSharingPage({ user }) {
             <div className="field-sharing-section-head">
               <Users size={18} color="var(--status-healthy)" />
               <div>
-                <h2>People with access</h2>
+                <h2>{t('People with access')}</h2>
                 <p className="workspace-helper-text">
-                  Review who can currently open and work with this saved field.
+                  {t('Review who can currently open and work with this saved field.')}
                 </p>
               </div>
             </div>
 
             {teamLoading ? (
-              <div className="empty-state compact">Loading people with access...</div>
+              <div className="empty-state compact">{t('Loading people with access...')}</div>
             ) : teamMessage ? (
               <div className="workspace-note-card field-sharing-readonly-card">
                 {teamMessage}
               </div>
             ) : team.length === 0 ? (
-              <div className="empty-state compact">No access records are available for this field.</div>
+              <div className="empty-state compact">{t('No access records are available for this field.')}</div>
             ) : (
               <div className="field-sharing-team-list">
                 {team.map((member) => {
@@ -431,7 +431,7 @@ export default function FieldSharingPage({ user }) {
                       <div className="field-sharing-team-actions">
                         <span className={`status-pill ${getRoleTone(member.role)}`}>
                           <ShieldCheck size={13} />
-                          {memberRoleMeta.label}
+                          {getAccessRoleLabel(member.role)}
                         </span>
 
                         {canRemoveMember ? (
@@ -441,7 +441,7 @@ export default function FieldSharingPage({ user }) {
                             className="field-sharing-danger-btn"
                           >
                             <Trash2 size={14} />
-                            Remove access
+                            {t('Remove access')}
                           </button>
                         ) : null}
                       </div>
@@ -455,23 +455,24 @@ export default function FieldSharingPage({ user }) {
               <div className="field-sharing-section-head">
                 <Share2 size={18} color="var(--accent-color)" />
                 <div>
-                  <h2>Invite people</h2>
+                  <h2>{t('Invite people')}</h2>
                   <p className="workspace-helper-text">
-                    Owners and platform Admins can add people or change access.
+                    {t('Owners and platform Admins can add people or change access.')}
                   </p>
                 </div>
               </div>
 
               {!canManageSelectedField ? (
                 <div className="workspace-note-card field-sharing-readonly-card">
-                  <strong>Read-only access.</strong>{' '}
-                  Your current role is {selectedFieldRoleMeta.label}. Only a field Owner or
-                  platform Admin can invite people or remove access.
+                  <strong>{t('Read-only access.')}</strong>{' '}
+                  {t('Your current role is {role}. Only a field Owner or platform Admin can invite people or remove access.', {
+                    role: getAccessRoleLabel(selectedField?.role)
+                  })}
                 </div>
               ) : (
                 <div className="field-sharing-form">
                   <label className="field-sharing-form-field">
-                    <span>Email address</span>
+                    <span>{t('Email address')}</span>
                     <input
                       type="email"
                       value={email}
@@ -481,8 +482,8 @@ export default function FieldSharingPage({ user }) {
                   </label>
 
                   <div className="field-sharing-form-field">
-                    <span>Choose access level</span>
-                    <div className="field-sharing-role-grid" role="radiogroup" aria-label="Access role">
+                    <span>{t('Choose access level')}</span>
+                    <div className="field-sharing-role-grid" role="radiogroup" aria-label={t('Access role')}>
                       {SHARE_ROLE_OPTIONS.map((option) => (
                         <button
                           key={option.value}
@@ -491,13 +492,16 @@ export default function FieldSharingPage({ user }) {
                           className={`field-sharing-role-card ${role === option.value ? 'active' : ''}`}
                           aria-pressed={role === option.value}
                         >
-                          <strong>{option.label}</strong>
-                          <small>{option.helper}</small>
+                          <strong>{t(option.label)}</strong>
+                          <small>{t(option.helper)}</small>
                         </button>
                       ))}
                     </div>
                     <small className="field-sharing-role-selection-note">
-                      Selected role: <strong>{selectedRoleOption?.label}</strong>. {selectedRoleOption?.helper}
+                      {t('Selected role: {role}. {helper}', {
+                        role: t(selectedRoleOption?.label || ''),
+                        helper: t(selectedRoleOption?.helper || '')
+                      })}
                     </small>
                   </div>
 
@@ -507,7 +511,7 @@ export default function FieldSharingPage({ user }) {
                     disabled={!email.trim()}
                     onClick={handleShare}
                   >
-                    Send invite
+                    {t('Send invite')}
                   </button>
                 </div>
               )}

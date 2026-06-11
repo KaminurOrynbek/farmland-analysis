@@ -11,6 +11,7 @@ import {
   getFieldSelectionId
 } from '../../utils/fieldAnalysisUtils';
 import MonitoringSeasonSelector from './MonitoringSeasonSelector';
+import { t } from '../../i18n.js';
 
 const normalizeGeoJson = (geoJson, metadata = {}) => {
   if (geoJson.type === 'FeatureCollection') {
@@ -118,7 +119,7 @@ export default function FieldControlPanel({
     }
 
     if (!file.name.endsWith('.geojson') && !file.name.endsWith('.json')) {
-      setGeoJsonUploadError('Please select a valid GeoJSON file.');
+      setGeoJsonUploadError(t('Please select a valid GeoJSON file.'));
       return;
     }
 
@@ -142,7 +143,7 @@ export default function FieldControlPanel({
       } catch (error) {
         console.error('Error parsing GeoJSON', error);
         setGeoJsonUploadError(
-          'The selected file could not be parsed. Please upload a standard GeoJSON boundary.'
+          t('The selected file could not be parsed. Please upload a standard GeoJSON boundary.')
         );
       }
     };
@@ -219,7 +220,7 @@ export default function FieldControlPanel({
         style={{ display: 'none' }}
       />
 
-      <SidebarSection title="Season" guideId="season-date-selection">
+      <SidebarSection title={t('Season')} guideId="season-date-selection">
         <MonitoringSeasonSelector
           value={seasonSelection}
           onChange={onSeasonSelectionChange}
@@ -228,9 +229,9 @@ export default function FieldControlPanel({
         />
       </SidebarSection>
 
-      <SidebarSection title="Field boundary" guideId="field-upload-section">
+      <SidebarSection title={t('Field boundary')} guideId="field-upload-section">
         <p className="workspace-helper-text" style={{ margin: 0 }}>
-          Upload a field boundary or draw one directly on the map.
+          {t('Upload a field boundary or draw one directly on the map.')}
         </p>
 
         <div className="workspace-boundary-methods">
@@ -245,8 +246,8 @@ export default function FieldControlPanel({
               <Upload size={16} />
             </span>
             <span>
-              <strong>Upload GeoJSON</strong>
-              <small>Choose an existing .geojson or .json field boundary file.</small>
+              <strong>{t('Upload GeoJSON')}</strong>
+              <small>{t('Choose an existing .geojson or .json field boundary file.')}</small>
             </span>
           </button>
 
@@ -261,8 +262,8 @@ export default function FieldControlPanel({
               <Pencil size={16} />
             </span>
             <span>
-              <strong>Draw on map</strong>
-              <small>Click to jump to the map tools, then choose polygon or rectangle.</small>
+              <strong>{t('Draw on map')}</strong>
+              <small>{t('Click to jump to the map tools, then choose polygon or rectangle.')}</small>
             </span>
           </button>
         </div>
@@ -270,9 +271,9 @@ export default function FieldControlPanel({
         {geoJsonData ? (
           <div className="workspace-boundary-current">
             <div>
-              <strong>{geoJsonMeta?.name || 'Current boundary'}</strong>
+              <strong>{geoJsonMeta?.name || t('Current boundary')}</strong>
               <p className="workspace-helper-text">
-                {hasSavedField ? 'Saved field boundary' : 'Boundary ready to save'}
+                {hasSavedField ? t('Saved field boundary') : t('Boundary ready to save')}
               </p>
             </div>
 
@@ -284,7 +285,7 @@ export default function FieldControlPanel({
 
         {geoJsonUploadError ? (
           <div className="workspace-note-card">
-            <strong>GeoJSON upload issue</strong>
+            <strong>{t('GeoJSON upload issue')}</strong>
             <p className="workspace-helper-text">{geoJsonUploadError}</p>
           </div>
         ) : null}
@@ -295,18 +296,18 @@ export default function FieldControlPanel({
             checked={fieldLayerVisible}
             onChange={(event) => setFieldLayerVisible(event.target.checked)}
           />
-          <span>Show field boundary on map</span>
+          <span>{t('Show field boundary on map')}</span>
         </label>
       </SidebarSection>
 
-      <SidebarSection title="Field details" guideId="field-details-section">
+      <SidebarSection title={t('Field details')} guideId="field-details-section">
         <label className="workspace-field-stack">
-          <span className="workspace-label">Field name</span>
+          <span className="workspace-label">{t('Field name')}</span>
           <input
             type="text"
             value={fieldName}
             onChange={(event) => setFieldName(event.target.value)}
-            placeholder="North Wheat Field"
+            placeholder={t('North Wheat Field')}
             className="workspace-input"
             data-guide="field-name"
             disabled={!canCreateField}
@@ -320,17 +321,17 @@ export default function FieldControlPanel({
           disabled={!canCreateField || !hasUnsavedGeometry || !fieldName.trim() || isSavingField}
           data-guide="save-field"
         >
-          {isSavingField ? 'Saving...' : 'Save field'}
+          {isSavingField ? t('Saving...') : t('Save field')}
         </button>
 
         <p className="workspace-helper-text" style={{ margin: 0 }}>
-          Field name is required before saving.
+          {t('Field name is required before saving.')}
         </p>
       </SidebarSection>
 
-      <SidebarSection title="Satellite data" guideId="satellite-data-section">
+      <SidebarSection title={t('Satellite data')} guideId="satellite-data-section">
         <label className="workspace-field-stack">
-          <span className="workspace-label">Satellite source</span>
+          <span className="workspace-label">{t('Satellite source')}</span>
           <select
             className="workspace-input"
             value={satelliteDataset}
@@ -350,34 +351,39 @@ export default function FieldControlPanel({
           data-guide="fetch-satellite"
         >
           <ImageIcon size={16} />
-          {isFetchingSatelliteData ? 'Fetching...' : 'Fetch satellite data'}
+          {isFetchingSatelliteData ? t('Fetching...') : t('Fetch satellite data')}
         </button>
 
         <p className="workspace-helper-text" style={{ margin: 0 }}>
-          Fetch satellite metadata for the selected analysis period before running analysis.
+          {t('Fetch satellite metadata for the selected analysis period before running analysis.')}
         </p>
 
         {satelliteFetchResult ? (
           <div className="workspace-loaded-card">
-            <strong>{satelliteFetchResult.satellite_source || 'Satellite metadata ready'}</strong>
+            <strong>{satelliteFetchResult.satellite_source || t('Satellite metadata ready')}</strong>
             <p className="workspace-helper-text">
-              Image date: {formatWorkspaceDate(satelliteFetchResult.acquisition_date, 'Not available')}
+              {t('Image date: {date}', {
+                date: formatWorkspaceDate(satelliteFetchResult.acquisition_date, t('Not available'))
+              })}
             </p>
             <p className="workspace-helper-text">
-              Requested period: {formatWorkspaceDate(satelliteFetchResult.start_date)} to {formatWorkspaceDate(satelliteFetchResult.end_date)}
+              {t('Requested period: {start} to {end}', {
+                start: formatWorkspaceDate(satelliteFetchResult.start_date, t('Not available')),
+                end: formatWorkspaceDate(satelliteFetchResult.end_date, t('Not available'))
+              })}
             </p>
           </div>
         ) : null}
 
         {satelliteFetchError ? (
           <div className="workspace-note-card">
-            <strong>Satellite metadata unavailable</strong>
+            <strong>{t('Satellite metadata unavailable')}</strong>
             <p className="workspace-helper-text">{satelliteFetchError}</p>
           </div>
         ) : null}
       </SidebarSection>
 
-      <SidebarSection title="Run analysis" guideId="run-analysis-section">
+      <SidebarSection title={t('Run analysis')} guideId="run-analysis-section">
         <div className="workspace-inline-actions">
           {canViewResults ? (
             <button
@@ -386,7 +392,7 @@ export default function FieldControlPanel({
               onClick={() => onViewResults?.()}
               data-guide="open-report"
             >
-              View results
+              {t('View results')}
             </button>
           ) : null}
 
@@ -398,7 +404,7 @@ export default function FieldControlPanel({
             title={runAnalysisReason || undefined}
             data-guide="run-analysis"
           >
-            {isAnalyzing ? 'Analyzing...' : 'Run analysis'}
+            {isAnalyzing ? t('Analyzing...') : t('Run analysis')}
           </button>
         </div>
 
@@ -408,7 +414,7 @@ export default function FieldControlPanel({
           </p>
         ) : (
           <p className="workspace-helper-text" style={{ margin: 0 }}>
-            Run NDVI, EVI, and model-assisted land-cover classification.
+            {t('Run NDVI, EVI, and model-assisted land-cover classification.')}
           </p>
         )}
       </SidebarSection>

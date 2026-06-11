@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { ArrowLeft, Lock, Mail, UserRound, ShieldCheck } from 'lucide-react';
 import { loginUser, registerUser } from '../api/client';
 import ThemeToggleButton from '../components/common/ThemeToggleButton.jsx';
+import LanguageSwitcher from '../components/common/LanguageSwitcher.jsx';
 import { APP_PAGES } from '../constants/appPages';
+import { getUserRoleLabel, t } from '../i18n.js';
 
 const DEFAULT_LOGIN = {
   email: '',
@@ -15,10 +17,15 @@ const DEFAULT_REGISTER = {
   fullName: '',
   role: 'FARMER'
 };
-
-
-
-export default function AuthPage({ onBack, onLogin, onRegistered, theme, onToggleTheme }) {
+export default function AuthPage({
+  onBack,
+  onLogin,
+  onRegistered,
+  theme,
+  onToggleTheme,
+  locale,
+  onChangeLocale
+}) {
   const [mode, setMode] = useState('login');
   const [loginForm, setLoginForm] = useState(DEFAULT_LOGIN);
   const [registerForm, setRegisterForm] = useState(DEFAULT_REGISTER);
@@ -41,7 +48,7 @@ export default function AuthPage({ onBack, onLogin, onRegistered, theme, onToggl
 
       onLogin(user);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Incorrect email or password.');
+      setError(t(err.response?.data?.detail || 'Incorrect email or password.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -57,7 +64,7 @@ export default function AuthPage({ onBack, onLogin, onRegistered, theme, onToggl
       const createdUser = await registerUser(registerForm);
 
       onRegistered?.(createdUser);
-      setSuccess('Account created successfully. You can now sign in.');
+      setSuccess(t('Account created successfully. You can now sign in.'));
       setMode('login');
       setLoginForm({
         email: createdUser.email || registerForm.email,
@@ -65,7 +72,7 @@ export default function AuthPage({ onBack, onLogin, onRegistered, theme, onToggl
       });
       setRegisterForm(DEFAULT_REGISTER);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Registration failed.');
+      setError(t(err.response?.data?.detail || 'Registration failed.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -77,9 +84,10 @@ export default function AuthPage({ onBack, onLogin, onRegistered, theme, onToggl
         <div className="auth-shell-header">
           <button type="button" className="auth-back" onClick={onBack}>
             <ArrowLeft size={18} />
-            Back to Landing
+            {t('Back to Landing')}
           </button>
 
+          <LanguageSwitcher value={locale} onChange={onChangeLocale} />
           <ThemeToggleButton theme={theme} onToggle={onToggleTheme} />
         </div>
 
@@ -87,14 +95,14 @@ export default function AuthPage({ onBack, onLogin, onRegistered, theme, onToggl
           <div className="auth-card glass-panel">
             <div className="auth-badge">
               <ShieldCheck size={16} />
-              Secure Access
+              {t('Secure Access')}
             </div>
 
-            <h1 className="auth-title">{isLogin ? 'Welcome back' : 'Create your account'}</h1>
+            <h1 className="auth-title">{isLogin ? t('Welcome back') : t('Create your account')}</h1>
             <p className="auth-subtitle">
               {isLogin
-                ? 'Sign in to access your fields, workspace, and analysis results.'
-                : 'Create an account to save fields, run analysis, and manage your farmland monitoring history.'}
+                ? t('Sign in to access your fields, workspace, and analysis results.')
+                : t('Create an account to save fields, run analysis, and manage your farmland monitoring history.')}
             </p>
 
             <div className="auth-tabs">
@@ -107,7 +115,7 @@ export default function AuthPage({ onBack, onLogin, onRegistered, theme, onToggl
                   setSuccess('');
                 }}
               >
-                Sign In
+                {t('Sign In')}
               </button>
               <button
                 type="button"
@@ -118,7 +126,7 @@ export default function AuthPage({ onBack, onLogin, onRegistered, theme, onToggl
                   setSuccess('');
                 }}
               >
-                Register
+                {t('Register')}
               </button>
             </div>
 
@@ -128,7 +136,7 @@ export default function AuthPage({ onBack, onLogin, onRegistered, theme, onToggl
             {isLogin ? (
               <form className="auth-form" onSubmit={handleLoginSubmit}>
                 <label className="auth-label">
-                  Email
+                  {t('Email')}
                   <div className="auth-input">
                     <Mail size={18} />
                     <input
@@ -147,7 +155,7 @@ export default function AuthPage({ onBack, onLogin, onRegistered, theme, onToggl
                 </label>
 
                 <label className="auth-label">
-                  Password
+                  {t('Password')}
                   <div className="auth-input">
                     <Lock size={18} />
                     <input
@@ -159,7 +167,7 @@ export default function AuthPage({ onBack, onLogin, onRegistered, theme, onToggl
                           password: e.target.value
                         }))
                       }
-                      placeholder="Enter password"
+                      placeholder={t('Enter password')}
                       required
                     />
                   </div>
@@ -167,14 +175,14 @@ export default function AuthPage({ onBack, onLogin, onRegistered, theme, onToggl
 
                 <div className="auth-inline-actions">
                   <button type="submit" className="primary-auth-button" disabled={isSubmitting}>
-                    {isSubmitting ? 'Signing in...' : 'Sign In to Dashboard'}
+                    {isSubmitting ? t('Signing in...') : t('Sign In to Dashboard')}
                   </button>
                 </div>
               </form>
             ) : (
               <form className="auth-form" onSubmit={handleRegisterSubmit}>
                 <label className="auth-label">
-                  Full name
+                  {t('Full name')}
                   <div className="auth-input">
                     <UserRound size={18} />
                     <input
@@ -186,14 +194,14 @@ export default function AuthPage({ onBack, onLogin, onRegistered, theme, onToggl
                           fullName: e.target.value
                         }))
                       }
-                      placeholder="Your full name"
+                      placeholder={t('Your full name')}
                       required
                     />
                   </div>
                 </label>
 
                 <label className="auth-label">
-                  Email
+                  {t('Email')}
                   <div className="auth-input">
                     <Mail size={18} />
                     <input
@@ -212,7 +220,7 @@ export default function AuthPage({ onBack, onLogin, onRegistered, theme, onToggl
                 </label>
 
                 <label className="auth-label">
-                  Password
+                  {t('Password')}
                   <div className="auth-input">
                     <Lock size={18} />
                     <input
@@ -224,14 +232,14 @@ export default function AuthPage({ onBack, onLogin, onRegistered, theme, onToggl
                           password: e.target.value
                         }))
                       }
-                      placeholder="Create password"
+                      placeholder={t('Create password')}
                       required
                     />
                   </div>
                 </label>
 
                 <label className="auth-label">
-                  Role
+                  {t('Role')}
                   <select
                     className="auth-select"
                     value={registerForm.role}
@@ -242,14 +250,14 @@ export default function AuthPage({ onBack, onLogin, onRegistered, theme, onToggl
                       }))
                     }
                   >
-                    <option value="FARMER">Farmer</option>
-                    <option value="AGRONOMIST">Agronomist</option>
+                    <option value="FARMER">{getUserRoleLabel('FARMER')}</option>
+                    <option value="AGRONOMIST">{getUserRoleLabel('AGRONOMIST')}</option>
                   </select>
                 </label>
 
                 <div className="auth-inline-actions">
                   <button type="submit" className="primary-auth-button" disabled={isSubmitting}>
-                    {isSubmitting ? 'Creating account...' : 'Create Account'}
+                    {isSubmitting ? t('Creating account...') : t('Create Account')}
                   </button>
                 </div>
               </form>
@@ -257,22 +265,22 @@ export default function AuthPage({ onBack, onLogin, onRegistered, theme, onToggl
           </div>
 
           <div className="auth-info glass-panel">
-            <h2 className="auth-info-title">What you unlock</h2>
+            <h2 className="auth-info-title">{t('What you unlock')}</h2>
 
             <div className="auth-info-list">
               <div className="auth-info-item">
-                <span className="auth-info-kicker">{APP_PAGES.FIELDS}</span>
-                <p>Track saved fields, recent analyses, and key vegetation metrics at a glance.</p>
+                <span className="auth-info-kicker">{t(APP_PAGES.FIELDS)}</span>
+                <p>{t('Track saved fields, recent analyses, and key vegetation metrics at a glance.')}</p>
               </div>
 
               <div className="auth-info-item">
-                <span className="auth-info-kicker">{APP_PAGES.WORKSPACE}</span>
-                <p>Upload boundaries, draw parcels, prepare imagery, and run field analysis.</p>
+                <span className="auth-info-kicker">{t(APP_PAGES.WORKSPACE)}</span>
+                <p>{t('Upload boundaries, draw parcels, prepare imagery, and run field analysis.')}</p>
               </div>
 
               <div className="auth-info-item">
-                <span className="auth-info-kicker">{APP_PAGES.ANALYSIS_RESULTS}</span>
-                <p>Review field condition, land-cover classification, vegetation indicators, and screening priority.</p>
+                <span className="auth-info-kicker">{t(APP_PAGES.ANALYSIS_RESULTS)}</span>
+                <p>{t('Review field condition, land-cover classification, vegetation indicators, and screening priority.')}</p>
               </div>
             </div>
           </div>

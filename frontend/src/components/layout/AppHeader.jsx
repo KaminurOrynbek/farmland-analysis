@@ -1,12 +1,14 @@
 import React from 'react';
 import { APP_PAGES } from '../../constants/appPages';
 import ThemeToggleButton from '../common/ThemeToggleButton.jsx';
+import LanguageSwitcher from '../common/LanguageSwitcher.jsx';
+import { getUserRoleLabel, t } from '../../i18n.js';
 
 const getDisplayName = (user) => {
-  return user?.full_name || user?.name || 'AgroVision User';
+  return user?.full_name || user?.name || t('AgroVision User');
 };
 
-const getInitials = (name = 'AgroVision User') => (
+const getInitials = (name = t('AgroVision User')) => (
   name
     .split(' ')
     .filter(Boolean)
@@ -21,7 +23,9 @@ export default function AppHeader({
   onOpenGuidedTour,
   user,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  locale,
+  onChangeLocale
 }) {
   const displayName = getDisplayName(user);
   const initials = getInitials(displayName);
@@ -43,11 +47,12 @@ export default function AppHeader({
     >
       <div className="app-navbar-right" style={{ alignItems: 'center' }}>
         <strong style={{ color: 'var(--text-primary)', fontSize: '0.95rem' }}>
-          {activePage}
+          {t(activePage)}
         </strong>
       </div>
 
       <div className="app-navbar-right" style={{ alignItems: 'center' }}>
+        <LanguageSwitcher value={locale} onChange={onChangeLocale} />
         <ThemeToggleButton theme={theme} onToggle={onToggleTheme} />
 
         {canOpenGuide ? (
@@ -56,7 +61,7 @@ export default function AppHeader({
             className="secondary-btn app-guide-btn"
             onClick={onOpenGuidedTour}
           >
-            Workflow guide
+            {t('Workflow guide')}
           </button>
         ) : null}
 
@@ -81,7 +86,7 @@ export default function AppHeader({
               {displayName}
             </strong>
             <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem' }}>
-              {user?.role || 'FARMER'}
+              {getUserRoleLabel(user?.role)}
             </span>
           </div>
         </button>

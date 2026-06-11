@@ -1,9 +1,14 @@
+import { formatNumber, t } from '../i18n.js';
+
 export const formatIndex = (value) => {
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
     return '—';
   }
 
-  return Number(value).toFixed(2);
+  return formatNumber(value, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
 };
 
 const toSafeNumber = (value) => {
@@ -23,10 +28,10 @@ export const formatAreaMeasure = (hectares) => {
   }
 
   if (numeric < 1) {
-    return `${Math.round(numeric * 10000).toLocaleString()} m²`;
+    return `${formatNumber(Math.round(numeric * 10000), { maximumFractionDigits: 0 })} m²`;
   }
 
-  return `${numeric.toLocaleString(undefined, {
+  return `${formatNumber(numeric, {
     minimumFractionDigits: numeric >= 10 ? 1 : 2,
     maximumFractionDigits: numeric >= 10 ? 1 : 2
   })} ha`;
@@ -35,31 +40,31 @@ export const formatAreaMeasure = (hectares) => {
 const getWeakVegetationSeverity = (percentage) => {
   if (percentage <= 0) {
     return {
-      label: 'Clear coverage',
-      description: 'No weak vegetation detected',
+      label: t('Clear coverage'),
+      description: t('No weak vegetation detected'),
       tone: 'healthy'
     };
   }
 
   if (percentage < 5) {
     return {
-      label: 'Localized patches',
-      description: 'Small isolated weak patches detected',
+      label: t('Localized patches'),
+      description: t('Small isolated weak patches detected'),
       tone: 'warning'
     };
   }
 
   if (percentage < 15) {
     return {
-      label: 'Moderate spread',
-      description: 'Weak vegetation is present in several areas',
+      label: t('Moderate spread'),
+      description: t('Weak vegetation is present in several areas'),
       tone: 'warning'
     };
   }
 
   return {
-    label: 'Wide coverage',
-    description: 'A large part of the field shows weak vegetation',
+    label: t('Wide coverage'),
+    description: t('A large part of the field shows weak vegetation'),
     tone: 'critical'
   };
 };
@@ -71,17 +76,21 @@ export const getWeakVegetationMetric = (analysisResults) => {
   const estimatedAreaHectares =
     analyzedAreaHectares > 0 ? (analyzedAreaHectares * percentage) / 100 : null;
   const severity = getWeakVegetationSeverity(percentage);
-  const detectionText = `${detections.toLocaleString()} low-vegetation detections`;
+  const detectionText = t('{count} low-vegetation detections', {
+    count: formatNumber(detections, { maximumFractionDigits: 0 })
+  });
 
   const value =
     estimatedAreaHectares === null
-      ? `${detections.toLocaleString()} detections`
+      ? t('{count} detections', {
+          count: formatNumber(detections, { maximumFractionDigits: 0 })
+        })
       : formatAreaMeasure(estimatedAreaHectares);
 
   if (percentage <= 0 || detections === 0) {
     return {
       value: estimatedAreaHectares === null ? '0 m²' : value,
-      subtitle: 'No weak vegetation detected in the latest analysis.',
+      subtitle: t('No weak vegetation detected in the latest analysis.'),
       percentage,
       detections,
       estimatedAreaHectares,
@@ -89,7 +98,12 @@ export const getWeakVegetationMetric = (analysisResults) => {
     };
   }
 
-  const shareText = `${percentage.toFixed(1)}% of the field`;
+  const shareText = t('{percentage}% of the field', {
+    percentage: formatNumber(percentage, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1
+    })
+  });
 
   return {
     value,

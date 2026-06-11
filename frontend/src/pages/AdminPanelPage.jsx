@@ -13,6 +13,7 @@ import {
   fetchAdminUsers,
   updateAdminUser
 } from '../api/client';
+import { getUserRoleLabel, t } from '../i18n.js';
 
 const ROLES = ['FARMER', 'AGRONOMIST', 'ADMIN'];
 const TABS = ['Users', 'Audit Logs'];
@@ -57,7 +58,7 @@ export default function AdminPanelPage({ refreshKey }) {
     );
 
     if (firstRejected?.status === 'rejected') {
-      setError(firstRejected.reason?.response?.data?.detail || 'Failed to load admin data.');
+      setError(t(firstRejected.reason?.response?.data?.detail || 'Failed to load admin data.'));
     }
 
     setIsLoading(false);
@@ -72,7 +73,9 @@ export default function AdminPanelPage({ refreshKey }) {
   }, [loadAdminData, refreshKey]);
 
   const handleDeleteUser = async (user) => {
-    const confirmed = window.confirm('Deactivate this user account? The account will be kept in the system but disabled.');
+    const confirmed = window.confirm(
+      t('Deactivate this user account? The account will be kept in the system but disabled.')
+    );
     if (!confirmed) {
       return;
     }
@@ -84,7 +87,7 @@ export default function AdminPanelPage({ refreshKey }) {
       await deactivateAdminUser(user);
       await loadAdminData();
     } catch (requestError) {
-      setError(requestError.response?.data?.detail || 'Failed to deactivate user.');
+      setError(t(requestError.response?.data?.detail || 'Failed to deactivate user.'));
     } finally {
       setDeletingUserId(null);
     }
@@ -109,7 +112,7 @@ export default function AdminPanelPage({ refreshKey }) {
       });
       await loadAdminData();
     } catch (requestError) {
-      setError(requestError.response?.data?.detail || 'Failed to change role.');
+      setError(t(requestError.response?.data?.detail || 'Failed to change role.'));
     } finally {
       setSavingUserId(null);
     }
@@ -132,19 +135,19 @@ export default function AdminPanelPage({ refreshKey }) {
     <div className="content-page">
       <section className="page-hero glass-panel">
         <div>
-          <div className="page-kicker">Admin Panel</div>
+          <div className="page-kicker">{t('Admin Panel')}</div>
           <h1 className="page-title" style={{ fontSize: '1.75rem' }}>
-            Platform Operations
+            {t('Platform Operations')}
           </h1>
           <p className="page-subtitle">
-            Manage user accounts, assign roles, and review administrative activity.
+            {t('Manage user accounts, assign roles, and review administrative activity.')}
           </p>
         </div>
 
         <div className="page-hero-actions">
           <button type="button" className="secondary-btn" onClick={() => void loadAdminData()}>
             <RefreshCw size={16} />
-            Refresh
+            {t('Refresh')}
           </button>
 
           <button
@@ -153,7 +156,7 @@ export default function AdminPanelPage({ refreshKey }) {
             onClick={() => setCreatingUser(true)}
           >
             <UserPlus size={16} />
-            Create User
+            {t('Create User')}
           </button>
         </div>
       </section>
@@ -167,16 +170,16 @@ export default function AdminPanelPage({ refreshKey }) {
       <section className="section-card glass-panel">
         <div className="section-card-header">
           <div>
-            <div className="section-kicker">Admin Panel</div>
-            <h2>Switch between users and audit history</h2>
+            <div className="section-kicker">{t('Admin Panel')}</div>
+            <h2>{t('Switch between users and audit history')}</h2>
           </div>
 
           <span className="status-pill neutral">
             {isLoading
-              ? 'Refreshing…'
+              ? t('Refreshing...')
               : activeTab === 'Audit Logs'
-                ? `${auditLogs.length} logs`
-                : `${users.length} users`}
+                ? t('{count} logs', { count: auditLogs.length })
+                : t('{count} users', { count: users.length })}
           </span>
         </div>
 
@@ -191,7 +194,7 @@ export default function AdminPanelPage({ refreshKey }) {
                 ...(activeTab === tab ? activeTabButtonStyle : null)
               }}
             >
-              {tab}
+              {t(tab)}
             </button>
           ))}
         </div>
@@ -201,12 +204,12 @@ export default function AdminPanelPage({ refreshKey }) {
         <section className="section-card glass-panel">
           <div className="section-card-header">
             <div>
-              <div className="section-kicker">Users</div>
-              <h2>Registered accounts</h2>
+              <div className="section-kicker">{t('Users')}</div>
+              <h2>{t('Registered accounts')}</h2>
             </div>
 
             <span className="status-pill neutral">
-              {isLoading ? 'Loading...' : `${users.length} users`}
+              {isLoading ? t('Loading...') : t('{count} users', { count: users.length })}
             </span>
           </div>
 
@@ -214,12 +217,12 @@ export default function AdminPanelPage({ refreshKey }) {
             <table style={tableStyle}>
               <thead>
                 <tr style={{ color: 'var(--text-secondary)', textAlign: 'left' }}>
-                  <th style={thStyle}>User</th>
-                  <th style={thStyle}>Email</th>
-                  <th style={thStyle}>Role</th>
-                  <th style={thStyle}>Created</th>
-                  <th style={thStyle}>Actions</th>
-                  <th style={thStyle}>Status</th>
+                  <th style={thStyle}>{t('User')}</th>
+                  <th style={thStyle}>{t('Email')}</th>
+                  <th style={thStyle}>{t('Role')}</th>
+                  <th style={thStyle}>{t('Created')}</th>
+                  <th style={thStyle}>{t('Actions')}</th>
+                  <th style={thStyle}>{t('Status')}</th>
                 </tr>
               </thead>
 
@@ -238,7 +241,7 @@ export default function AdminPanelPage({ refreshKey }) {
                           </div>
 
                           <div>
-                            <strong>{user.full_name || 'Unnamed user'}</strong>
+                            <strong>{user.full_name || t('Unnamed user')}</strong>
                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
                               ID: {user.id}
                             </div>
@@ -261,7 +264,7 @@ export default function AdminPanelPage({ refreshKey }) {
                           >
                             {ROLES.map((role) => (
                               <option key={role} value={role}>
-                                {role}
+                                {getUserRoleLabel(role)}
                               </option>
                             ))}
                           </select>
@@ -273,7 +276,7 @@ export default function AdminPanelPage({ refreshKey }) {
                             disabled={isSaving || !roleChanged}
                             onClick={() => void handleSaveRole(user)}
                           >
-                            Change role
+                            {t('Change role')}
                           </button>
                         </div>
                       </td>
@@ -284,7 +287,7 @@ export default function AdminPanelPage({ refreshKey }) {
 
                       <td style={tdStyle}>
                         <span className={`status-pill ${user.is_active ? 'healthy' : 'warning'}`}>
-                          {user.is_active ? 'Active' : 'Inactive'}
+                          {user.is_active ? t('Active') : t('Inactive')}
                         </span>
                       </td>
 
@@ -302,7 +305,7 @@ export default function AdminPanelPage({ refreshKey }) {
                             }}
                           >
                             <Ban size={15} />
-                            {user.is_active ? 'Deactivate' : 'Inactive'}
+                            {user.is_active ? t('Deactivate') : t('Inactive')}
                           </button>
                         </div>
                       </td>
@@ -313,7 +316,7 @@ export default function AdminPanelPage({ refreshKey }) {
                 {!isLoading && users.length === 0 && (
                   <tr>
                     <td colSpan="6" style={emptyStyle}>
-                      No users found.
+                      {t('No users found.')}
                     </td>
                   </tr>
                 )}
@@ -327,28 +330,28 @@ export default function AdminPanelPage({ refreshKey }) {
         <section className="section-card glass-panel">
           <div className="section-card-header">
             <div>
-              <div className="section-kicker">Audit Logs</div>
-              <h2>Recent administrative activity</h2>
+              <div className="section-kicker">{t('Audit Logs')}</div>
+              <h2>{t('Recent administrative activity')}</h2>
             </div>
 
             <span className="status-pill neutral">
               <ClipboardList size={14} />
-              {isLoading ? 'Loading...' : `${auditLogs.length} logs`}
+              {isLoading ? t('Loading...') : t('{count} logs', { count: auditLogs.length })}
             </span>
           </div>
 
           {auditLogs.length === 0 && !isLoading ? (
-            <div className="empty-state">No audit logs available yet.</div>
+            <div className="empty-state">{t('No audit logs available yet.')}</div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={tableStyle}>
                 <thead>
                   <tr style={{ color: 'var(--text-secondary)', textAlign: 'left' }}>
-                    <th style={thStyle}>Action</th>
-                    <th style={thStyle}>Entity</th>
-                    <th style={thStyle}>User ID</th>
-                    <th style={thStyle}>Entity ID</th>
-                    <th style={thStyle}>Created</th>
+                    <th style={thStyle}>{t('Action')}</th>
+                    <th style={thStyle}>{t('Entity')}</th>
+                    <th style={thStyle}>{t('User ID')}</th>
+                    <th style={thStyle}>{t('Entity ID')}</th>
+                    <th style={thStyle}>{t('Created')}</th>
                   </tr>
                 </thead>
 
@@ -368,7 +371,7 @@ export default function AdminPanelPage({ refreshKey }) {
                   {isLoading && (
                     <tr>
                       <td colSpan="5" style={emptyStyle}>
-                        Loading audit logs...
+                        {t('Loading audit logs...')}
                       </td>
                     </tr>
                   )}
@@ -430,7 +433,7 @@ function CreateUserModal({ onClose, onCreated, setError }) {
 
       onCreated();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to create user.');
+      setError(t(err.response?.data?.detail || 'Failed to create user.'));
     } finally {
       setSaving(false);
     }
@@ -439,9 +442,9 @@ function CreateUserModal({ onClose, onCreated, setError }) {
   return (
     <div style={modalOverlayStyle}>
       <form className="glass-panel" style={modalStyle} onSubmit={saving ? undefined : handleSubmit}>
-        <h2 style={{ marginBottom: '16px' }}>Create User</h2>
+        <h2 style={{ marginBottom: '16px' }}>{t('Create User')}</h2>
 
-        <label style={labelStyle}>Full name</label>
+        <label style={labelStyle}>{t('Full name')}</label>
         <input
           style={inputStyle}
           value={form.fullName}
@@ -449,7 +452,7 @@ function CreateUserModal({ onClose, onCreated, setError }) {
           required
         />
 
-        <label style={labelStyle}>Email</label>
+        <label style={labelStyle}>{t('Email')}</label>
         <input
           style={inputStyle}
           type="email"
@@ -458,7 +461,7 @@ function CreateUserModal({ onClose, onCreated, setError }) {
           required
         />
 
-        <label style={labelStyle}>Password</label>
+        <label style={labelStyle}>{t('Password')}</label>
         <input
           style={inputStyle}
           type="password"
@@ -468,7 +471,7 @@ function CreateUserModal({ onClose, onCreated, setError }) {
           minLength={6}
         />
 
-        <label style={labelStyle}>Role</label>
+        <label style={labelStyle}>{t('Role')}</label>
         <select
           style={inputStyle}
           value={form.role}
@@ -476,18 +479,18 @@ function CreateUserModal({ onClose, onCreated, setError }) {
         >
           {ROLES.map((role) => (
             <option key={role} value={role}>
-              {role}
+              {getUserRoleLabel(role)}
             </option>
           ))}
         </select>
 
         <div style={modalActionsStyle}>
           <button type="button" className="secondary-btn" onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </button>
 
           <button type="submit" className="primary-btn" disabled={saving}>
-            {saving ? 'Creating...' : 'Create user'}
+            {saving ? t('Creating...') : t('Create user')}
           </button>
         </div>
       </form>

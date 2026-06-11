@@ -1,4 +1,5 @@
 import React from 'react';
+import { t } from '../../i18n.js';
 
 const clampPage = (currentPage, totalPages) => (
   Math.min(Math.max(Number(currentPage) || 1, 1), totalPages)
@@ -23,7 +24,12 @@ export default function PaginationControls({
   return (
     <div style={paginationShellStyle}>
       <span className="workspace-helper-text" style={summaryStyle}>
-        {`Showing ${startItem}\u2013${endItem} of ${totalItems} ${itemLabel}`}
+        {t('Showing {start}-{end} of {total} {itemLabel}', {
+          start: startItem,
+          end: endItem,
+          total: totalItems,
+          itemLabel: t(itemLabel)
+        })}
       </span>
 
       <div style={controlsStyle}>
@@ -33,10 +39,15 @@ export default function PaginationControls({
           onClick={() => onPageChange(safeCurrentPage - 1)}
           disabled={safeCurrentPage === 1}
         >
-          Previous
+          {t('Previous')}
         </button>
 
-        <span style={pageLabelStyle}>{`Page ${safeCurrentPage} of ${totalPages}`}</span>
+        <span style={pageLabelStyle}>
+          {t('Page {current} of {total}', {
+            current: safeCurrentPage,
+            total: totalPages
+          })}
+        </span>
 
         <button
           type="button"
@@ -44,7 +55,7 @@ export default function PaginationControls({
           onClick={() => onPageChange(safeCurrentPage + 1)}
           disabled={safeCurrentPage === totalPages}
         >
-          Next
+          {t('Next')}
         </button>
       </div>
     </div>

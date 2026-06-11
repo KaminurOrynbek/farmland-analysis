@@ -18,6 +18,7 @@ import { computeBboxFromGeoJson } from '../../utils/geoUtils';
 import { getFeatureIdentity } from '../../utils/fieldIdentity';
 import { getRiskColor } from '../../utils/fieldAnalysisUtils';
 import MapLegend from './FieldMapLegend';
+import { getRiskLabel, t } from '../../i18n.js';
 
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -64,18 +65,18 @@ const DEMO_STRESS_ZONES = [
 
 const getPriorityLabel = (riskLevel) => {
   if (riskLevel === 'Low') {
-    return 'Low priority';
+    return t('Low priority');
   }
 
   if (riskLevel === 'Medium') {
-    return 'Medium priority';
+    return t('Medium priority');
   }
 
   if (riskLevel === 'High' || riskLevel === 'Critical') {
-    return 'High priority';
+    return t('High priority');
   }
 
-  return 'Not analyzed';
+  return t('Not analyzed');
 };
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -495,10 +496,10 @@ function GeomanDrawControl({ onDrawn }) {
 
         onDrawn?.({
           type: 'FeatureCollection',
-          features: [
+              features: [
             {
               type: 'Feature',
-              properties: { name: 'Manual drawing' },
+              properties: { name: t('Manual drawing') },
               geometry: geojson.geometry
             }
           ]
@@ -631,12 +632,12 @@ export default function FieldMap({
     const popupName =
       feature?.properties?.name ||
       feature?.properties?.field_id ||
-      'Selected field';
+      t('Selected field');
 
     layer.bindPopup(`
       <div style="min-width:180px">
         <strong>${popupName}</strong><br />
-        Inspection priority: ${mapStatusLabel}
+        ${t('Inspection priority')}: ${mapStatusLabel}
       </div>
     `);
   };
@@ -724,9 +725,9 @@ export default function FieldMap({
             >
               <Popup>
                 <div>
-                  <strong>{field.name}</strong>
+                  <strong>{t(field.name)}</strong>
                   <br />
-                  Demo status: {field.risk}
+                  {t('Status')}: {getRiskLabel(field.risk)}
                 </div>
               </Popup>
             </Polygon>
@@ -752,11 +753,11 @@ export default function FieldMap({
       {showInfoCard ? (
         <div className="map-info-card glass-panel">
           <div>
-            <strong>{fieldName || 'Field workspace map'}</strong>
+            <strong>{fieldName || t('Field workspace map')}</strong>
             <p className="workspace-helper-text">
               {hasStoredAnalysis
-                ? `Inspection priority: ${mapStatusLabel}`
-                : 'Gray boundaries mean the field has not been analyzed yet.'}
+                ? t('Inspection priority') + `: ${mapStatusLabel}`
+                : t('Gray boundaries mean the field has not been analyzed yet.')}
             </p>
           </div>
           <span className="status-pill neutral">
@@ -769,7 +770,7 @@ export default function FieldMap({
 
       {!backendHealthy && showBackendBanner ? (
         <div className="map-demo-banner glass-panel">
-          Backend is offline. Demo polygons remain available until live field data is loaded.
+          {t('Backend is offline. Demo polygons remain available until live field data is loaded.')}
         </div>
       ) : null}
     </div>

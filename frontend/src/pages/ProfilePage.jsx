@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Mail, UserRound, Save, X, Edit3 } from 'lucide-react';
 import { updateCurrentUser } from '../api/client';
+import { getUserRoleLabel, t } from '../i18n.js';
 
 export default function SettingsPage({ user, onUpdateUser }) {
-  const displayName = user?.full_name || user?.name || 'AgroVision User';
+  const displayName = user?.full_name || user?.name || t('AgroVision User');
   const displayEmail = user?.email || 'farmer@agrovision.ai';
   const displayRole = user?.role || 'FARMER';
 
@@ -24,7 +25,7 @@ export default function SettingsPage({ user, onUpdateUser }) {
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
-      alert('Full name cannot be empty.');
+      alert(t('Full name cannot be empty.'));
       return;
     }
 
@@ -46,7 +47,7 @@ export default function SettingsPage({ user, onUpdateUser }) {
         email: updatedUser.email || ''
       });
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to update profile.');
+      alert(t(err.response?.data?.detail || 'Failed to update profile.'));
     } finally {
       setIsSaving(false);
     }
@@ -75,7 +76,7 @@ export default function SettingsPage({ user, onUpdateUser }) {
             marginBottom: '8px'
           }}
         >
-          Settings
+          {t('Settings')}
         </p>
 
         <h1
@@ -85,7 +86,7 @@ export default function SettingsPage({ user, onUpdateUser }) {
             fontSize: '1.75rem'
           }}
         >
-          Settings
+          {t('Settings')}
         </h1>
 
         <p
@@ -95,7 +96,7 @@ export default function SettingsPage({ user, onUpdateUser }) {
             fontSize: '0.9rem'
           }}
         >
-          Manage your personal information and account details.
+          {t('Manage your personal information and account details.')}
         </p>
       </div>
 
@@ -136,7 +137,7 @@ export default function SettingsPage({ user, onUpdateUser }) {
               {isEditing ? formData.name : displayName}
             </h2>
             <span className="status-pill neutral" style={{ textTransform: 'capitalize' }}>
-              {displayRole.toLowerCase()}
+              {getUserRoleLabel(displayRole).toLowerCase()}
             </span>
           </div>
         </div>
@@ -145,7 +146,7 @@ export default function SettingsPage({ user, onUpdateUser }) {
           <div>
             <label style={labelStyle}>
               <UserRound size={15} />
-              Full name
+              {t('Full name')}
             </label>
 
             {isEditing ? (
@@ -162,7 +163,7 @@ export default function SettingsPage({ user, onUpdateUser }) {
           <div>
             <label style={labelStyle}>
               <Mail size={15} />
-              Email address
+              {t('Email address')}
             </label>
 
             {isEditing ? (
@@ -183,12 +184,12 @@ export default function SettingsPage({ user, onUpdateUser }) {
             <>
               <button className="primary-btn" onClick={handleSave} disabled={isSaving}>
                 <Save size={16} />
-                {isSaving ? 'Saving...' : 'Save'}
+                {isSaving ? t('Saving...') : t('Save')}
               </button>
 
               <button className="secondary-btn" onClick={handleCancel} disabled={isSaving}>
                 <X size={16} />
-                Cancel
+                {t('Cancel')}
               </button>
             </>
           ) : (
@@ -203,7 +204,7 @@ export default function SettingsPage({ user, onUpdateUser }) {
               }}
             >
               <Edit3 size={16} />
-              Edit profile
+              {t('Edit profile')}
             </button>
           )}
         </div>

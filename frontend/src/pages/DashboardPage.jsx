@@ -13,17 +13,23 @@ import {
   fetchAnalysisHistory
 } from '../api/client';
 import { APP_PAGES } from '../constants/appPages';
+import {
+  formatDateTime as formatLocalizedDateTime,
+  getIntlLocale,
+  getRiskLabel,
+  t
+} from '../i18n.js';
 
 const formatDateTime = (value) => {
   if (!value) {
-    return 'No recent activity';
+    return t('No recent activity');
   }
 
-  return new Date(value).toLocaleString();
+  return formatLocalizedDateTime(value, t('Not available'));
 };
 
 const formatWeekday = (value) => (
-  new Date(value).toLocaleDateString(undefined, { weekday: 'short' })
+  new Date(value).toLocaleDateString(getIntlLocale(), { weekday: 'short' })
 );
 
 const getFieldList = (response) => response?.data || [];
@@ -94,7 +100,7 @@ const TrendChartCard = ({ kicker, title, helper, icon, series = [] }) => {
       className="dashboard-chart-card"
     >
       {series.length === 0 ? (
-        <div className="empty-state compact">No activity yet.</div>
+        <div className="empty-state compact">{t('No activity yet.')}</div>
       ) : (
         <div className="dashboard-trend-chart">
           {series.map((item) => {
@@ -172,7 +178,7 @@ export default function DashboardPage({
       );
 
       if (firstRejected?.status === 'rejected') {
-        setError(firstRejected.reason?.response?.data?.detail || 'Some dashboard data could not be loaded.');
+        setError(t(firstRejected.reason?.response?.data?.detail || 'Some dashboard data could not be loaded.'));
       }
 
       setLoading(false);
@@ -224,30 +230,36 @@ export default function DashboardPage({
 
   const summaryCards = [
     {
-      label: 'System Users',
+      label: t('System Users'),
       value: loading ? '...' : adminStats?.summary?.users ?? 0,
-      helper: `${sumSeries(weeklyStats.user_registrations)} registered in the last 7 days`,
+      helper: t('{count} registered in the last 7 days', {
+        count: sumSeries(weeklyStats.user_registrations)
+      }),
       icon: <Users />,
       tone: 'var(--accent-color)'
     },
     {
-      label: 'Fields Created',
+      label: t('Fields Created'),
       value: loading ? '...' : adminStats?.summary?.fields ?? fields.length,
-      helper: `${sumSeries(weeklyStats.field_creations)} created in the last 7 days`,
+      helper: t('{count} created in the last 7 days', {
+        count: sumSeries(weeklyStats.field_creations)
+      }),
       icon: <Database />,
       tone: 'var(--status-healthy)'
     },
     {
-      label: 'Analyses Run',
+      label: t('Analyses Run'),
       value: loading ? '...' : adminStats?.summary?.analyses ?? history.length,
-      helper: `${sumSeries(weeklyStats.analysis_runs)} launched this week`,
+      helper: t('{count} launched this week', {
+        count: sumSeries(weeklyStats.analysis_runs)
+      }),
       icon: <BarChart3 />,
       tone: '#8b5cf6'
     },
     {
-      label: 'Priority Fields',
+      label: t('Priority Fields'),
       value: loading ? '...' : derivedData.priorityFieldCount,
-      helper: 'Latest analyses marked High or Critical',
+      helper: t('Latest analyses marked High or Critical'),
       icon: <AlertTriangle />,
       tone: 'var(--status-critical)'
     }
@@ -259,17 +271,19 @@ export default function DashboardPage({
 
       <section className="page-hero glass-panel dashboard-hero">
         <div className="dashboard-hero-copy">
-          <div className="page-kicker">SYSTEM DASHBOARD</div>
-          <h1 className="page-title">{`Welcome back, ${user?.full_name || user?.name || 'Admin'}`}</h1>
+          <div className="page-kicker">{t('SYSTEM DASHBOARD')}</div>
+          <h1 className="page-title">
+            {t('Welcome back, {name}', { name: user?.full_name || user?.name || t('Admin') })}
+          </h1>
           <p className="page-subtitle">
-            Review platform activity and the analysis pipeline.
+            {t('Review platform activity and the analysis pipeline.')}
           </p>
         </div>
 
         <div className="dashboard-hero-side">
           <div className="dashboard-hero-activity-card">
             <div>
-              <span className="dashboard-hero-status-label">Latest analysis</span>
+              <span className="dashboard-hero-status-label">{t('Latest analysis')}</span>
               <strong>{formatDateTime(latestPlatformDate)}</strong>
             </div>
             <Clock3 size={18} color="var(--text-secondary)" />
@@ -281,14 +295,14 @@ export default function DashboardPage({
               className="primary-btn"
               onClick={() => onNavigate(APP_PAGES.ADMIN_PANEL)}
             >
-              Open Admin Panel
+              {t('Open Admin Panel')}
             </button>
             <button
               type="button"
               className="secondary-btn"
               onClick={() => onNavigate(APP_PAGES.FIELDS)}
             >
-              Review fields
+              {t('Review fields')}
             </button>
           </div>
         </div>
@@ -308,25 +322,25 @@ export default function DashboardPage({
 
       <section className="dashboard-analytics-grid dashboard-chart-grid">
         <TrendChartCard
-          kicker="Fields"
-          title="Fields created over last 7 days"
-          helper="Daily field creation volume across the platform."
+          kicker={t('Fields')}
+          title={t('Fields created over last 7 days')}
+          helper={t('Daily field creation volume across the platform.')}
           icon={<Database size={18} color="var(--accent-color)" />}
           series={weeklyStats.field_creations}
         />
 
         <TrendChartCard
-          kicker="Pipeline"
-          title="Analyses launched this week"
-          helper="New analysis jobs started by day."
+          kicker={t('Pipeline')}
+          title={t('Analyses launched this week')}
+          helper={t('New analysis jobs started by day.')}
           icon={<BarChart3 size={18} color="#8b5cf6" />}
           series={weeklyStats.analysis_runs}
         />
 
         <TrendChartCard
-          kicker="Users"
-          title="Registrations in the last 7 days"
-          helper="New accounts created each day."
+          kicker={t('Users')}
+          title={t('Registrations in the last 7 days')}
+          helper={t('New accounts created each day.')}
           icon={<Users size={18} color="var(--status-healthy)" />}
           series={weeklyStats.user_registrations}
         />
@@ -336,27 +350,27 @@ export default function DashboardPage({
         <div className="section-card glass-panel dashboard-section-card">
           <div className="dashboard-section-header">
             <div className="dashboard-section-heading">
-              <div className="section-kicker">Attention Queue</div>
-              <h2>Fields with High/Critical inspection priority</h2>
+              <div className="section-kicker">{t('Attention Queue')}</div>
+              <h2>{t('Fields with High/Critical inspection priority')}</h2>
             </div>
             <AlertTriangle size={18} color="var(--status-critical)" />
           </div>
 
           {derivedData.attentionQueue.length === 0 ? (
             <div className="empty-state">
-              No fields are currently marked High or Critical.
+              {t('No fields are currently marked High or Critical.')}
             </div>
           ) : (
             <div className="dashboard-list">
               {derivedData.attentionQueue.map((item) => {
-                const fieldName = item.field_name || item.field?.name || 'Unnamed field';
+                const fieldName = item.field_name || item.field?.name || t('Unnamed field');
 
                 return (
                   <div key={item.analysis_id || fieldName} className="dashboard-list-row">
                     <div className="dashboard-list-copy">
                       <strong>{fieldName}</strong>
                       <p>
-                        {item.crop_type || 'Unknown crop'} · NDVI{' '}
+                        {item.crop_type || t('Unknown crop')} · NDVI{' '}
                         {item.ndvi_value !== null && item.ndvi_value !== undefined
                           ? Number(item.ndvi_value).toFixed(3)
                           : '—'}{' '}
@@ -364,7 +378,7 @@ export default function DashboardPage({
                       </p>
                     </div>
                     <span className={`status-pill ${getRiskTone(item.risk_level)}`}>
-                      {item.risk_level}
+                      {getRiskLabel(item.risk_level)}
                     </span>
                   </div>
                 );
@@ -376,24 +390,24 @@ export default function DashboardPage({
         <div className="section-card glass-panel dashboard-section-card">
           <div className="dashboard-section-header">
             <div className="dashboard-section-heading">
-              <div className="section-kicker">Latest Analyses</div>
-              <h2>Latest completed analyses</h2>
+              <div className="section-kicker">{t('Latest Analyses')}</div>
+              <h2>{t('Latest completed analyses')}</h2>
             </div>
             <Clock3 size={18} color="var(--text-secondary)" />
           </div>
 
           {derivedData.recentHistory.length === 0 ? (
             <div className="empty-state">
-              No completed analyses yet.
+              {t('No completed analyses yet.')}
             </div>
           ) : (
             <div className="dashboard-list">
               {derivedData.recentHistory.map((item) => (
                 <div key={item.analysis_id} className="dashboard-list-row">
                   <div className="dashboard-list-copy">
-                    <strong>{item.field_name || 'Unnamed field'}</strong>
+                    <strong>{item.field_name || t('Unnamed field')}</strong>
                     <p>
-                      {item.crop_type || 'Unknown crop'} · {item.risk_level || 'Unknown risk'}{' '}
+                      {item.crop_type || t('Unknown crop')} · {getRiskLabel(item.risk_level) || t('Unknown risk')}{' '}
                       · {formatDateTime(item.analysis_date)}
                     </p>
                   </div>

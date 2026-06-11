@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { t } from '../../i18n.js';
 
 const steps = [
   {
-    title: 'Step 1 — Season',
+    title: 'Step 1 - Season',
     text: 'Start here. Open the Period dropdown and choose the current season, previous season, or a custom date range. If you choose custom dates, set the start and end date below.',
     targetGroups: [
       ['[data-guide="season-mode-select"]'],
@@ -12,14 +13,14 @@ const steps = [
     button: 'OK, next'
   },
   {
-    title: 'Step 2 — Upload boundary',
+    title: 'Step 2 - Upload boundary',
     text: 'If you already have a field file, click Upload GeoJSON here and choose a .geojson or .json boundary.',
     targetGroups: [['[data-guide="upload-geojson"]']],
     placement: 'right',
     button: 'OK, next'
   },
   {
-    title: 'Step 3 — Draw boundary',
+    title: 'Step 3 - Draw boundary',
     text: 'Click the Draw on map button in the sidebar. Then use the polygon or rectangle tools on the map to create a field boundary.',
     target: '[data-guide="draw-on-map-button"]',
     targetGroups: [
@@ -29,7 +30,7 @@ const steps = [
     button: 'OK, next'
   },
   {
-    title: 'Step 4 — Field details',
+    title: 'Step 4 - Field details',
     text: 'Give the field a name, then save it. Uploaded boundaries are saved here, while drawn boundaries ask for the name right after drawing.',
     targetGroups: [
       ['[data-guide="field-name"]', '[data-guide="save-field"]'],
@@ -40,7 +41,7 @@ const steps = [
     forceScroll: true
   },
   {
-    title: 'Step 5 — Satellite data',
+    title: 'Step 5 - Satellite data',
     text: 'Fetch satellite metadata for the selected field and analysis period before running analysis.',
     targetGroups: [
       ['[data-guide="satellite-source"]', '[data-guide="fetch-satellite"]'],
@@ -52,7 +53,7 @@ const steps = [
     forceScroll: true
   },
   {
-    title: 'Step 6 — Run analysis',
+    title: 'Step 6 - Run analysis',
     text: 'Run the analysis after the field is saved and satellite metadata is ready.',
     targetGroups: [
       ['[data-guide="run-analysis"]'],
@@ -62,14 +63,14 @@ const steps = [
     button: 'OK, next'
   },
   {
-    title: 'Step 7 — Selected field',
+    title: 'Step 7 - Selected field',
     text: 'Use the main map panel to confirm which field is selected and whether the current boundary is saved or still in progress.',
     targetGroups: [['[data-guide="selected-field-section"]']],
     placement: 'right',
     button: 'OK, next'
   },
   {
-    title: 'Step 8 — View results',
+    title: 'Step 8 - View results',
     text: 'When a field result is ready, use View results here to open the dedicated analysis report page.',
     targetGroups: [
       ['[data-guide="open-report"]'],
@@ -371,7 +372,7 @@ export default function GuidedTour({ activePage, isOpen, onClose }) {
             marginBottom: '8px'
           }}
         >
-          Guided workflow {stepIndex + 1}/{steps.length}
+          {t('Workflow')} {stepIndex + 1}/{steps.length}
         </div>
 
         <h3
@@ -380,7 +381,7 @@ export default function GuidedTour({ activePage, isOpen, onClose }) {
             fontSize: '1rem'
           }}
         >
-          {step.title}
+          {t(step.title)}
         </h3>
 
         <p
@@ -391,7 +392,7 @@ export default function GuidedTour({ activePage, isOpen, onClose }) {
             lineHeight: 1.6
           }}
         >
-          {step.text}
+          {t(step.text)}
         </p>
 
         <div
@@ -436,7 +437,7 @@ export default function GuidedTour({ activePage, isOpen, onClose }) {
               cursor: 'pointer'
             }}
           >
-            Skip
+            {t('Cancel')}
           </button>
 
           <button
@@ -451,7 +452,7 @@ export default function GuidedTour({ activePage, isOpen, onClose }) {
               cursor: 'pointer'
             }}
           >
-            {step.button}
+            {t(step.button)}
           </button>
         </div>
 
